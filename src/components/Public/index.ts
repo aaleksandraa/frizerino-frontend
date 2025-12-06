@@ -1,0 +1,13 @@
+export { PublicSearch } from './PublicSearch';
+export { CityPage } from './CityPage';
+export { PublicSalonPage } from './PublicSalonPage';
+export { GuestBookingModal } from './GuestBookingModal';
+export { PublicNavbar } from './PublicNavbar';
+export { PublicFooter } from './PublicFooter';
+export { ContactPage } from './ContactPage';
+export { HowToRegisterSalonPage } from './HowToRegisterSalonPage';
+export { HowToBookPage } from './HowToBookPage';
+export { HowToCancelPage } from './HowToCancelPage';
+export { PrivacyPolicyPage } from './PrivacyPolicyPage';
+export { TermsOfServicePage } from './TermsOfServicePage';
+export { VerifyEmailPage } from './VerifyEmailPage';
