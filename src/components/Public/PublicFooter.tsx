@@ -43,6 +43,11 @@ export const PublicFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/o-nama" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
+                  O nama
+                </Link>
+              </li>
+              <li>
                 <Link to="/" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
                   Pretraga salona
                 </Link>
@@ -55,6 +60,11 @@ export const PublicFooter: React.FC = () => {
               <li>
                 <Link to="/login" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
                   Prijava
+                </Link>
+              </li>
+              <li>
+                <Link to="/oglasi-za-posao" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
+                  Oglasi za posao
                 </Link>
               </li>
             </ul>
@@ -161,7 +171,13 @@ export const PublicFooter: React.FC = () => {
             <p className="text-sm text-gray-500">
               © {currentYear} Frizerino. Sva prava zadržana.
             </p>
-            <div className="flex gap-6 text-sm">
+            <div className="flex flex-wrap gap-4 md:gap-6 text-sm">
+              <Link to="/o-nama" className="text-gray-500 hover:text-orange-500 transition-colors">
+                O nama
+              </Link>
+              <Link to="/kontakt" className="text-gray-500 hover:text-orange-500 transition-colors">
+                Kontakt
+              </Link>
               <Link to="/uslovi-koristenja" className="text-gray-500 hover:text-orange-500 transition-colors">
                 Uslovi korištenja
               </Link>

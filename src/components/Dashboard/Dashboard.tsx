@@ -25,6 +25,7 @@ import { SalonAnalytics } from '../Salon/SalonAnalytics';
 import { SalonReviews } from '../Salon/SalonReviews';
 import { SalonSchedule } from '../Salon/SalonSchedule';
 import { SalonCalendar } from '../Salon/SalonCalendar';
+import { SalonJobAds } from '../Salon/SalonJobAds';
 
 // Admin components
 import { AdminSalons } from '../Admin/AdminSalons';
@@ -32,6 +33,7 @@ import { AdminUsers } from '../Admin/AdminUsers';
 import { AdminAnalytics } from '../Admin/AdminAnalytics';
 import { AdminSettings } from '../Admin/AdminSettings';
 import { AdminConsents } from '../Admin/AdminConsents';
+import { AdminJobAds } from '../Admin/AdminJobAds';
 
 // Frizer components
 import { FrizerCalendar } from '../Frizer/FrizerCalendar';
@@ -82,6 +84,7 @@ export function Dashboard() {
           case 'salons': return <AdminSalons />;
           case 'users': return <AdminUsers />;
           case 'consents': return <AdminConsents />;
+          case 'job-ads': return <AdminJobAds />;
           case 'analytics': return <AdminAnalytics />;
           case 'settings': return <AdminSettings />;
           case 'profile': return <ClientProfile />;
@@ -99,6 +102,7 @@ export function Dashboard() {
           case 'calendar': return <SalonCalendar />;
           case 'analytics': return <SalonAnalytics />;
           case 'reviews': return <SalonReviews />;
+          case 'job-ads': return <SalonJobAds />;
           case 'settings': return <SalonProfile />;
           default: return <SalonDashboard onSectionChange={setActiveSection} />;
         }

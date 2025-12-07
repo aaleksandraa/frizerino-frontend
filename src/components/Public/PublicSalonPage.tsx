@@ -3,12 +3,14 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async';
 import { publicAPI, reviewAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAppearance } from '../../context/AppearanceContext';
 import { Salon, Service, Staff, Review } from '../../types';
 import { GuestBookingModal } from './GuestBookingModal';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
 import ServicesByCategory from './ServicesByCategory';
 import { StaffRoleLabels, StaffRole } from '../../types';
+import { ClassicHero, ClassicDescFirstHero, CompactHero, ModernHero, MinimalHero } from './SalonProfileLayouts';
 import { 
   MapPinIcon, 
   PhoneIcon,
@@ -40,6 +42,7 @@ export const PublicSalonPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { salonProfileLayout } = useAppearance();
   
   const [salon, setSalon] = useState<Salon | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -317,133 +320,33 @@ export const PublicSalonPage: React.FC = () => {
       <MainNavbar />
 
       <div className="min-h-screen bg-gray-50">
-        {/* Hero Section */}
-        <div className="relative h-64 md:h-96 bg-gradient-to-r from-orange-600 to-red-600">
-          {primaryImage?.url && (
-            <img
-              src={primaryImage.url}
-              alt={salon.name}
-              className="absolute inset-0 w-full h-full object-cover opacity-30"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 max-w-7xl mx-auto">
-            <Link 
-              to={salon.city_slug ? `/frizer-${salon.city_slug}` : '/pretraga'}
-              className="inline-flex items-center text-white/80 hover:text-white mb-4"
-            >
-              <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              {salon.city ? `Frizeri i kozmetičari u ${salon.city}` : 'Povratak'}
-            </Link>
-            
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl md:text-4xl font-bold text-white">
-                    {salon.name}
-                  </h1>
-                  {salon.is_verified && (
-                    <CheckBadgeIcon className="w-6 h-6 md:w-8 md:h-8 text-green-400" title="Verificiran salon" />
-                  )}
-                </div>
-                
-                <div className="flex flex-col gap-1 text-white/90 text-sm md:text-base">
-                  <div className="flex items-center gap-1">
-                    <MapPinIcon className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
-                    <span>{salon.address}, {salon.city}</span>
-                  </div>
-                  {salon.rating > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-0.5">
-                        {[1,2,3,4,5].map((s) => (
-                          <StarSolid key={s} className={`w-4 h-4 ${s <= Math.round(salon.rating) ? 'text-yellow-400' : 'text-white/30'}`} />
-                        ))}
-                      </div>
-                      <span className="text-white/80">{salon.rating.toFixed(1)} ({salon.review_count} recenzija)</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <button
-                onClick={() => setShowBookingModal(true)}
-                className="hidden md:flex items-center gap-2 bg-white text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold shadow-lg transition-colors"
-              >
-                <CalendarDaysIcon className="w-5 h-5" />
-                Zakaži termin
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Dynamic Hero Layout */}
+        {(() => {
+          const heroProps = {
+            salon,
+            salonImages,
+            currentImageIndex,
+            onPrevImage: prevImage,
+            onNextImage: nextImage,
+            onGoToImage: goToImage,
+            onOpenLightbox: openLightbox,
+            onBookingClick: () => setShowBookingModal(true),
+          };
 
-        {/* Mobile Gallery - immediately after hero */}
-        <div className="md:hidden">
-          {salonImages.length > 0 && (
-            <div className="bg-white">
-              {/* Main Carousel */}
-              <div className="relative">
-                <div 
-                  className="relative aspect-[4/3] cursor-pointer overflow-hidden"
-                  onClick={() => openLightbox(currentImageIndex)}
-                >
-                  <img
-                    src={salonImages[currentImageIndex]?.url}
-                    alt={`${salon.name} - Slika ${currentImageIndex + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-3 right-3 bg-black/60 text-white px-2 py-1 rounded-full text-xs">
-                    {currentImageIndex + 1} / {salonImages.length}
-                  </div>
-                </div>
-
-                {salonImages.length > 1 && (
-                  <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-800 p-2 rounded-full shadow-lg"
-                    >
-                      <ChevronLeftIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-800 p-2 rounded-full shadow-lg"
-                    >
-                      <ChevronRightIcon className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {salonImages.length > 1 && (
-                <div className="p-3 border-t">
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {salonImages.map((image, index) => (
-                      <button
-                        key={image.id}
-                        onClick={() => goToImage(index)}
-                        className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${index === currentImageIndex ? 'border-orange-500' : 'border-transparent'}`}
-                      >
-                        <img src={image.url} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Mobile Book Button - after gallery, subtle design */}
-        <div className="md:hidden px-4 py-3 bg-gray-50">
-          <button
-            onClick={() => setShowBookingModal(true)}
-            className="w-full flex items-center justify-center gap-2 bg-orange-600 text-white py-2.5 rounded-lg font-medium text-sm shadow-sm"
-          >
-            <CalendarDaysIcon className="w-4 h-4" />
-            Zakaži termin
-          </button>
-        </div>
+          switch (salonProfileLayout) {
+            case 'classic-desc-first':
+              return <ClassicDescFirstHero {...heroProps} />;
+            case 'compact-hero':
+              return <CompactHero {...heroProps} />;
+            case 'modern-card':
+              return <ModernHero {...heroProps} />;
+            case 'description-first':
+              return <MinimalHero {...heroProps} />;
+            case 'classic':
+            default:
+              return <ClassicHero {...heroProps} />;
+          }
+        })()}
 
         {/* Content */}
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 sm:px-6 lg:px-8">
@@ -451,8 +354,8 @@ export const PublicSalonPage: React.FC = () => {
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Image Gallery Carousel - Desktop only */}
-              {salonImages.length > 0 && (
+              {/* Image Gallery Carousel - Desktop only, hide for modern/minimal layouts */}
+              {salonImages.length > 0 && (salonProfileLayout === 'classic' || salonProfileLayout === 'classic-desc-first' || salonProfileLayout === 'compact-hero') && (
                 <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
                   
                   {/* Main Carousel */}

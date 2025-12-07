@@ -1,5 +1,7 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppearanceProvider } from './context/AppearanceContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { RegistrationSuccessPage } from './components/Auth/RegistrationSuccessPage';
 import ForgotPasswordPage from './components/Auth/ForgotPasswordPage';
@@ -10,12 +12,14 @@ import {
   CityPage, 
   PublicSalonPage, 
   ContactPage,
+  AboutPage,
   HowToRegisterSalonPage,
   HowToBookPage,
   HowToCancelPage,
   PrivacyPolicyPage,
   TermsOfServicePage,
-  VerifyEmailPage
+  VerifyEmailPage,
+  JobAdsPage
 } from './components/Public';
 import { GoogleAnalytics } from './components/Analytics';
 
@@ -27,6 +31,17 @@ function LoginPage() {
 // Register page wrapper
 function RegisterPage() {
   return <AuthPage mode="register" />;
+}
+
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
 }
 
 function AuthWrapper() {
@@ -48,6 +63,7 @@ function AuthWrapper() {
       {/* Public Routes - Available to everyone */}
       <Route path="/" element={<PublicSearch />} />
       <Route path="/pretraga" element={<PublicSearch />} />
+      <Route path="/o-nama" element={<AboutPage />} />
       <Route path="/kontakt" element={<ContactPage />} />
       <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />
@@ -57,6 +73,9 @@ function AuthWrapper() {
       <Route path="/pomoc/kako-registrovati-salon" element={<HowToRegisterSalonPage />} />
       <Route path="/pomoc/kako-zakazati-termin" element={<HowToBookPage />} />
       <Route path="/pomoc/kako-otkazati-rezervaciju" element={<HowToCancelPage />} />
+      
+      {/* Job Ads */}
+      <Route path="/oglasi-za-posao" element={<JobAdsPage />} />
       <Route path="/politika-privatnosti" element={<PrivacyPolicyPage />} />
       <Route path="/uslovi-koristenja" element={<TermsOfServicePage />} />
       
@@ -86,8 +105,11 @@ function AuthWrapper() {
 function App() {
   return (
     <AuthProvider>
-      <GoogleAnalytics />
-      <AuthWrapper />
+      <AppearanceProvider>
+        <GoogleAnalytics />
+        <ScrollToTop />
+        <AuthWrapper />
+      </AppearanceProvider>
     </AuthProvider>
   );
 }

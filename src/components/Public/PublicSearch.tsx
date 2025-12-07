@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { publicAPI, locationsAPI, publicSettingsAPI } from '../../services/api';
+import { useAppearance } from '../../context/AppearanceContext';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
 import { 
@@ -121,9 +122,10 @@ export const PublicSearch: React.FC = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const { heroBackgroundImage } = useAppearance();
   
   // Refs to prevent double fetching in React StrictMode
-  const fetchedRef = useRef({ appearance: false, services: false, topRated: false, cities: false });
+  const fetchedRef = useRef({ appearance: false, services: false, topRated: false, cities: false, newest: false, menSalons: false, featured: false });
   
   // View mode: list or map
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -147,6 +149,23 @@ export const PublicSearch: React.FC = () => {
   // Top rated salons for featured section
   const [topRatedSalons, setTopRatedSalons] = useState<Salon[]>([]);
   const [topRatedLoading, setTopRatedLoading] = useState(true);
+  
+  // Newest salons section
+  const [newestSalons, setNewestSalons] = useState<Salon[]>([]);
+  const [newestLoading, setNewestLoading] = useState(true);
+  
+  // Men's barbers section
+  const [menSalons, setMenSalons] = useState<Salon[]>([]);
+  const [menSalonsLoading, setMenSalonsLoading] = useState(true);
+  
+  // Featured/Promoted salon (admin controlled)
+  const [featuredSalon, setFeaturedSalon] = useState<Salon | null>(null);
+  const [featuredSalonText, setFeaturedSalonText] = useState<string>('Otvoren je novi salon u vašem gradu');
+  const [featuredSalonVisibility, setFeaturedSalonVisibility] = useState<'all' | 'location_only'>('all');
+  const [featuredSalonLoading, setFeaturedSalonLoading] = useState(true);
+  const [userLocationId, setUserLocationId] = useState<number | null>(null);
+  const [showTopRated, setShowTopRated] = useState(true);
+  const [showNewest, setShowNewest] = useState(true);
   
   // City autocomplete
   const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -307,6 +326,79 @@ export const PublicSearch: React.FC = () => {
       }
     };
     fetchTopRatedSalons();
+  }, []);
+
+  // Fetch newest salons
+  useEffect(() => {
+    if (fetchedRef.current.newest) return;
+    fetchedRef.current.newest = true;
+    
+    const fetchNewestSalons = async () => {
+      try {
+        setNewestLoading(true);
+        const response = await publicAPI.search({ sort: 'newest', per_page: 6 });
+        const salonsData = response.salons || response.data || [];
+        setNewestSalons(salonsData.slice(0, 6));
+      } catch (error) {
+        console.error('Error fetching newest salons:', error);
+      } finally {
+        setNewestLoading(false);
+      }
+    };
+    fetchNewestSalons();
+  }, []);
+
+  // Fetch men's barbers/salons
+  useEffect(() => {
+    if (fetchedRef.current.menSalons) return;
+    fetchedRef.current.menSalons = true;
+    
+    const fetchMenSalons = async () => {
+      try {
+        setMenSalonsLoading(true);
+        const response = await publicAPI.search({ audience: 'men', per_page: 6 });
+        const salonsData = response.salons || response.data || [];
+        setMenSalons(salonsData.slice(0, 6));
+      } catch (error) {
+        console.error('Error fetching men salons:', error);
+      } finally {
+        setMenSalonsLoading(false);
+      }
+    };
+    fetchMenSalons();
+  }, []);
+
+  // Fetch featured/promoted salon (admin controlled)
+  useEffect(() => {
+    if (fetchedRef.current.featured) return;
+    fetchedRef.current.featured = true;
+    
+    const fetchFeaturedSalon = async () => {
+      try {
+        setFeaturedSalonLoading(true);
+        const response = await publicSettingsAPI.getFeaturedSalon();
+        if (response.salon) {
+          setFeaturedSalon(response.salon);
+        }
+        if (response.text) {
+          setFeaturedSalonText(response.text);
+        }
+        if (response.visibility) {
+          setFeaturedSalonVisibility(response.visibility);
+        }
+        if (response.show_top_rated !== undefined) {
+          setShowTopRated(response.show_top_rated);
+        }
+        if (response.show_newest !== undefined) {
+          setShowNewest(response.show_newest);
+        }
+      } catch (error) {
+        console.error('Error fetching featured salon:', error);
+      } finally {
+        setFeaturedSalonLoading(false);
+      }
+    };
+    fetchFeaturedSalon();
   }, []);
 
   // Default service tags to show when no popular services from API
@@ -590,12 +682,29 @@ export const PublicSearch: React.FC = () => {
       {/* Navigation - transparent on mobile hero */}
       <MainNavbar transparent />
       
-      {/* Search Header - Full screen on mobile - Dynamic gradient */}
+      {/* Search Header - Full screen on mobile - Dynamic gradient with optional background image */}
       <div 
         className="min-h-[100dvh] md:min-h-0 md:py-16 pt-20 md:pt-16 px-4 flex flex-col justify-center relative"
-        style={gradientStyle}
+        style={{
+          ...(heroBackgroundImage ? {
+            backgroundImage: `url(${heroBackgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          } : gradientStyle)
+        }}
       >
-        <div className="max-w-7xl mx-auto w-full md:mt-16">
+        {/* Gradient overlay when background image is present */}
+        {heroBackgroundImage && (
+          <div 
+            className="absolute inset-0"
+            style={{
+              ...gradientStyle,
+              opacity: 0.75
+            }}
+          />
+        )}
+        <div className="max-w-7xl mx-auto w-full md:mt-16 relative z-10">
           <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white text-center mb-4">
             Pronađi savršeni salon
           </h1>
@@ -716,8 +825,8 @@ export const PublicSearch: React.FC = () => {
             )}
           </div>
           
-          {/* Animated scroll arrow - visible on mobile only, positioned below "Blizu mene" button */}
-          <div className="md:hidden flex justify-center mt-8 pb-6">
+          {/* Animated scroll arrow - visible on mobile only, positioned at bottom of hero */}
+          <div className="md:hidden absolute bottom-6 left-0 right-0 flex justify-center">
             <button 
               onClick={() => {
                 document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
@@ -1228,7 +1337,103 @@ export const PublicSearch: React.FC = () => {
         </div>
       </div>
 
+      {/* Featured Salon Section (Admin Controlled) - Displayed ABOVE Top Rated */}
+      {(() => {
+        // Determine if featured salon should be shown
+        const shouldShowFeatured = !featuredSalonLoading && featuredSalon && (
+          featuredSalonVisibility === 'all' || 
+          (featuredSalonVisibility === 'location_only' && 
+           filters.city && 
+           featuredSalon.city?.toLowerCase() === filters.city.toLowerCase()
+          )
+        );
+        
+        if (!shouldShowFeatured) return null;
+        
+        // Get cover image - handle different response formats
+        const featuredCoverImage = (featuredSalon as unknown as { cover_image?: string }).cover_image 
+          || featuredSalon.cover_image_url 
+          || featuredSalon.images?.[0]?.url
+          || (featuredSalon.images?.[0] as unknown as { image_path?: string })?.image_path;
+        
+        return (
+        <div className="bg-gradient-to-r from-yellow-50 via-orange-50 to-red-50 py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-8">
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium mb-4">
+                ⭐ Istaknuti salon
+              </span>
+              <h2 className="text-3xl font-bold text-gray-900">
+                {featuredSalonText}
+              </h2>
+            </div>
+
+            <Link 
+              to={`/salon/${featuredSalon.slug}`}
+              className="block max-w-4xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all group"
+            >
+              <div className="md:flex">
+                {/* Image */}
+                <div className="md:w-1/2 h-64 md:h-auto relative">
+                  {featuredCoverImage ? (
+                    <img
+                      src={featuredCoverImage}
+                      alt={featuredSalon.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-orange-200 to-red-200 flex items-center justify-center">
+                      <span className="text-6xl font-bold text-white/60">{featuredSalon.name.charAt(0)}</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                </div>
+
+                {/* Content */}
+                <div className="md:w-1/2 p-8 flex flex-col justify-center">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">
+                    {featuredSalon.name}
+                  </h3>
+                  
+                  <div className="flex items-center text-gray-600 mb-4">
+                    <MapPinIcon className="h-5 w-5 mr-2" />
+                    <span>{featuredSalon.address || featuredSalon.city}</span>
+                  </div>
+
+                  {(featuredSalon as unknown as { average_rating?: number }).average_rating !== undefined && (featuredSalon as unknown as { average_rating?: number }).average_rating! > 0 && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-1 bg-yellow-100 px-3 py-1 rounded-full">
+                        <StarIconSolid className="h-5 w-5 text-yellow-500" />
+                        <span className="font-bold text-gray-900">{((featuredSalon as unknown as { average_rating?: number }).average_rating || 0).toFixed(1)}</span>
+                      </div>
+                      <span className="text-gray-500 text-sm">
+                        ({(featuredSalon as unknown as { review_count?: number }).review_count || 0} recenzija)
+                      </span>
+                    </div>
+                  )}
+
+                  {featuredSalon.description && (
+                    <p className="text-gray-600 mb-6 line-clamp-3">
+                      {featuredSalon.description}
+                    </p>
+                  )}
+
+                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-xl font-medium group-hover:from-orange-600 group-hover:to-red-600 transition-all self-start">
+                    Pogledaj salon
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+        );
+      })()}
+
       {/* Top Rated Salons Section */}
+      {showTopRated && (
       <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -1317,6 +1522,117 @@ export const PublicSearch: React.FC = () => {
           )}
         </div>
       </div>
+      )}
+
+      {/* Newest Salons Section */}
+      {showNewest && !newestLoading && newestSalons.length > 0 && (
+        <div className="bg-white py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                🆕 Najnoviji saloni
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Novo otvoreni saloni koji jedva čekaju da vas ugoste
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newestSalons.map((salon) => {
+                const primaryImage = salon.images?.find(img => img.is_primary)?.url || salon.images?.[0]?.url || salon.cover_image_url || salon.image_url;
+                
+                return (
+                  <Link
+                    key={salon.id}
+                    to={`/salon/${salon.slug}`}
+                    className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100 hover:shadow-lg transition-all group"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                        {primaryImage ? (
+                          <img src={primaryImage} alt={salon.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-200 to-indigo-200 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-white">{salon.name.charAt(0)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                          {salon.name}
+                        </h3>
+                        <div className="flex items-center text-gray-500 text-sm mt-1">
+                          <MapPinIcon className="h-4 w-4 mr-1" />
+                          <span className="truncate">{salon.city}</span>
+                        </div>
+                        <span className="inline-block mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          Novo
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Men's Barbers Section */}
+      {!menSalonsLoading && menSalons.length > 0 && (
+        <div className="bg-gradient-to-br from-slate-50 to-gray-100 py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                💈 Muški frizeri
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Barber shopovi i frizeri specijalizirani za muškarce
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {menSalons.map((salon) => {
+                const salonRating = salon.average_rating || salon.rating || 0;
+                const primaryImage = salon.images?.find(img => img.is_primary)?.url || salon.images?.[0]?.url || salon.cover_image_url || salon.image_url;
+                
+                return (
+                  <Link
+                    key={salon.id}
+                    to={`/salon/${salon.slug}`}
+                    className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all group"
+                  >
+                    <div className="relative h-40">
+                      {primaryImage ? (
+                        <img src={primaryImage} alt={salon.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-slate-200 to-gray-300 flex items-center justify-center">
+                          <span className="text-4xl">💈</span>
+                        </div>
+                      )}
+                      {salonRating > 0 && (
+                        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1 shadow">
+                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                          <span className="font-bold text-sm text-gray-900">{salonRating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 group-hover:text-slate-600 transition-colors">
+                        {salon.name}
+                      </h3>
+                      <div className="flex items-center text-gray-500 text-sm mt-1">
+                        <MapPinIcon className="h-4 w-4 mr-1" />
+                        <span>{salon.city}</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Why Choose Us Section */}
       <div className="bg-white py-16">

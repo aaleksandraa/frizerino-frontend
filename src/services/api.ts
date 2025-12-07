@@ -1,13 +1,14 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 axios.defaults.withCredentials = true; // 🔐 Za session cookies
-axios.defaults.baseURL = 'http://localhost:8000'; // prilagodi po potrebi
+axios.defaults.baseURL = API_BASE_URL;
 
 // Dedicated axios instance for Sanctum CSRF cookie
 const sanctumApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Accept': 'application/json',
@@ -482,6 +483,9 @@ export const publicAPI = {
     sort?: string;
     direction?: 'asc' | 'desc';
     per_page?: number;
+    date?: string;
+    time?: string;
+    duration?: number;
   }) => {
     const response = await api.get('/v1/public/search', { params });
     return response.data;
@@ -497,6 +501,9 @@ export const publicAPI = {
     sort?: string;
     direction?: 'asc' | 'desc';
     per_page?: number;
+    date?: string;
+    time?: string;
+    duration?: number;
   }) => {
     const response = await api.get('/v1/public/search', { params });
     return response.data;
@@ -658,6 +665,40 @@ export const adminAPI = {
   }) => {
     const response = await api.put('/admin/gradient', gradient);
     return response.data;
+  },
+
+  updateNavbarGradient: async (gradient: {
+    preset?: string;
+    from: string;
+    via?: string;
+    to: string;
+    direction: string;
+    custom?: boolean;
+  }) => {
+    const response = await api.put('/admin/navbar-gradient', gradient);
+    return response.data;
+  },
+
+  // Salon Profile Layout settings
+  getSalonProfileLayout: async () => {
+    const response = await api.get('/admin/salon-profile-layout');
+    return response.data;
+  },
+
+  updateSalonProfileLayout: async (layout: string) => {
+    const response = await api.put('/admin/salon-profile-layout', { layout });
+    return response.data;
+  },
+
+  // Featured Salon settings
+  getFeaturedSalon: async () => {
+    const response = await api.get('/admin/featured-salon');
+    return response.data;
+  },
+
+  updateFeaturedSalon: async (data: { salon_id?: number | null; text?: string; visibility?: 'all' | 'location_only'; show_top_rated?: boolean; show_newest?: boolean }) => {
+    const response = await api.put('/admin/featured-salon', data);
+    return response.data;
   }
 };
 
@@ -670,6 +711,11 @@ export const publicSettingsAPI = {
   
   getAppearanceSettings: async () => {
     const response = await api.get('/public/appearance-settings');
+    return response.data;
+  },
+  
+  getFeaturedSalon: async () => {
+    const response = await api.get('/public/featured-salon');
     return response.data;
   }
 };
@@ -740,6 +786,130 @@ export const locationsAPI = {
   // Admin: Delete location
   delete: async (id: number) => {
     const response = await api.delete(`/v1/admin/locations/${id}`);
+    return response.data;
+  }
+};
+
+// Job Ads API
+export const jobAdsAPI = {
+  // Public: Get all active job ads
+  getAll: async (params?: { 
+    page?: number; 
+    per_page?: number; 
+    q?: string; 
+    city?: string; 
+    gender?: string 
+  }) => {
+    const response = await api.get('/public/job-ads', { params });
+    return response.data;
+  },
+  
+  // Public: Get single job ad
+  get: async (id: number) => {
+    const response = await api.get(`/public/job-ads/${id}`);
+    return response.data;
+  },
+  
+  // Admin: Get all job ads
+  adminGetAll: async (params?: { 
+    page?: number; 
+    per_page?: number; 
+    status?: string 
+  }) => {
+    const response = await api.get('/v1/admin/job-ads', { params });
+    return response.data;
+  },
+  
+  // Admin: Create job ad
+  create: async (data: {
+    company_name: string;
+    position_title: string;
+    description: string;
+    gender_requirement: 'male' | 'female' | 'any';
+    contact_email: string;
+    contact_phone?: string;
+    city?: string;
+    deadline?: string;
+    salon_id?: number;
+    is_active?: boolean;
+  }) => {
+    const response = await api.post('/v1/admin/job-ads', data);
+    return response.data;
+  },
+  
+  // Admin: Update job ad
+  update: async (id: number, data: Partial<{
+    company_name: string;
+    position_title: string;
+    description: string;
+    gender_requirement: 'male' | 'female' | 'any';
+    contact_email: string;
+    contact_phone?: string;
+    city?: string;
+    deadline?: string;
+    salon_id?: number;
+    is_active?: boolean;
+  }>) => {
+    const response = await api.put(`/v1/admin/job-ads/${id}`, data);
+    return response.data;
+  },
+  
+  // Admin: Delete job ad
+  delete: async (id: number) => {
+    const response = await api.delete(`/v1/admin/job-ads/${id}`);
+    return response.data;
+  },
+  
+  // Admin: Toggle active status
+  toggleActive: async (id: number) => {
+    const response = await api.put(`/v1/admin/job-ads/${id}/toggle-active`);
+    return response.data;
+  },
+  
+  // Admin: Update owner posting setting
+  updateOwnerPostingSetting: async (allow: boolean) => {
+    const response = await api.put('/v1/admin/job-ads/owner-posting-setting', {
+      allow_owner_posting: allow
+    });
+    return response.data;
+  },
+  
+  // Owner: Get my job ads
+  ownerGetAll: async () => {
+    const response = await api.get('/v1/owner/job-ads');
+    return response.data;
+  },
+  
+  // Owner: Create job ad
+  ownerCreate: async (data: {
+    position_title: string;
+    description: string;
+    gender_requirement: 'male' | 'female' | 'any';
+    contact_email?: string;
+    contact_phone?: string;
+    deadline?: string;
+  }) => {
+    const response = await api.post('/v1/owner/job-ads', data);
+    return response.data;
+  },
+  
+  // Owner: Update job ad
+  ownerUpdate: async (id: number, data: Partial<{
+    position_title: string;
+    description: string;
+    gender_requirement: 'male' | 'female' | 'any';
+    contact_email?: string;
+    contact_phone?: string;
+    deadline?: string;
+    is_active?: boolean;
+  }>) => {
+    const response = await api.put(`/v1/owner/job-ads/${id}`, data);
+    return response.data;
+  },
+  
+  // Owner: Delete job ad
+  ownerDelete: async (id: number) => {
+    const response = await api.delete(`/v1/owner/job-ads/${id}`);
     return response.data;
   }
 };

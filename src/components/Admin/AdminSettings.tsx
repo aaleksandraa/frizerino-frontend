@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell, Shield, Eye, EyeOff, BarChart3, Globe, CheckCircle, XCircle, Palette } from 'lucide-react';
+import { Save, User, Lock, Bell, Shield, Eye, EyeOff, BarChart3, Globe, CheckCircle, XCircle, Palette, Image } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI, adminAPI } from '../../services/api';
 
@@ -67,6 +67,24 @@ export function AdminSettings() {
   const [gradientLoading, setGradientLoading] = useState(false);
   const [useCustomGradient, setUseCustomGradient] = useState(false);
   
+  // Salon profile layout settings
+  const [salonProfileLayout, setSalonProfileLayout] = useState<string>('classic');
+  const [layoutLoading, setLayoutLoading] = useState(false);
+  
+  // Hero background image
+  const [heroBackgroundImage, setHeroBackgroundImage] = useState<string>('');
+
+  // Featured salon settings
+  const [featuredSalonId, setFeaturedSalonId] = useState<number | null>(null);
+  const [featuredSalonText, setFeaturedSalonText] = useState<string>('Otvoren je novi salon u vašem gradu');
+  const [featuredSalonVisibility, setFeaturedSalonVisibility] = useState<'all' | 'location_only'>('all');
+  const [showTopRated, setShowTopRated] = useState(true);
+  const [showNewest, setShowNewest] = useState(true);
+  const [allSalons, setAllSalons] = useState<Array<{ id: number; name: string; city: string }>>([]);
+  const [salonSearchQuery, setSalonSearchQuery] = useState('');
+  const [salonSearchResults, setSalonSearchResults] = useState<Array<{ id: number; name: string; city: string }>>([]);
+  const [showSalonDropdown, setShowSalonDropdown] = useState(false);
+  
   // Load analytics settings on mount
   useEffect(() => {
     const loadAnalyticsSettings = async () => {
@@ -98,6 +116,9 @@ export function AdminSettings() {
           setCurrentGradient(response.current);
           setUseCustomGradient(response.current.custom || false);
         }
+        if (response.hero_background_image) {
+          setHeroBackgroundImage(response.hero_background_image);
+        }
       } catch (error) {
         console.error('Failed to load gradient settings:', error);
       }
@@ -106,19 +127,122 @@ export function AdminSettings() {
     loadGradientSettings();
   }, []);
 
-  const handleGradientSubmit = async (e: React.FormEvent) => {
+  // Load salon profile layout
+  useEffect(() => {
+    const loadLayoutSettings = async () => {
+      try {
+        const response = await adminAPI.getSalonProfileLayout();
+        if (response.layout) {
+          setSalonProfileLayout(response.layout);
+        }
+      } catch (error) {
+        console.error('Failed to load layout settings:', error);
+      }
+    };
+    
+    loadLayoutSettings();
+  }, []);
+
+  // Load featured salon settings
+  useEffect(() => {
+    const loadFeaturedSalon = async () => {
+      try {
+        const response = await adminAPI.getFeaturedSalon();
+        if (response.featured_salon_id) {
+          setFeaturedSalonId(response.featured_salon_id);
+        }
+        if (response.featured_salon_text) {
+          setFeaturedSalonText(response.featured_salon_text);
+        }
+        if (response.featured_salon_visibility) {
+          setFeaturedSalonVisibility(response.featured_salon_visibility);
+        }
+        if (response.show_top_rated !== undefined) {
+          setShowTopRated(response.show_top_rated);
+        }
+        if (response.show_newest !== undefined) {
+          setShowNewest(response.show_newest);
+        }
+        if (response.salon) {
+          setSalonSearchQuery(response.salon.name);
+        }
+      } catch (error) {
+        console.error('Failed to load featured salon settings:', error);
+      }
+    };
+    
+    loadFeaturedSalon();
+  }, []);
+
+  // Search salons for featured salon dropdown
+  useEffect(() => {
+    if (!salonSearchQuery || salonSearchQuery.length < 2) {
+      setSalonSearchResults([]);
+      return;
+    }
+    
+    const searchSalons = async () => {
+      try {
+        const { publicAPI } = await import('../../services/api');
+        const response = await publicAPI.search({ search: salonSearchQuery, limit: 10 });
+        const salons = response.salons || response.data || [];
+        setSalonSearchResults(salons.map((s: { id: number; name: string; city?: string }) => ({ 
+          id: s.id, 
+          name: s.name, 
+          city: s.city || '' 
+        })));
+      } catch (error) {
+        console.error('Failed to search salons:', error);
+      }
+    };
+    
+    const debounce = setTimeout(searchSalons, 300);
+    return () => clearTimeout(debounce);
+  }, [salonSearchQuery]);
+
+  const handleLayoutSelect = (layout: string) => {
+    setSalonProfileLayout(layout);
+  };
+
+  const handleSelectFeaturedSalon = (salon: { id: number; name: string; city: string }) => {
+    setFeaturedSalonId(salon.id);
+    setSalonSearchQuery(salon.name);
+    setShowSalonDropdown(false);
+  };
+
+  const handleClearFeaturedSalon = () => {
+    setFeaturedSalonId(null);
+    setSalonSearchQuery('');
+  };
+
+  const handleAppearanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setGradientLoading(true);
     setMessage(null);
     
     try {
+      // Save gradient settings
       await adminAPI.updateGradient({
         ...currentGradient,
         custom: useCustomGradient,
+        hero_background_image: heroBackgroundImage || null,
       });
-      setMessage({ type: 'success', text: 'Gradient postavke su uspješno sačuvane! Osvježite stranicu da vidite promjene.' });
+      
+      // Save layout settings
+      await adminAPI.updateSalonProfileLayout(salonProfileLayout);
+
+      // Save featured salon settings
+      await adminAPI.updateFeaturedSalon({
+        salon_id: featuredSalonId,
+        text: featuredSalonText,
+        visibility: featuredSalonVisibility,
+        show_top_rated: showTopRated,
+        show_newest: showNewest,
+      });
+      
+      setMessage({ type: 'success', text: 'Postavke izgleda su uspješno sačuvane! Osvježite stranicu da vidite promjene.' });
     } catch (error) {
-      setMessage({ type: 'error', text: 'Greška prilikom čuvanja gradient postavki.' });
+      setMessage({ type: 'error', text: 'Greška prilikom čuvanja postavki izgleda.' });
     } finally {
       setGradientLoading(false);
     }
@@ -589,7 +713,8 @@ export function AdminSettings() {
           )}
 
           {activeTab === 'appearance' && (
-            <form onSubmit={handleGradientSubmit} className="space-y-6">
+            <>
+            <form onSubmit={handleAppearanceSubmit} className="space-y-6">
               <div className="flex items-center gap-4 mb-6">
                 <div 
                   className="w-12 h-12 rounded-xl flex items-center justify-center"
@@ -598,8 +723,8 @@ export function AdminSettings() {
                   <Palette className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Izgled stranice</h3>
-                  <p className="text-sm text-gray-600">Prilagodite boje i gradient na početnoj stranici</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Gradient na početnoj stranici</h3>
+                  <p className="text-sm text-gray-600">Prilagodite boje hero sekcije i navigacije</p>
                 </div>
               </div>
 
@@ -736,17 +861,440 @@ export function AdminSettings() {
                 </div>
               )}
 
-              <div className="flex justify-end pt-4 border-t">
+            {/* Hero Background Image Section */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                  <Image className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Pozadinska slika naslovnice</h3>
+                  <p className="text-sm text-gray-600">Dodajte sliku iza gradijenta na naslovnici</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">URL slike</label>
+                  <input
+                    type="text"
+                    value={heroBackgroundImage}
+                    onChange={(e) => setHeroBackgroundImage(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://primjer.com/slika.jpg"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Ostavite prazno da koristite samo gradijent. Slika će imati gradijent overlay.
+                  </p>
+                </div>
+
+                {heroBackgroundImage && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Pregled</label>
+                    <div className="relative h-48 rounded-xl overflow-hidden">
+                      <img
+                        src={heroBackgroundImage}
+                        alt="Hero pozadina"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <div 
+                        className="absolute inset-0"
+                        style={{
+                          ...getGradientStyle(currentGradient),
+                          opacity: 0.75
+                        }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xl drop-shadow-lg">
+                        Frizerino
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setHeroBackgroundImage('')}
+                      className="text-sm text-red-600 hover:text-red-700"
+                    >
+                      Ukloni sliku
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Salon Profile Layout Section */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                  <Globe className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Layout profila salona</h3>
+                  <p className="text-sm text-gray-600">Odaberite kako će izgledati stranica salona za posjetioce</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Classic Layout */}
+                <button
+                  type="button"
+                  onClick={() => handleLayoutSelect('classic')}
+                  className={`relative p-4 border-2 rounded-xl text-left transition-all ${
+                    salonProfileLayout === 'classic' 
+                      ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-orange-400 to-red-400 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      <div className="w-full h-full bg-gradient-to-t from-black/40 to-transparent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900">Klasični</h4>
+                      <p className="text-sm text-gray-600 mt-1">Veliki hero sa slikom, overlay tekst, galerija ispod</p>
+                    </div>
+                    {salonProfileLayout === 'classic' && (
+                      <CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Classic with Description First Layout */}
+                <button
+                  type="button"
+                  onClick={() => handleLayoutSelect('classic-desc-first')}
+                  className={`relative p-4 border-2 rounded-xl text-left transition-all ${
+                    salonProfileLayout === 'classic-desc-first' 
+                      ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0 flex flex-col overflow-hidden">
+                      <div className="h-8 bg-gradient-to-r from-orange-400 to-red-400 relative">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      </div>
+                      <div className="flex-1 p-1 flex flex-col">
+                        <div className="w-full h-1.5 bg-gray-400 rounded mb-0.5" />
+                        <div className="w-2/3 h-1.5 bg-gray-300 rounded mb-1" />
+                        <div className="w-full h-4 bg-gray-200 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900">Klasični (opis prvi)</h4>
+                      <p className="text-sm text-gray-600 mt-1">Kao klasični, ali opis prije galerije na mobitelu</p>
+                    </div>
+                    {salonProfileLayout === 'classic-desc-first' && (
+                      <CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Compact Layout */}
+                <button
+                  type="button"
+                  onClick={() => handleLayoutSelect('compact-hero')}
+                  className={`relative p-4 border-2 rounded-xl text-left transition-all ${
+                    salonProfileLayout === 'compact-hero' 
+                      ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0 flex flex-col overflow-hidden">
+                      <div className="h-6 bg-gradient-to-r from-orange-400 to-red-400" />
+                      <div className="flex-1 p-1">
+                        <div className="w-full h-2 bg-gray-300 rounded mb-1" />
+                        <div className="w-2/3 h-2 bg-gray-200 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900">Kompaktni</h4>
+                      <p className="text-sm text-gray-600 mt-1">Manji hero, opis odmah vidljiv, galerija ispod</p>
+                    </div>
+                    {salonProfileLayout === 'compact-hero' && (
+                      <CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Modern Card Layout */}
+                <button
+                  type="button"
+                  onClick={() => handleLayoutSelect('modern-card')}
+                  className={`relative p-4 border-2 rounded-xl text-left transition-all ${
+                    salonProfileLayout === 'modern-card' 
+                      ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-orange-50 to-red-50 flex-shrink-0 flex items-center justify-center p-1">
+                      <div className="w-full h-full bg-white rounded shadow-sm flex">
+                        <div className="w-1/2 bg-gradient-to-br from-orange-200 to-red-200 rounded-l" />
+                        <div className="w-1/2 p-1">
+                          <div className="w-full h-1.5 bg-gray-300 rounded mb-1" />
+                          <div className="w-2/3 h-1.5 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900">Moderni kartica</h4>
+                      <p className="text-sm text-gray-600 mt-1">Slika i info u kartici, moderan izgled</p>
+                    </div>
+                    {salonProfileLayout === 'modern-card' && (
+                      <CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Minimal Layout */}
+                <button
+                  type="button"
+                  onClick={() => handleLayoutSelect('description-first')}
+                  className={`relative p-4 border-2 rounded-xl text-left transition-all ${
+                    salonProfileLayout === 'description-first' 
+                      ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-lg bg-white border flex-shrink-0 flex flex-col p-1.5">
+                      <div className="flex gap-1 mb-1">
+                        <div className="w-4 h-4 rounded bg-gray-200" />
+                        <div className="flex-1">
+                          <div className="w-full h-1.5 bg-gray-300 rounded mb-0.5" />
+                          <div className="w-2/3 h-1.5 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5 mt-auto">
+                        <div className="w-3 h-3 rounded bg-gray-100" />
+                        <div className="w-3 h-3 rounded bg-gray-100" />
+                        <div className="w-3 h-3 rounded bg-gray-100" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900">Minimalistički</h4>
+                      <p className="text-sm text-gray-600 mt-1">Čist dizajn, fokus na sadržaj, mala slika</p>
+                    </div>
+                    {salonProfileLayout === 'description-first' && (
+                      <CheckCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Featured Salon Section */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Istaknuti salon na početnoj</h3>
+                  <p className="text-sm text-gray-600">Odaberite salon koji će biti prikazan kao &quot;Featured&quot; na početnoj stranici</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Headline text */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Naslov sekcije</label>
+                  <input
+                    type="text"
+                    value={featuredSalonText}
+                    onChange={(e) => setFeaturedSalonText(e.target.value)}
+                    placeholder="Otvoren je novi salon u vašem gradu"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Salon search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Istaknuti salon</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={salonSearchQuery}
+                      onChange={(e) => {
+                        setSalonSearchQuery(e.target.value);
+                        setShowSalonDropdown(true);
+                      }}
+                      onFocus={() => setShowSalonDropdown(true)}
+                      placeholder="Pretražite salon po imenu..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    {featuredSalonId && (
+                      <button
+                        type="button"
+                        onClick={handleClearFeaturedSalon}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    )}
+                    
+                    {/* Dropdown */}
+                    {showSalonDropdown && salonSearchResults.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {salonSearchResults.map((salon) => (
+                          <button
+                            key={salon.id}
+                            type="button"
+                            onClick={() => handleSelectFeaturedSalon(salon)}
+                            className={`w-full px-4 py-2 text-left hover:bg-orange-50 flex items-center justify-between ${
+                              featuredSalonId === salon.id ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <span className="font-medium">{salon.name}</span>
+                            <span className="text-sm text-gray-500">{salon.city}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {featuredSalonId && (
+                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      Salon odabran (ID: {featuredSalonId})
+                    </p>
+                  )}
+                  {!featuredSalonId && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Ako nije odabran salon, sekcija neće biti prikazana na početnoj stranici.
+                    </p>
+                  )}
+                </div>
+
+                {/* Visibility options */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kome prikazati?</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFeaturedSalonVisibility('all')}
+                      className={`p-4 border-2 rounded-xl text-left transition-all ${
+                        featuredSalonVisibility === 'all'
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          featuredSalonVisibility === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <Globe className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Svima</p>
+                          <p className="text-sm text-gray-500">Svi posjetioci vide istaknuti salon</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFeaturedSalonVisibility('location_only')}
+                      className={`p-4 border-2 rounded-xl text-left transition-all ${
+                        featuredSalonVisibility === 'location_only'
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          featuredSalonVisibility === 'location_only' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Samo lokalni korisnici</p>
+                          <p className="text-sm text-gray-500">Samo korisnici iz istog grada</p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section Visibility Toggles */}
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <h4 className="text-md font-semibold text-gray-900 mb-4">Prikaz sekcija na početnoj stranici</h4>
+                  
+                  {/* Top Rated Toggle */}
+                  <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <span className="text-lg">⭐</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Najbolje ocijenjeni saloni</p>
+                        <p className="text-sm text-gray-500">Prikaži sekciju sa najbolje ocijenjenim salonima</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowTopRated(!showTopRated)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showTopRated ? 'bg-orange-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showTopRated ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Newest Toggle */}
+                  <div className="flex items-center justify-between py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <span className="text-lg">🆕</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Najnoviji saloni</p>
+                        <p className="text-sm text-gray-500">Prikaži sekciju sa novo otvorenim salonima</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewest(!showNewest)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showNewest ? 'bg-orange-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showNewest ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              {/* Save Button */}
+              <div className="flex justify-end pt-6 mt-8 border-t">
                 <button
                   type="submit"
                   disabled={gradientLoading}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all flex items-center gap-2 disabled:opacity-50 font-medium shadow-lg"
                 >
-                  <Save className="w-4 h-4" />
-                  {gradientLoading ? 'Čuvanje...' : 'Sačuvaj izgled'}
+                  <Save className="w-5 h-5" />
+                  {gradientLoading ? 'Čuvanje...' : 'Sačuvaj postavke izgleda'}
                 </button>
               </div>
             </form>
+            </>
           )}
         </div>
       </div>

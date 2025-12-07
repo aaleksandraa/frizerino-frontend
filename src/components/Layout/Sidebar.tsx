@@ -12,7 +12,8 @@ import {
   Building,
   Search,
   Heart,
-  ShieldCheck
+  ShieldCheck,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,6 +33,7 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
           { id: 'salons', label: 'Svi saloni', icon: MapPin },
           { id: 'users', label: 'Korisnici', icon: Users },
           { id: 'consents', label: 'GDPR Pristanci', icon: ShieldCheck },
+          { id: 'job-ads', label: 'Oglasi za posao', icon: Briefcase },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
           { id: 'settings', label: 'Podešavanja', icon: Settings }
         ];
@@ -46,7 +48,8 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
           { id: 'schedule', label: 'Raspored', icon: Clock },
           { id: 'calendar', label: 'Kalendar', icon: Calendar },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
-          { id: 'reviews', label: 'Recenzije', icon: Star }
+          { id: 'reviews', label: 'Recenzije', icon: Star },
+          { id: 'job-ads', label: 'Oglasi za posao', icon: Briefcase }
         ];
       
       case 'frizer':

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useAppearance } from '../../context/AppearanceContext';
 import { notificationAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
 import { 
@@ -32,11 +33,30 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { navbarGradient, getGradientStyle } = useAppearance();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Track scroll position for transparent navbar
+  useEffect(() => {
+    if (!transparent) return;
+    
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 50;
+      if (scrolled !== isScrolled) {
+        setIsScrolled(scrolled);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Check initial position
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [transparent, isScrolled]);
 
   // Check if we're on a dashboard page
   const isDashboardPage = location.pathname.startsWith('/dashboard') || 
@@ -303,8 +323,45 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
     }
   };
 
+  // For logged-in users on transparent pages, we want sticky with gradient background
+  // For all users on transparent pages: transparent at top, gradient when scrolled
+  const navClasses = () => {
+    if (transparent) {
+      // On homepage (transparent mode)
+      if (isScrolled) {
+        // Scrolled - show gradient background with shadow
+        return 'fixed top-0 left-0 right-0 shadow-lg transition-all duration-300';
+      } else {
+        // At top - transparent
+        return 'fixed top-0 left-0 right-0 bg-transparent transition-all duration-300';
+      }
+    } else if (user) {
+      // Logged in user on other pages - sticky white
+      return 'sticky top-0 bg-white shadow-sm border-b border-gray-200';
+    } else {
+      // Guest on other pages - not sticky
+      return 'bg-white shadow-sm border-b border-gray-200';
+    }
+  };
+
+  // Get navbar style for gradient (when scrolled on transparent pages)
+  const getNavbarStyle = (): React.CSSProperties => {
+    if (transparent && isScrolled) {
+      // Use custom gradient from settings when scrolled
+      const style = getGradientStyle(navbarGradient);
+      if (Object.keys(style).length > 0) {
+        return style;
+      }
+      // Fallback to default orange gradient
+      return {
+        background: `linear-gradient(to right, ${navbarGradient.from}, ${navbarGradient.via || navbarGradient.from}, ${navbarGradient.to})`
+      };
+    }
+    return {};
+  };
+
   return (
-    <nav className={`${transparent ? 'fixed top-0 left-0 right-0 bg-transparent' : 'sticky top-0 bg-white shadow-sm border-b border-gray-200'} z-50`}>
+    <nav className={`${navClasses()} z-50`} style={getNavbarStyle()}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Left side: Logo */}
@@ -648,6 +705,17 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
             ) : (
               /* Guest buttons */
               <>
+                {/* Mobile: Show "Kontakt" link */}
+                <Link
+                  to="/kontakt"
+                  className={`sm:hidden text-sm font-medium transition-colors ${
+                    transparent ? 'text-white' : 'text-gray-600 hover:text-orange-600'
+                  }`}
+                >
+                  Kontakt
+                </Link>
+                {/* Mobile separator */}
+                <span className={`sm:hidden text-sm ${transparent ? 'text-white/40' : 'text-gray-300'}`}>|</span>
                 <Link
                   to="/login"
                   className={`hidden sm:flex items-center gap-1 px-4 py-2 transition-colors text-sm font-medium ${
