@@ -679,6 +679,16 @@ export const adminAPI = {
     return response.data;
   },
 
+  getAppearanceSettings: async () => {
+    const response = await api.get('/public/appearance-settings');
+    return response.data;
+  },
+
+  updateStickyNavbar: async (sticky: boolean) => {
+    const response = await api.put('/admin/sticky-navbar', { sticky });
+    return response.data;
+  },
+
   // Salon Profile Layout settings
   getSalonProfileLayout: async () => {
     const response = await api.get('/admin/salon-profile-layout');

@@ -18,6 +18,7 @@ interface AppearanceContextType {
   navbarGradient: GradientSettings;
   heroBackgroundImage: string | null;
   salonProfileLayout: SalonProfileLayout;
+  stickyNavbar: boolean;
   getGradientClass: (gradient: GradientSettings) => string;
   getGradientStyle: (gradient: GradientSettings) => React.CSSProperties;
   loading: boolean;
@@ -47,6 +48,7 @@ const AppearanceContext = createContext<AppearanceContextType>({
   navbarGradient: defaultNavbarGradient,
   heroBackgroundImage: null,
   salonProfileLayout: 'classic',
+  stickyNavbar: true,
   getGradientClass: () => '',
   getGradientStyle: () => ({}),
   loading: true,
@@ -64,6 +66,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   const [navbarGradient, setNavbarGradient] = useState<GradientSettings>(defaultNavbarGradient);
   const [heroBackgroundImage, setHeroBackgroundImage] = useState<string | null>(null);
   const [salonProfileLayout, setSalonProfileLayout] = useState<SalonProfileLayout>('classic');
+  const [stickyNavbar, setStickyNavbar] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = async () => {
@@ -80,6 +83,9 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
       }
       if (response.salon_profile_layout) {
         setSalonProfileLayout(response.salon_profile_layout);
+      }
+      if (response.sticky_navbar !== undefined) {
+        setStickyNavbar(response.sticky_navbar);
       }
     } catch (error) {
       console.error('Error fetching appearance settings:', error);
@@ -160,6 +166,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
       navbarGradient,
       heroBackgroundImage,
       salonProfileLayout,
+      stickyNavbar,
       getGradientClass,
       getGradientStyle,
       loading,

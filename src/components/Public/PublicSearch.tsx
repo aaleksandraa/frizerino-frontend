@@ -356,7 +356,7 @@ export const PublicSearch: React.FC = () => {
     const fetchMenSalons = async () => {
       try {
         setMenSalonsLoading(true);
-        const response = await publicAPI.search({ audience: 'men', per_page: 6 });
+        const response = await publicAPI.search({ audience: 'men', per_page: 6 } as any);
         const salonsData = response.salons || response.data || [];
         setMenSalons(salonsData.slice(0, 6));
       } catch (error) {
@@ -518,15 +518,23 @@ export const PublicSearch: React.FC = () => {
       
       switch (sortBy) {
         case 'rating':
-          comparison = (a.average_rating || a.rating || 0) - (b.average_rating || b.rating || 0);
+          // Sort by rating
+          const ratingA = a.average_rating || a.rating || 0;
+          const ratingB = b.average_rating || b.rating || 0;
+          comparison = ratingA - ratingB;
           break;
         case 'reviews':
-          comparison = (a.reviews_count || a.review_count || 0) - (b.reviews_count || b.review_count || 0);
+          // Sort by number of reviews
+          const reviewsA = a.reviews_count || a.review_count || 0;
+          const reviewsB = b.reviews_count || b.review_count || 0;
+          comparison = reviewsA - reviewsB;
           break;
         case 'name':
-          comparison = a.name.localeCompare(b.name);
+          // Sort alphabetically (Croatian locale)
+          comparison = a.name.localeCompare(b.name, 'hr');
           break;
         case 'distance':
+          // Sort by distance
           const distA = getDistance(a) ?? Infinity;
           const distB = getDistance(b) ?? Infinity;
           comparison = distA - distB;
@@ -535,6 +543,9 @@ export const PublicSearch: React.FC = () => {
           comparison = 0;
       }
       
+      // Apply sort direction
+      // asc: a - b (smaller/lower first)
+      // desc: b - a (bigger/higher first)
       return sortDirection === 'desc' ? -comparison : comparison;
     });
   }, [sortBy, sortDirection, userLocation]);
@@ -684,7 +695,7 @@ export const PublicSearch: React.FC = () => {
       
       {/* Search Header - Full screen on mobile - Dynamic gradient with optional background image */}
       <div 
-        className="min-h-[100dvh] md:min-h-0 md:py-16 pt-20 md:pt-16 px-4 flex flex-col justify-center relative"
+        className="min-h-[100dvh] md:min-h-0 md:py-16 pt-20 md:pt-16 px-4 flex items-center justify-center md:block relative"
         style={{
           ...(heroBackgroundImage ? {
             backgroundImage: `url(${heroBackgroundImage})`,
@@ -825,8 +836,8 @@ export const PublicSearch: React.FC = () => {
             )}
           </div>
           
-          {/* Animated scroll arrow - visible on mobile only, positioned at bottom of hero */}
-          <div className="md:hidden absolute bottom-6 left-0 right-0 flex justify-center">
+          {/* Animated scroll arrow - visible on mobile only, positioned below "Blizu mene" button */}
+          <div className="md:hidden max-w-2xl mx-auto mt-12 flex justify-center">
             <button 
               onClick={() => {
                 document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
@@ -912,7 +923,11 @@ export const PublicSearch: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 <ArrowsUpDownIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Sortiraj</span>
+                <span className="hidden sm:inline">
+                  {sortOptions.find(opt => opt.value === sortBy)?.label || 'Sortiraj'}
+                  {sortDirection === 'desc' ? ' ↓' : ' ↑'}
+                </span>
+                <span className="sm:hidden">Sortiraj</span>
                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
               </button>
 
@@ -926,7 +941,15 @@ export const PublicSearch: React.FC = () => {
                           setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
                         } else {
                           setSortBy(option.value);
-                          setSortDirection('desc');
+                          // Set default direction based on sort type
+                          // Rating and reviews: desc (higher first)
+                          // Distance: asc (closer first)
+                          // Name: asc (A-Z)
+                          if (option.value === 'distance' || option.value === 'name') {
+                            setSortDirection('asc');
+                          } else {
+                            setSortDirection('desc');
+                          }
                         }
                         setShowSortDropdown(false);
                       }}

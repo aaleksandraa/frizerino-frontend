@@ -33,7 +33,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { navbarGradient, getGradientStyle } = useAppearance();
+  const { navbarGradient, getGradientStyle, stickyNavbar } = useAppearance();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -328,19 +328,32 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const navClasses = () => {
     if (transparent) {
       // On homepage (transparent mode)
-      if (isScrolled) {
-        // Scrolled - show gradient background with shadow
-        return 'fixed top-0 left-0 right-0 shadow-lg transition-all duration-300';
+      if (stickyNavbar) {
+        if (isScrolled) {
+          // Scrolled - show gradient background with shadow
+          return 'fixed top-0 left-0 right-0 shadow-lg transition-all duration-300';
+        } else {
+          // At top - transparent
+          return 'fixed top-0 left-0 right-0 bg-transparent transition-all duration-300';
+        }
       } else {
-        // At top - transparent
-        return 'fixed top-0 left-0 right-0 bg-transparent transition-all duration-300';
+        // Not sticky - always transparent
+        return 'absolute top-0 left-0 right-0 bg-transparent';
       }
     } else if (user) {
-      // Logged in user on other pages - sticky white
-      return 'sticky top-0 bg-white shadow-sm border-b border-gray-200';
+      // Logged in user on other pages
+      if (stickyNavbar) {
+        return 'sticky top-0 bg-white shadow-sm border-b border-gray-200';
+      } else {
+        return 'bg-white shadow-sm border-b border-gray-200';
+      }
     } else {
-      // Guest on other pages - not sticky
-      return 'bg-white shadow-sm border-b border-gray-200';
+      // Guest on other pages
+      if (stickyNavbar) {
+        return 'sticky top-0 bg-white shadow-sm border-b border-gray-200';
+      } else {
+        return 'bg-white shadow-sm border-b border-gray-200';
+      }
     }
   };
 

@@ -74,6 +74,9 @@ export function AdminSettings() {
   // Hero background image
   const [heroBackgroundImage, setHeroBackgroundImage] = useState<string>('');
 
+  // Sticky navbar setting
+  const [stickyNavbar, setStickyNavbar] = useState<boolean>(true);
+
   // Featured salon settings
   const [featuredSalonId, setFeaturedSalonId] = useState<number | null>(null);
   const [featuredSalonText, setFeaturedSalonText] = useState<string>('Otvoren je novi salon u vašem gradu');
@@ -118,6 +121,11 @@ export function AdminSettings() {
         }
         if (response.hero_background_image) {
           setHeroBackgroundImage(response.hero_background_image);
+        }
+        // Load sticky navbar setting from appearance settings
+        const appearanceResponse = await adminAPI.getAppearanceSettings();
+        if (appearanceResponse.sticky_navbar !== undefined) {
+          setStickyNavbar(appearanceResponse.sticky_navbar);
         }
       } catch (error) {
         console.error('Failed to load gradient settings:', error);
@@ -184,7 +192,7 @@ export function AdminSettings() {
     const searchSalons = async () => {
       try {
         const { publicAPI } = await import('../../services/api');
-        const response = await publicAPI.search({ search: salonSearchQuery, limit: 10 });
+        const response = await publicAPI.search({ q: salonSearchQuery, per_page: 10 } as any);
         const salons = response.salons || response.data || [];
         setSalonSearchResults(salons.map((s: { id: number; name: string; city?: string }) => ({ 
           id: s.id, 
@@ -225,11 +233,14 @@ export function AdminSettings() {
       await adminAPI.updateGradient({
         ...currentGradient,
         custom: useCustomGradient,
-        hero_background_image: heroBackgroundImage || null,
-      });
+        background_image: heroBackgroundImage || null,
+      } as any);
       
       // Save layout settings
       await adminAPI.updateSalonProfileLayout(salonProfileLayout);
+
+      // Save sticky navbar setting
+      await adminAPI.updateStickyNavbar(stickyNavbar);
 
       // Save featured salon settings
       await adminAPI.updateFeaturedSalon({
@@ -1278,6 +1289,46 @@ export function AdminSettings() {
                       />
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky Navbar Section */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center">
+                  <Globe className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Navigacija</h3>
+                  <p className="text-sm text-gray-600">Postavke za navigacioni meni</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
+                      <span className="text-lg">📌</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Fiksiran meni pri skrolovanju</p>
+                      <p className="text-sm text-gray-500">Meni ostaje na vrhu stranice kada korisnik skroluje</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStickyNavbar(!stickyNavbar)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      stickyNavbar ? 'bg-teal-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        stickyNavbar ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </div>
