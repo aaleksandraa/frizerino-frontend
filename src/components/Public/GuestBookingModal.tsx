@@ -183,8 +183,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   const updateService = (index: number, serviceId: string) => {
     const service = services.find(s => String(s.id) === String(serviceId));
+    
+    // Auto-select staff if only one available
+    const availableStaff = getAvailableStaff(serviceId);
+    const autoSelectedStaffId = availableStaff.length === 1 ? String(availableStaff[0].id) : '';
+    
     setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, id: serviceId, service: service || null, staffId: '' } : item
+      i === index ? { ...item, id: serviceId, service: service || null, staffId: autoSelectedStaffId } : item
     ));
   };
 
@@ -324,7 +329,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
     setError(null);
     
-    if (step === 4) {
+    if (step === 1) {
+      // Auto-skip staff selection if all services have only one staff member
+      const allHaveSingleStaff = selectedServices.every(item => {
+        const availableStaff = getAvailableStaff(item.id);
+        return availableStaff.length === 1 && item.staffId;
+      });
+      setStep(allHaveSingleStaff ? 3 : 2);
+    } else if (step === 4) {
       // After time selection
       if (user) {
         handleSubmit();
@@ -892,7 +904,16 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                     {availableSlots.map((slot) => (
                       <button
                         key={slot}
-                        onClick={() => setSelectedTime(slot)}
+                        onClick={() => {
+                          setSelectedTime(slot);
+                          // Auto-scroll to notes section after selecting time
+                          setTimeout(() => {
+                            const notesElement = document.getElementById('guest-booking-notes');
+                            if (notesElement) {
+                              notesElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 300);
+                        }}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
                           selectedTime === slot
                             ? 'border-orange-500 bg-orange-50 shadow-md'
@@ -914,9 +935,27 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 </div>
               )}
               
+              {/* Visual indicator for notes below */}
+              {!selectedTime && availableSlots.length > 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm text-orange-600 animate-pulse">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  <span>Napomene su dostupne ispod</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              )}
+              
               {/* Notes */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Napomena (opciono)</label>
+              <div className="mt-4" id="guest-booking-notes">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Napomena (opciono)
+                  {selectedTime && (
+                    <span className="ml-2 text-xs text-green-600">✓ Vrijeme odabrano</span>
+                  )}
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

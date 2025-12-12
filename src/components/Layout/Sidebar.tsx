@@ -46,6 +46,7 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
           { id: 'staff', label: 'Zaposleni', icon: Users },
           { id: 'services', label: 'Usluge', icon: Settings },
           { id: 'schedule', label: 'Raspored', icon: Clock },
+          { id: 'clients', label: 'Klijenti', icon: UserCog },
           { id: 'calendar', label: 'Kalendar', icon: Calendar },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
           { id: 'reviews', label: 'Recenzije', icon: Star },
@@ -57,6 +58,7 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
           { id: 'dashboard', label: 'Moji termini', icon: Home },
           { id: 'calendar', label: 'Kalendar', icon: Calendar },
           { id: 'schedule', label: 'Raspored', icon: Clock },
+          { id: 'clients', label: 'Klijenti', icon: UserCog },
           { id: 'reviews', label: 'Recenzije', icon: Star },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
           { id: 'settings', label: 'Podešavanja', icon: Settings }

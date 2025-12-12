@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Calendar, Clock, User, CreditCard, CheckCircle, Plus, Trash2, Check } from 'lucide-react';
 import { Salon, Service, Staff, StaffRole, StaffRoleLabels } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,9 @@ import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtil
 import { ReviewModal } from './ReviewModal';
 import { EuropeanDatePicker } from './EuropeanDatePicker';
 import { serviceAPI, staffAPI, appointmentAPI } from '../../services/api';
+import { useFormStore } from '../../store/formStore';
+import { AutoSaveIndicator } from '../Common/AutoSaveIndicator';
+import { useAutoSave } from '../../hooks/useAutoSave';
 
 interface BookingModalProps {
   salon: Salon;
@@ -23,21 +26,37 @@ interface SelectedService {
 
 export function BookingModal({ salon, selectedService, onClose, onBookingComplete }: BookingModalProps) {
   const { user } = useAuth();
+  
+  // Zustand store for persistence
+  const {
+    appointmentForm,
+    setAppointmentForm,
+    clearAppointmentForm,
+  } = useFormStore();
+  
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
-  const [bookingData, setBookingData] = useState({
-    date: '',
-    time: '',
-    notes: ''
-  });
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
+  
+  // Use persisted booking data
+  const bookingData = {
+    date: appointmentForm.date || '',
+    time: appointmentForm.time || '',
+    notes: appointmentForm.notes || ''
+  };
+  
+  const updateBookingData = (updates: Partial<typeof bookingData>) => {
+    setAppointmentForm({ ...updates });
+  };
 
   useEffect(() => {
     loadSalonData();
@@ -87,8 +106,12 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     const service = services.find(s => s.id === serviceId);
     if (!service) return;
 
+    // Auto-select staff if only one available
+    const availableStaff = staff.filter(staffMember => service.staff_ids.includes(staffMember.id));
+    const autoSelectedStaffId = availableStaff.length === 1 ? availableStaff[0].id : '';
+
     setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, id: serviceId, service, staffId: '' } : item
+      i === index ? { ...item, id: serviceId, service, staffId: autoSelectedStaffId } : item
     ));
   };
 
@@ -128,6 +151,19 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     }
   };
 
+  // Auto-save callback
+  const handleAutoSave = useCallback(() => {
+    setAutoSaveStatus('saving');
+    setTimeout(() => {
+      setAutoSaveStatus('saved');
+      setLastSaved(new Date());
+      setTimeout(() => setAutoSaveStatus('idle'), 3000);
+    }, 300);
+  }, []);
+
+  // Auto-save booking data
+  useAutoSave(handleAutoSave, bookingData, 800);
+
   const handleSubmit = async () => {
     if (!user || !canProceedToNextStep()) {
       return;
@@ -154,6 +190,8 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
 
       setBookingDetails(appointments);
       setShowSuccess(true);
+      // Clear form after successful booking
+      clearAppointmentForm();
     } catch (error) {
       console.error('Error booking appointment:', error);
       alert('Došlo je do greške pri rezervaciji termina. Molimo pokušajte ponovo.');
@@ -307,7 +345,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-t-2xl">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rezervacija termina</h2>
             <button 
               onClick={onClose}
@@ -316,6 +354,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
               <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
             </button>
           </div>
+          <AutoSaveIndicator status={autoSaveStatus} lastSaved={lastSaved} />
           
           {/* Progress Steps */}
           <div className="flex items-center">
@@ -410,7 +449,14 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
               )}
               
               <button
-                onClick={() => setStep(2)}
+                onClick={() => {
+                  // Auto-skip staff selection if all services have only one staff member
+                  const allHaveSingleStaff = selectedServices.every(item => {
+                    const availableStaff = getAvailableStaff(item.id);
+                    return availableStaff.length === 1 && item.staffId;
+                  });
+                  setStep(allHaveSingleStaff ? 3 : 2);
+                }}
                 disabled={!canProceedToNextStep() || loading}
                 className="w-full bg-orange-500 text-white py-3 px-4 rounded-xl hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -523,7 +569,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                 <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
                 <EuropeanDatePicker
                   value={bookingData.date}
-                  onChange={(date) => setBookingData(prev => ({ ...prev, date, time: '' }))}
+                  onChange={(date) => updateBookingData({ date, time: '' })}
                   minDate={new Date()}
                   maxDate={new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)}
                   placeholder="Izaberite datum"
@@ -568,16 +614,43 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                   serviceId={selectedServices[0].id}
                   serviceDuration={getTotalDuration()}
                   selectedDate={bookingData.date}
-                  onTimeSelect={(time) => setBookingData(prev => ({ ...prev, time }))}
+                  onTimeSelect={(time) => {
+                    updateBookingData({ time });
+                    // Auto-scroll to notes section after selecting time
+                    setTimeout(() => {
+                      const notesElement = document.getElementById('booking-notes');
+                      if (notesElement) {
+                        notesElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }, 300);
+                  }}
                   selectedTime={bookingData.time}
                 />
               )}
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Napomene (opcionalno)</label>
+              {/* Visual indicator for notes below */}
+              {!bookingData.time && (
+                <div className="flex items-center justify-center gap-2 text-sm text-orange-600 animate-pulse">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  <span>Napomene su dostupne ispod</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              )}
+              
+              <div id="booking-notes">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Napomene (opcionalno)
+                  {bookingData.time && (
+                    <span className="ml-2 text-xs text-green-600">✓ Vrijeme odabrano</span>
+                  )}
+                </label>
                 <textarea
                   value={bookingData.notes}
-                  onChange={(e) => setBookingData(prev => ({ ...prev, notes: e.target.value }))}
+                  onChange={(e) => updateBookingData({ notes: e.target.value })}
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Dodatne napomene za frizera..."

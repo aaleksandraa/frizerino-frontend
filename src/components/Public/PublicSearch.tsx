@@ -725,28 +725,50 @@ export const PublicSearch: React.FC = () => {
           
           {/* Main Search Input with Suggestions */}
           <div className="max-w-2xl mx-auto relative">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Pretraži salone ili usluge (npr. šišanje, farbanje, manikir...)"
-                value={filters.q}
-                onChange={(e) => {
-                  handleFilterChange('q', e.target.value);
-                  setShowSuggestions(true);
+            <div className="relative flex gap-2">
+              <div className="relative flex-1">
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Pretraži salone ili usluge (npr. šišanje, farbanje, manikir...)"
+                  value={filters.q}
+                  onChange={(e) => {
+                    handleFilterChange('q', e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    setSearchFocused(true);
+                    setShowSuggestions(true);
+                  }}
+                  onBlur={() => {
+                    setSearchFocused(false);
+                    // Delay hiding suggestions so clicks can register
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      // Scroll to results on mobile when Enter is pressed
+                      if (window.innerWidth < 768) {
+                        document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-0 shadow-lg focus:ring-2 focus:ring-pink-300 text-lg"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  // Scroll to results on mobile when search button is clicked
+                  if (window.innerWidth < 768) {
+                    document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
+                  }
                 }}
-                onFocus={() => {
-                  setSearchFocused(true);
-                  setShowSuggestions(true);
-                }}
-                onBlur={() => {
-                  setSearchFocused(false);
-                  // Delay hiding suggestions so clicks can register
-                  setTimeout(() => setShowSuggestions(false), 200);
-                }}
-                className="w-full pl-12 pr-4 py-4 rounded-xl border-0 shadow-lg focus:ring-2 focus:ring-pink-300 text-lg"
-              />
+                className="px-6 py-4 bg-white text-pink-600 rounded-xl shadow-lg hover:bg-pink-50 transition-colors font-medium"
+              >
+                <MagnifyingGlassIcon className="h-6 w-6 md:hidden" />
+                <span className="hidden md:inline">Pretraži</span>
+              </button>
             </div>
             
             {/* Search Suggestions Dropdown */}
@@ -763,6 +785,12 @@ export const PublicSearch: React.FC = () => {
                       e.preventDefault();
                       handleFilterChange('q', service.name);
                       setShowSuggestions(false);
+                      // Scroll to results on mobile when suggestion is clicked
+                      if (window.innerWidth < 768) {
+                        setTimeout(() => {
+                          document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }
                     }}
                   >
                     <div>
@@ -786,7 +814,15 @@ export const PublicSearch: React.FC = () => {
                 {topServices.map((service, index) => (
                   <button
                     key={index}
-                    onClick={() => handleFilterChange('q', service.name)}
+                    onClick={() => {
+                      handleFilterChange('q', service.name);
+                      // Scroll to results on mobile when tag is clicked
+                      if (window.innerWidth < 768) {
+                        setTimeout(() => {
+                          document.getElementById('salon-results')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }
+                    }}
                     className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm rounded-full backdrop-blur-sm transition-all hover:scale-105"
                   >
                     {service.name}

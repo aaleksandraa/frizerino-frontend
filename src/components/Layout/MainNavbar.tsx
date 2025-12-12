@@ -102,6 +102,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
     { id: 'calendar', label: 'Kalendar', icon: CalendarDaysIcon },
     { id: 'analytics', label: 'Analitika', icon: ChartBarIcon },
     { id: 'reviews', label: 'Recenzije', icon: StarIcon },
+    { id: 'clients', label: 'Klijenti', icon: UserCircleIcon },
     { id: 'settings', label: 'Podešavanja', icon: Cog6ToothIcon }
   ];
 
@@ -112,6 +113,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
     { id: 'schedule', label: 'Raspored', icon: ClockIcon },
     { id: 'reviews', label: 'Recenzije', icon: StarIcon },
     { id: 'analytics', label: 'Analitika', icon: ChartBarIcon },
+    { id: 'clients', label: 'Klijenti', icon: UserCircleIcon },
     { id: 'settings', label: 'Podešavanja', icon: Cog6ToothIcon }
   ];
 

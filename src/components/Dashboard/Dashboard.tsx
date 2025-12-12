@@ -25,6 +25,7 @@ import { SalonAnalytics } from '../Salon/SalonAnalytics';
 import { SalonReviews } from '../Salon/SalonReviews';
 import { SalonSchedule } from '../Salon/SalonSchedule';
 import { SalonCalendar } from '../Salon/SalonCalendar';
+import { SalonClients } from '../Salon/SalonClients';
 import { SalonJobAds } from '../Salon/SalonJobAds';
 
 // Admin components
@@ -102,6 +103,7 @@ export function Dashboard() {
           case 'calendar': return <SalonCalendar />;
           case 'analytics': return <SalonAnalytics />;
           case 'reviews': return <SalonReviews />;
+          case 'clients': return <SalonClients />;
           case 'job-ads': return <SalonJobAds />;
           case 'settings': return <SalonProfile />;
           default: return <SalonDashboard onSectionChange={setActiveSection} />;
@@ -114,6 +116,7 @@ export function Dashboard() {
           case 'schedule': return <FrizerSchedule />;
           case 'reviews': return <FrizerReviews />;
           case 'analytics': return <SalonAnalytics />;
+          case 'clients': return <SalonClients />;
           case 'settings': return <FrizerSettings />;
           default: return <FrizerDashboard />;
         }
