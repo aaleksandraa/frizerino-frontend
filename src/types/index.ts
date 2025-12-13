@@ -224,6 +224,7 @@ export interface AuthContextType {
   register: (userData: Partial<User>, password: string) => Promise<boolean>;
   updateUser: (updates: Partial<User>) => Promise<boolean>;
   refreshUser: () => Promise<void>;
+  ensureAuthenticated: () => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }

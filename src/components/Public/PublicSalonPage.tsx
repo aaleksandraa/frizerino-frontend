@@ -68,6 +68,9 @@ export const PublicSalonPage: React.FC = () => {
   // Staff bio expanded state
   const [expandedStaffBio, setExpandedStaffBio] = useState<number | null>(null);
 
+  // Description expanded state (for mobile)
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
   // Review form state
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -331,6 +334,8 @@ export const PublicSalonPage: React.FC = () => {
             onGoToImage: goToImage,
             onOpenLightbox: openLightbox,
             onBookingClick: () => setShowBookingModal(true),
+            isDescriptionExpanded,
+            onToggleDescription: () => setIsDescriptionExpanded(!isDescriptionExpanded),
           };
 
           switch (salonProfileLayout) {
@@ -425,9 +430,9 @@ export const PublicSalonPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Description */}
+              {/* Description - Hidden on mobile (shown in hero) */}
               {salon.description && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="hidden md:block bg-white rounded-lg shadow-sm p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">O salonu</h2>
                   <p className="text-gray-600 leading-relaxed">{salon.description}</p>
                 </div>

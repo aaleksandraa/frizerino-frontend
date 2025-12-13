@@ -34,6 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<User | null> => {
     try {
+      // Clear any old session data first
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('currentUser');
+      sessionStorage.clear();
+      
+      // Get fresh CSRF token
       await authAPI.getCSRF();
 
       const userData = await authAPI.login(email, password);
@@ -71,6 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      // Clear any cached data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('currentUser');
+      // Clear session storage
+      sessionStorage.clear();
     }
   };
 
@@ -93,11 +104,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error?.response?.status !== 401) {
         console.error('Error refreshing user:', error);
       }
+      // If 401, user is not authenticated - clear state
+      if (error?.response?.status === 401) {
+        setUser(null);
+      }
+    }
+  };
+
+  const ensureAuthenticated = async (): Promise<boolean> => {
+    // Check if user is already loaded
+    if (user) return true;
+    
+    // Try to fetch user
+    try {
+      const response = await authAPI.getUser();
+      if (response?.user) {
+        setUser(response.user);
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        setUser(null);
+      }
+      return false;
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUser, refreshUser, ensureAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

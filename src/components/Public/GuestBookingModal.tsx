@@ -47,6 +47,13 @@ interface GuestData {
   guest_address: string;
 }
 
+interface ValidationErrors {
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  guest_address?: string;
+}
+
 interface SelectedServiceItem {
   id: string;
   service: Service | null;
@@ -88,6 +95,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     guest_address: ''
   });
 
+  // Validation errors
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+
   // Success state
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -96,6 +106,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     if (isOpen) {
       setStep(user ? 1 : 0);
       setError(null);
+      setValidationErrors({});
       setShowSuccess(false);
       setSelectedDate('');
       setSelectedTime('');
@@ -310,6 +321,48 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     return null;
   };
 
+  // Validate guest data
+  const validateGuestData = (): boolean => {
+    const errors: ValidationErrors = {};
+    
+    // Name validation
+    if (!guestData.guest_name.trim()) {
+      errors.guest_name = 'Ime i prezime je obavezno';
+    } else if (guestData.guest_name.trim().length < 3) {
+      errors.guest_name = 'Ime mora imati najmanje 3 karaktera';
+    } else if (!/^[a-zA-ZčćžšđČĆŽŠĐ\s]+$/.test(guestData.guest_name)) {
+      errors.guest_name = 'Ime može sadržati samo slova';
+    }
+    
+    // Phone validation
+    if (!guestData.guest_phone.trim()) {
+      errors.guest_phone = 'Broj telefona je obavezan';
+    } else {
+      const phoneDigits = guestData.guest_phone.replace(/[\s\-\+\(\)]/g, '');
+      if (!/^\d{8,15}$/.test(phoneDigits)) {
+        errors.guest_phone = 'Unesite ispravan broj telefona (8-15 cifara)';
+      }
+    }
+    
+    // Address validation
+    if (!guestData.guest_address.trim()) {
+      errors.guest_address = 'Adresa je obavezna';
+    } else if (guestData.guest_address.trim().length < 5) {
+      errors.guest_address = 'Adresa mora imati najmanje 5 karaktera';
+    }
+    
+    // Email validation (optional but must be valid if provided)
+    if (guestData.guest_email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guestData.guest_email)) {
+        errors.guest_email = 'Unesite ispravnu email adresu';
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Step validation
   const canProceed = () => {
     switch (step) {
@@ -323,11 +376,42 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   };
 
   const handleNext = () => {
-    if (!canProceed()) {
-      setError('Molimo popunite sva obavezna polja');
-      return;
-    }
+    // Clear previous errors
     setError(null);
+    setValidationErrors({});
+    
+    // Step-specific validation
+    if (step === 1) {
+      if (selectedServices.length === 0) {
+        setError('Molimo izaberite najmanje jednu uslugu');
+        return;
+      }
+      if (!selectedServices.every(item => item.id)) {
+        setError('Molimo izaberite uslugu za sve stavke');
+        return;
+      }
+    } else if (step === 2) {
+      if (!selectedServices.every(item => item.staffId)) {
+        setError('Molimo izaberite frizera/kozmetičara za sve usluge');
+        return;
+      }
+    } else if (step === 3) {
+      if (!selectedDate) {
+        setError('Molimo izaberite datum');
+        return;
+      }
+    } else if (step === 4) {
+      if (!selectedTime) {
+        setError('Molimo izaberite vrijeme');
+        return;
+      }
+    } else if (step === 5) {
+      // Validate guest data
+      if (!validateGuestData()) {
+        setError('Molimo ispravite greške u formi');
+        return;
+      }
+    }
     
     if (step === 1) {
       // Auto-skip staff selection if all services have only one staff member
@@ -984,10 +1068,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 <input
                   type="text"
                   value={guestData.guest_name}
-                  onChange={(e) => setGuestData({ ...guestData, guest_name: e.target.value })}
+                  onChange={(e) => {
+                    setGuestData({ ...guestData, guest_name: e.target.value });
+                    if (validationErrors.guest_name) {
+                      setValidationErrors({ ...validationErrors, guest_name: undefined });
+                    }
+                  }}
                   placeholder="Vaše ime i prezime"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                    validationErrors.guest_name ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
+                {validationErrors.guest_name && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {validationErrors.guest_name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -995,10 +1092,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 <input
                   type="tel"
                   value={guestData.guest_phone}
-                  onChange={(e) => setGuestData({ ...guestData, guest_phone: e.target.value })}
+                  onChange={(e) => {
+                    setGuestData({ ...guestData, guest_phone: e.target.value });
+                    if (validationErrors.guest_phone) {
+                      setValidationErrors({ ...validationErrors, guest_phone: undefined });
+                    }
+                  }}
                   placeholder="+387 6X XXX XXX"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                    validationErrors.guest_phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
+                {validationErrors.guest_phone && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {validationErrors.guest_phone}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1006,10 +1116,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 <input
                   type="text"
                   value={guestData.guest_address}
-                  onChange={(e) => setGuestData({ ...guestData, guest_address: e.target.value })}
+                  onChange={(e) => {
+                    setGuestData({ ...guestData, guest_address: e.target.value });
+                    if (validationErrors.guest_address) {
+                      setValidationErrors({ ...validationErrors, guest_address: undefined });
+                    }
+                  }}
                   placeholder="Vaša adresa stanovanja"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                    validationErrors.guest_address ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
+                {validationErrors.guest_address && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {validationErrors.guest_address}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1017,10 +1140,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 <input
                   type="email"
                   value={guestData.guest_email}
-                  onChange={(e) => setGuestData({ ...guestData, guest_email: e.target.value })}
+                  onChange={(e) => {
+                    setGuestData({ ...guestData, guest_email: e.target.value });
+                    if (validationErrors.guest_email) {
+                      setValidationErrors({ ...validationErrors, guest_email: undefined });
+                    }
+                  }}
                   placeholder="vas@email.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                    validationErrors.guest_email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
+                {validationErrors.guest_email && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {validationErrors.guest_email}
+                  </p>
+                )}
               </div>
 
               {/* Booking Summary */}

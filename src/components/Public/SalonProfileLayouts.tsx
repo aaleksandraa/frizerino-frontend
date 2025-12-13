@@ -11,6 +11,41 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 
+// Mobile Description Component with expand/collapse
+interface MobileDescriptionProps {
+  description: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+const MobileDescription: React.FC<MobileDescriptionProps> = ({ description, isExpanded, onToggle }) => {
+  const MAX_LENGTH = 1000;
+  const shouldTruncate = description.length > MAX_LENGTH;
+  const displayText = shouldTruncate && !isExpanded 
+    ? description.substring(0, MAX_LENGTH) 
+    : description;
+
+  return (
+    <div className="md:hidden bg-white border-b">
+      <div className="p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">O salonu</h2>
+        <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+          {displayText}
+          {shouldTruncate && !isExpanded && '...'}
+        </p>
+        {shouldTruncate && (
+          <button
+            onClick={onToggle}
+            className="mt-2 text-orange-600 hover:text-orange-700 font-medium text-sm"
+          >
+            {isExpanded ? 'Prikaži manje' : 'Više'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface SalonImage {
   id: number;
   url: string;
@@ -26,6 +61,8 @@ interface SalonHeroProps {
   onGoToImage: (index: number) => void;
   onOpenLightbox: (index: number) => void;
   onBookingClick: () => void;
+  isDescriptionExpanded?: boolean;
+  onToggleDescription?: () => void;
 }
 
 // =============================================================================
@@ -40,6 +77,8 @@ export const ClassicHero: React.FC<SalonHeroProps> = ({
   onGoToImage,
   onOpenLightbox,
   onBookingClick,
+  isDescriptionExpanded = false,
+  onToggleDescription = () => {},
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -134,6 +173,8 @@ export const ClassicDescFirstHero: React.FC<SalonHeroProps> = ({
   onGoToImage,
   onOpenLightbox,
   onBookingClick,
+  isDescriptionExpanded = false,
+  onToggleDescription = () => {},
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -201,12 +242,11 @@ export const ClassicDescFirstHero: React.FC<SalonHeroProps> = ({
 
       {/* Mobile: Description BEFORE Gallery */}
       {salon.description && (
-        <div className="md:hidden bg-white border-b">
-          <div className="p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">O salonu</h2>
-            <p className="text-gray-600 text-sm leading-relaxed">{salon.description}</p>
-          </div>
-        </div>
+        <MobileDescription 
+          description={salon.description}
+          isExpanded={isDescriptionExpanded}
+          onToggle={onToggleDescription}
+        />
       )}
 
       {/* Mobile Gallery - After description */}
@@ -238,6 +278,8 @@ export const CompactHero: React.FC<SalonHeroProps> = ({
   onGoToImage,
   onOpenLightbox,
   onBookingClick,
+  isDescriptionExpanded = false,
+  onToggleDescription = () => {},
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -330,6 +372,8 @@ export const ModernHero: React.FC<SalonHeroProps> = ({
   onGoToImage,
   onOpenLightbox,
   onBookingClick,
+  isDescriptionExpanded = false,
+  onToggleDescription = () => {},
 }) => {
   return (
     <>
@@ -473,6 +517,8 @@ export const MinimalHero: React.FC<SalonHeroProps> = ({
   onGoToImage: _onGoToImage,
   onOpenLightbox,
   onBookingClick,
+  isDescriptionExpanded = false,
+  onToggleDescription = () => {},
 }) => {
   // Note: This layout uses its own image display style, so carousel functions are not used
   void _currentImageIndex; void _onPrevImage; void _onNextImage; void _onGoToImage;

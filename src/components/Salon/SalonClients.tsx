@@ -126,8 +126,31 @@ export function SalonClients() {
         params: { search }
       });
       setClients(response.data.clients || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching clients:', error);
+      
+      // Show user-friendly error message
+      if (error?.response?.status === 401) {
+        setToast({ 
+          message: 'Sesija je istekla. Molimo prijavite se ponovo.', 
+          type: 'error' 
+        });
+      } else if (error?.response?.status === 403) {
+        setToast({ 
+          message: 'Nemate dozvolu za pristup klijentima.', 
+          type: 'error' 
+        });
+      } else if (error?.response?.status === 404) {
+        setToast({ 
+          message: 'Ruta za klijente nije pronađena. Kontaktirajte podršku.', 
+          type: 'error' 
+        });
+      } else {
+        setToast({ 
+          message: 'Greška pri učitavanju klijenata. Pokušajte ponovo.', 
+          type: 'error' 
+        });
+      }
     } finally {
       setLoading(false);
     }

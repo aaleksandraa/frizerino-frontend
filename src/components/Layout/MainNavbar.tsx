@@ -196,8 +196,14 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
     try {
       const response = await notificationAPI.getUnreadCount();
       setUnreadCount(response.count);
-    } catch (error) {
-      console.error('Error loading unread count:', error);
+    } catch (error: any) {
+      // Silently fail for 401/403 errors (user not authenticated)
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        console.warn('Not authenticated for notifications');
+        setUnreadCount(0);
+      } else {
+        console.error('Error loading unread count:', error);
+      }
     }
   };
 

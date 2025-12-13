@@ -25,11 +25,48 @@ const api = axios.create({
   withCredentials: true, // Important for cookies/session
 });
 
+// Add request interceptor to ensure CSRF token is fresh
+api.interceptors.request.use(
+  async (config) => {
+    // For state-changing requests, ensure we have a fresh CSRF token
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase() || '')) {
+      // Check if XSRF-TOKEN cookie exists
+      const hasXsrfToken = document.cookie.includes('XSRF-TOKEN');
+      if (!hasXsrfToken) {
+        try {
+          await sanctumApi.get('/sanctum/csrf-cookie');
+        } catch (error) {
+          console.warn('Failed to get CSRF token:', error);
+        }
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Handle 419 CSRF token mismatch - refresh and retry
+    if (error.response?.status === 419 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        // Get fresh CSRF token
+        await sanctumApi.get('/sanctum/csrf-cookie');
+        // Retry the original request
+        return api(originalRequest);
+      } catch (csrfError) {
+        console.error('Failed to refresh CSRF token:', csrfError);
+        return Promise.reject(error);
+      }
+    }
     
     // Handle 401 Unauthorized errors (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -54,10 +91,26 @@ api.interceptors.response.use(
         // Clear auth data and redirect to login only for protected routes
         localStorage.removeItem('auth_token');
         localStorage.removeItem('currentUser');
-        window.location.href = '/';
+        sessionStorage.clear();
+        
+        // Show user-friendly message
+        console.warn('Session expired. Please login again.');
+        
+        // Redirect to login with return URL
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/') {
+          window.location.href = `/login?returnTo=${encodeURIComponent(currentPath)}`;
+        } else {
+          window.location.href = '/login';
+        }
       }
       
       return Promise.reject(error);
+    }
+    
+    // Handle 403 Forbidden - might be CORS or permission issue
+    if (error.response?.status === 403) {
+      console.error('Access forbidden. This might be a CORS or permission issue.');
     }
     
     return Promise.reject(error);

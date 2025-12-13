@@ -73,6 +73,32 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     }
   }, [selectedService]);
 
+  // Auto-select staff if salon has only one staff member
+  useEffect(() => {
+    if (staff.length === 1 && selectedServices.length > 0) {
+      const singleStaffId = staff[0].id;
+      setSelectedServices(prev => prev.map(item => ({
+        ...item,
+        staffId: item.staffId || singleStaffId
+      })));
+    }
+  }, [staff, selectedServices.length]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[id^="service-dropdown-"]') && !target.closest('button')) {
+        document.querySelectorAll('[id^="service-dropdown-"]').forEach(dropdown => {
+          dropdown.classList.add('hidden');
+        });
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadSalonData = async () => {
     try {
       setLoading(true);
@@ -408,18 +434,59 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                         )}
                       </div>
                       
-                      <select
-                        value={selectedService.id}
-                        onChange={(e) => updateService(index, e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      >
-                        <option value="">Izaberite uslugu</option>
-                        {services.map(service => (
-                          <option key={service.id} value={service.id}>
-                            {service.name} - {service.discount_price || service.price} KM ({service.duration}min){service.discount_price ? ' (AKCIJA)' : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const dropdown = document.getElementById(`service-dropdown-${index}`);
+                            if (dropdown) {
+                              dropdown.classList.toggle('hidden');
+                            }
+                          }}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-left bg-white flex items-center justify-between"
+                        >
+                          <span className={selectedService.id ? 'text-gray-900' : 'text-gray-500'}>
+                            {selectedService.id 
+                              ? `${selectedService.service.name} - ${selectedService.service.discount_price || selectedService.service.price} KM (${selectedService.service.duration}min)${selectedService.service.discount_price ? ' (AKCIJA)' : ''}`
+                              : 'Izaberite uslugu'
+                            }
+                          </span>
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        <div
+                          id={`service-dropdown-${index}`}
+                          className="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                        >
+                          <div
+                            onClick={() => {
+                              updateService(index, '');
+                              document.getElementById(`service-dropdown-${index}`)?.classList.add('hidden');
+                            }}
+                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-gray-500"
+                          >
+                            Izaberite uslugu
+                          </div>
+                          {services.map(service => (
+                            <div
+                              key={service.id}
+                              onClick={() => {
+                                updateService(index, service.id);
+                                document.getElementById(`service-dropdown-${index}`)?.classList.add('hidden');
+                              }}
+                              className="px-4 py-3 hover:bg-orange-50 cursor-pointer border-t border-gray-100"
+                            >
+                              <div className="font-medium text-gray-900">{service.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {service.discount_price || service.price} KM • {service.duration}min
+                                {service.discount_price && <span className="ml-2 text-orange-600 font-medium">AKCIJA</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       
                       {selectedService.service.description && (
                         <p className="text-sm text-gray-600 mt-2">{selectedService.service.description}</p>
