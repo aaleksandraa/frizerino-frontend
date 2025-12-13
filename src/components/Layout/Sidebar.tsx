@@ -13,7 +13,8 @@ import {
   Search,
   Heart,
   ShieldCheck,
-  Briefcase
+  Briefcase,
+  Code
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,6 +33,7 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'salons', label: 'Svi saloni', icon: MapPin },
           { id: 'users', label: 'Korisnici', icon: Users },
+          { id: 'widgets', label: 'Widget Sistem', icon: Code },
           { id: 'consents', label: 'GDPR Pristanci', icon: ShieldCheck },
           { id: 'job-ads', label: 'Oglasi za posao', icon: Briefcase },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },

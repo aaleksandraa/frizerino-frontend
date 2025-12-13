@@ -49,11 +49,14 @@ export function EuropeanDatePicker({
     return `${day}.${month}.${year}`;
   };
 
-  // Initialize current month from value
+  // Initialize current month from value or current date
   useEffect(() => {
     const parsed = parseEuropeanDate(value);
     if (parsed) {
       setCurrentMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+    } else {
+      // Start with current month if no value
+      setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
     }
   }, [value]);
 
@@ -143,12 +146,32 @@ export function EuropeanDatePicker({
     setIsOpen(false);
   };
 
+  // Check if we can go to previous month (not before current month)
+  const canGoPrevMonth = (): boolean => {
+    const today = new Date();
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    return prevMonth >= currentMonthStart;
+  };
+
+  // Check if we can go to next month (only current + 1 month allowed)
+  const canGoNextMonth = (): boolean => {
+    const today = new Date();
+    const maxAllowedMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    return nextMonth <= maxAllowedMonth;
+  };
+
   const goToPrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    if (canGoPrevMonth()) {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    }
   };
 
   const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    if (canGoNextMonth()) {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    }
   };
 
   const days = getDaysInMonth(currentMonth);
@@ -179,7 +202,8 @@ export function EuropeanDatePicker({
           <div className="flex items-center justify-between mb-1">
             <button
               onClick={goToPrevMonth}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              disabled={!canGoPrevMonth()}
+              className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               type="button"
             >
               <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -189,7 +213,8 @@ export function EuropeanDatePicker({
             </span>
             <button
               onClick={goToNextMonth}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              disabled={!canGoNextMonth()}
+              className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               type="button"
             >
               <ChevronRight className="w-4 h-4 text-gray-600" />

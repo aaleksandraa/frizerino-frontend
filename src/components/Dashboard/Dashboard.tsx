@@ -35,6 +35,7 @@ import { AdminAnalytics } from '../Admin/AdminAnalytics';
 import { AdminSettings } from '../Admin/AdminSettings';
 import { AdminConsents } from '../Admin/AdminConsents';
 import { AdminJobAds } from '../Admin/AdminJobAds';
+import { AdminWidgetManagement } from '../Admin/AdminWidgetManagement';
 
 // Frizer components
 import { FrizerCalendar } from '../Frizer/FrizerCalendar';
@@ -84,6 +85,7 @@ export function Dashboard() {
           case 'dashboard': return <AdminDashboard />;
           case 'salons': return <AdminSalons />;
           case 'users': return <AdminUsers />;
+          case 'widgets': return <AdminWidgetManagement />;
           case 'consents': return <AdminConsents />;
           case 'job-ads': return <AdminJobAds />;
           case 'analytics': return <AdminAnalytics />;

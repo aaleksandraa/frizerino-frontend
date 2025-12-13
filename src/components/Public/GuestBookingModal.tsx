@@ -57,7 +57,6 @@ interface ValidationErrors {
 interface SelectedServiceItem {
   id: string;
   service: Service | null;
-  staffId: string;
 }
 
 export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
@@ -77,8 +76,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Multi-service selection
+  // Multi-service selection - ONE staff for ALL services
   const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   
   // Booking data
   const [selectedDate, setSelectedDate] = useState('');
@@ -112,21 +112,16 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       setSelectedTime('');
       setNotes('');
       setAvailableSlots([]);
+      setSelectedStaffId(preselectedStaff?.id ? String(preselectedStaff.id) : '');
       
       // Initialize services
       if (preselectedService) {
         setSelectedServices([{
           id: String(preselectedService.id),
-          service: preselectedService,
-          staffId: preselectedStaff?.id ? String(preselectedStaff.id) : ''
+          service: preselectedService
         }]);
       } else {
-        // No preselected service, but might have preselected staff
-        setSelectedServices([{ 
-          id: '', 
-          service: null, 
-          staffId: preselectedStaff?.id ? String(preselectedStaff.id) : '' 
-        }]);
+        setSelectedServices([{ id: '', service: null }]);
       }
       
       // Pre-fill guest data
@@ -145,24 +140,32 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   // Load available slots when staff, service, and date are selected
   useEffect(() => {
-    if (selectedServices[0]?.staffId && selectedServices[0]?.id && selectedDate) {
+    if (selectedStaffId && selectedServices[0]?.id && selectedDate) {
       loadAvailableSlots();
     }
-  }, [selectedServices, selectedDate]);
+  }, [selectedServices, selectedDate, selectedStaffId]);
 
   const loadAvailableSlots = async () => {
-    const firstService = selectedServices[0];
-    if (!firstService?.staffId || !firstService?.id || !selectedDate) return;
+    if (!selectedStaffId || !selectedServices[0]?.id || !selectedDate) return;
     
     setLoadingSlots(true);
     try {
-      const data = await publicAPI.getAvailableSlots(
-        firstService.staffId,
-        firstService.id,
-        selectedDate
+      // Build services data for multi-service API
+      const servicesData = selectedServices
+        .filter(s => s.id && s.service)
+        .map(s => ({
+          serviceId: s.id,
+          staffId: selectedStaffId,
+          duration: s.service?.duration || 0
+        }));
+
+      const response = await publicAPI.getAvailableSlotsForMultipleServices(
+        String(salon.id),
+        selectedDate,
+        servicesData
       );
       
-      let slots = data.slots || [];
+      let slots = response.slots || [];
       
       // Filter past slots if today
       const today = new Date();
@@ -185,38 +188,44 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   // Service management functions
   const addService = () => {
-    setSelectedServices(prev => [...prev, { id: '', service: null, staffId: '' }]);
+    setSelectedServices(prev => [...prev, { id: '', service: null }]);
   };
 
   const removeService = (index: number) => {
     setSelectedServices(prev => prev.filter((_, i) => i !== index));
+    // Reset staff if they can't do remaining services
+    setSelectedStaffId('');
   };
 
   const updateService = (index: number, serviceId: string) => {
     const service = services.find(s => String(s.id) === String(serviceId));
-    
-    // Auto-select staff if only one available
-    const availableStaff = getAvailableStaff(serviceId);
-    const autoSelectedStaffId = availableStaff.length === 1 ? String(availableStaff[0].id) : '';
-    
     setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, id: serviceId, service: service || null, staffId: autoSelectedStaffId } : item
+      i === index ? { ...item, id: serviceId, service: service || null } : item
     ));
+    // Reset staff selection when services change
+    setSelectedStaffId('');
   };
 
-  const updateStaff = (index: number, staffId: string) => {
-    setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, staffId } : item
-    ));
+  // Get staff who can perform ALL selected services
+  const getAvailableStaffForAllServices = () => {
+    const validServices = selectedServices.filter(s => s.id && s.service);
+    if (validServices.length === 0) return staff;
+    
+    return staff.filter(staffMember => 
+      validServices.every(item => {
+        const staffIds = item.service?.staff_ids?.map(id => String(id)) || [];
+        return staffIds.includes(String(staffMember.id));
+      })
+    );
   };
 
-  const getAvailableStaff = (serviceId: string) => {
-    const service = services.find(s => String(s.id) === String(serviceId));
-    if (!service) return [];
-    // Handle both string and number IDs
-    const staffIds = service.staff_ids?.map(id => String(id)) || [];
-    return staff.filter(s => staffIds.includes(String(s.id)));
-  };
+  // Auto-select staff if only one available
+  useEffect(() => {
+    const availableStaff = getAvailableStaffForAllServices();
+    if (availableStaff.length === 1 && !selectedStaffId) {
+      setSelectedStaffId(String(availableStaff[0].id));
+    }
+  }, [selectedServices, staff]);
 
   const getTotalDuration = () => {
     return selectedServices.reduce((total, item) => total + (item.service?.duration || 0), 0);
@@ -281,7 +290,6 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
     
     // Check selected staff vacations/breaks if staff is selected
-    const selectedStaffId = selectedServices[0]?.staffId;
     if (selectedStaffId) {
       const selectedStaffMember = staff.find(s => String(s.id) === String(selectedStaffId));
       if (selectedStaffMember) {
@@ -367,7 +375,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const canProceed = () => {
     switch (step) {
       case 1: return selectedServices.length > 0 && selectedServices.every(item => item.id);
-      case 2: return selectedServices.every(item => item.staffId);
+      case 2: return !!selectedStaffId;
       case 3: return !!selectedDate;
       case 4: return !!selectedTime;
       case 5: return guestData.guest_name && guestData.guest_phone && guestData.guest_address;
@@ -391,8 +399,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         return;
       }
     } else if (step === 2) {
-      if (!selectedServices.every(item => item.staffId)) {
-        setError('Molimo izaberite frizera/kozmetičara za sve usluge');
+      if (!selectedStaffId) {
+        setError('Molimo izaberite frizera/kozmetičara');
         return;
       }
     } else if (step === 3) {
@@ -414,12 +422,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
     
     if (step === 1) {
-      // Auto-skip staff selection if all services have only one staff member
-      const allHaveSingleStaff = selectedServices.every(item => {
-        const availableStaff = getAvailableStaff(item.id);
-        return availableStaff.length === 1 && item.staffId;
-      });
-      setStep(allHaveSingleStaff ? 3 : 2);
+      // Auto-skip staff selection if only one staff member can do all services
+      const availableStaff = getAvailableStaffForAllServices();
+      if (availableStaff.length === 1 && selectedStaffId) {
+        setStep(3);
+      } else {
+        setStep(2);
+      }
     } else if (step === 4) {
       // After time selection
       if (user) {
@@ -448,14 +457,15 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
     try {
       const appointments = [];
+      let currentTime = selectedTime;
       
       for (const selectedService of selectedServices) {
         const appointmentData = {
           salon_id: salon.id,
-          staff_id: Number(selectedService.staffId),
+          staff_id: Number(selectedStaffId),
           service_id: Number(selectedService.id),
           date: selectedDate,
-          time: selectedTime,
+          time: currentTime,
           notes,
           ...(user ? {} : {
             guest_name: guestData.guest_name,
@@ -471,10 +481,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         } else {
           response = await publicAPI.bookAsGuest({
             salon_id: salon.id,
-            staff_id: Number(selectedService.staffId),
+            staff_id: Number(selectedStaffId),
             service_id: Number(selectedService.id),
             date: selectedDate,
-            time: selectedTime,
+            time: currentTime,
             notes,
             guest_name: guestData.guest_name,
             guest_email: guestData.guest_email || undefined,
@@ -483,6 +493,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
           });
         }
         appointments.push(response.appointment || response);
+        
+        // Calculate next service start time
+        if (selectedService.service) {
+          const [h, m] = currentTime.split(':').map(Number);
+          const nextMinutes = h * 60 + m + selectedService.service.duration;
+          currentTime = `${Math.floor(nextMinutes / 60).toString().padStart(2, '0')}:${(nextMinutes % 60).toString().padStart(2, '0')}`;
+        }
       }
 
       setShowSuccess(true);
@@ -721,7 +738,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             </div>
           )}
 
-          {/* Step 2: Staff Selection */}
+          {/* Step 2: Staff Selection - ONE staff for ALL services */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -729,53 +746,61 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 <h3 className="text-lg font-semibold">Odaberite frizera / kozmetičara</h3>
               </div>
               
-              <div className="space-y-4">
-                {selectedServices.map((selectedService, index) => {
-                  const availableStaffForService = getAvailableStaff(selectedService.id);
+              <p className="text-sm text-gray-600 mb-4">
+                Izaberite frizera koji će obaviti sve vaše usluge ({getTotalDuration()} min ukupno)
+              </p>
+              
+              {(() => {
+                const availableStaff = getAvailableStaffForAllServices();
+                
+                if (availableStaff.length === 0) {
                   return (
-                    <div key={index} className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm font-medium text-gray-700 mb-3">
-                        Osoblje za: <span className="text-orange-600">{selectedService.service?.name}</span>
-                      </p>
-                      
-                      {availableStaffForService.length === 0 ? (
-                        <p className="text-sm text-red-500">Nema dostupnog osoblja za ovu uslugu</p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {availableStaffForService.map((staffMember) => (
-                            <button
-                              key={staffMember.id}
-                              onClick={() => updateStaff(index, staffMember.id)}
-                              className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                selectedService.staffId === staffMember.id
-                                  ? 'border-orange-500 bg-orange-50'
-                                  : 'border-gray-200 hover:border-orange-300'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center">
-                                  {staffMember.avatar ? (
-                                    <img src={staffMember.avatar} alt={staffMember.name} className="w-full h-full rounded-full object-cover" />
-                                  ) : (
-                                    <UserIcon className="w-6 h-6 text-orange-400" />
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-900">{staffMember.name}</p>
-                                  <p className="text-sm text-gray-500">{staffMember.role}</p>
-                                </div>
-                                {selectedService.staffId === staffMember.id && (
-                                  <CheckCircleSolid className="w-6 h-6 text-orange-500 ml-auto" />
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <div className="text-center py-8">
+                      <UserIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-600">Nema frizera koji može obaviti sve izabrane usluge.</p>
                     </div>
                   );
-                })}
-              </div>
+                }
+                
+                return (
+                  <div className="space-y-3">
+                    {availableStaff.map((staffMember) => (
+                      <button
+                        key={staffMember.id}
+                        onClick={() => setSelectedStaffId(String(staffMember.id))}
+                        className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                          selectedStaffId === String(staffMember.id)
+                            ? 'border-orange-500 bg-orange-50'
+                            : 'border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center">
+                            {staffMember.avatar ? (
+                              <img src={staffMember.avatar} alt={staffMember.name} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              <UserIcon className="w-6 h-6 text-orange-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{staffMember.name}</p>
+                            <p className="text-sm text-gray-500">{staffMember.role}</p>
+                            {staffMember.rating && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-yellow-600">★ {staffMember.rating}</span>
+                                <span className="text-xs text-gray-500">({staffMember.review_count || 0} recenzija)</span>
+                              </div>
+                            )}
+                          </div>
+                          {selectedStaffId === String(staffMember.id) && (
+                            <CheckCircleSolid className="w-6 h-6 text-orange-500" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

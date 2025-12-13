@@ -3,7 +3,6 @@ import { X, Calendar, Clock, User, CreditCard, CheckCircle, Plus, Trash2, Check 
 import { Salon, Service, Staff, StaffRole, StaffRoleLabels } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { TimeSlotPicker } from './TimeSlotPicker';
-import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ReviewModal } from './ReviewModal';
 import { EuropeanDatePicker } from './EuropeanDatePicker';
 import { serviceAPI, staffAPI, appointmentAPI } from '../../services/api';
@@ -18,36 +17,22 @@ interface BookingModalProps {
   onBookingComplete?: () => void;
 }
 
-interface SelectedService {
-  id: string;
-  service: Service;
-  staffId: string;
-}
-
-export function BookingModal({ salon, selectedService, onClose, onBookingComplete }: BookingModalProps) {
+export function BookingModal({ salon, selectedService, onClose, onBookingComplete: _onBookingComplete }: BookingModalProps) {
   const { user } = useAuth();
-  
-  // Zustand store for persistence
-  const {
-    appointmentForm,
-    setAppointmentForm,
-    clearAppointmentForm,
-  } = useFormStore();
+  const { appointmentForm, setAppointmentForm, clearAppointmentForm } = useFormStore();
   
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
-  const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-
-  // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
   
-  // Use persisted booking data
   const bookingData = {
     date: appointmentForm.date || '',
     time: appointmentForm.time || '',
@@ -58,55 +43,67 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     setAppointmentForm({ ...updates });
   };
 
+  // Get selected services as full objects
+  const getSelectedServices = (): Service[] => {
+    return selectedServiceIds
+      .map(id => services.find(s => s.id === id))
+      .filter((s): s is Service => s !== undefined);
+  };
+
+  // Get staff who can perform ALL selected services
+  const getAvailableStaffForAllServices = (): Staff[] => {
+    const selectedServicesData = getSelectedServices();
+    if (selectedServicesData.length === 0) return staff;
+    
+    return staff.filter(staffMember => 
+      selectedServicesData.every(service => 
+        service.staff_ids?.includes(staffMember.id)
+      )
+    );
+  };
+
+  const getTotalDuration = (): number => {
+    return getSelectedServices().reduce((sum, s) => sum + (s.duration || 0), 0);
+  };
+
+  const getTotalPrice = (): number => {
+    return getSelectedServices().reduce((sum, s) => sum + (s.discount_price || s.price || 0), 0);
+  };
+
   useEffect(() => {
     loadSalonData();
   }, [salon.id]);
 
   useEffect(() => {
-    // Ako je usluga već izabrana, dodaj je u listu
-    if (selectedService && selectedServices.length === 0) {
-      setSelectedServices([{
-        id: selectedService.id,
-        service: selectedService,
-        staffId: ''
-      }]);
+    if (selectedService && selectedServiceIds.length === 0) {
+      setSelectedServiceIds([selectedService.id]);
     }
   }, [selectedService]);
 
-  // Auto-select staff if salon has only one staff member
+  // Auto-select staff if only one available
   useEffect(() => {
-    if (staff.length === 1 && selectedServices.length > 0) {
-      const singleStaffId = staff[0].id;
-      setSelectedServices(prev => prev.map(item => ({
-        ...item,
-        staffId: item.staffId || singleStaffId
-      })));
+    const availableStaff = getAvailableStaffForAllServices();
+    if (availableStaff.length === 1 && !selectedStaffId) {
+      setSelectedStaffId(availableStaff[0].id);
     }
-  }, [staff, selectedServices.length]);
+  }, [selectedServiceIds, staff]);
 
-  // Close dropdowns when clicking outside
+  // Auto-skip step 2 if only one staff available
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('[id^="service-dropdown-"]') && !target.closest('button')) {
-        document.querySelectorAll('[id^="service-dropdown-"]').forEach(dropdown => {
-          dropdown.classList.add('hidden');
-        });
+    if (step === 2) {
+      const availableStaff = getAvailableStaffForAllServices();
+      if (availableStaff.length === 1 && selectedStaffId) {
+        setTimeout(() => setStep(3), 300);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    }
+  }, [step, selectedStaffId]);
 
   const loadSalonData = async () => {
     try {
       setLoading(true);
-      // Get salon services
       const servicesData = await serviceAPI.getServices(salon.id);
       setServices(Array.isArray(servicesData) ? servicesData : (servicesData?.data || []));
       
-      // Get salon staff
       const staffData = await staffAPI.getStaff(salon.id);
       setStaff(Array.isArray(staffData) ? staffData : (staffData?.data || []));
     } catch (error) {
@@ -117,67 +114,36 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
   };
 
   const addService = () => {
-    setSelectedServices(prev => [...prev, {
-      id: '',
-      service: {} as Service,
-      staffId: ''
-    }]);
+    setSelectedServiceIds(prev => [...prev, '']);
   };
 
   const removeService = (index: number) => {
-    setSelectedServices(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateService = (index: number, serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return;
-
-    // Auto-select staff if only one available
-    const availableStaff = staff.filter(staffMember => service.staff_ids.includes(staffMember.id));
-    const autoSelectedStaffId = availableStaff.length === 1 ? availableStaff[0].id : '';
-
-    setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, id: serviceId, service, staffId: autoSelectedStaffId } : item
-    ));
-  };
-
-  const updateStaff = (index: number, staffId: string) => {
-    setSelectedServices(prev => prev.map((item, i) => 
-      i === index ? { ...item, staffId } : item
-    ));
-  };
-
-  const getAvailableStaff = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return [];
-    
-    return staff.filter(staffMember => service.staff_ids.includes(staffMember.id));
-  };
-
-  const getTotalDuration = () => {
-    return selectedServices.reduce((total, item) => total + (item.service.duration || 0), 0);
-  };
-
-  const getTotalPrice = () => {
-    return selectedServices.reduce((total, item) => total + (item.service.discount_price || item.service.price || 0), 0);
-  };
-
-  const canProceedToNextStep = () => {
-    switch (step) {
-      case 1:
-        return selectedServices.length > 0 && selectedServices.every(item => item.id);
-      case 2:
-        return selectedServices.every(item => item.staffId);
-      case 3:
-        return bookingData.date;
-      case 4:
-        return bookingData.time;
-      default:
-        return false;
+    setSelectedServiceIds(prev => prev.filter((_, i) => i !== index));
+    // Reset staff if they can't do remaining services
+    const remaining = selectedServiceIds.filter((_, i) => i !== index);
+    if (remaining.length > 0 && selectedStaffId) {
+      const remainingServices = remaining.map(id => services.find(s => s.id === id)).filter(Boolean) as Service[];
+      const staffCanDoAll = remainingServices.every(s => s.staff_ids?.includes(selectedStaffId));
+      if (!staffCanDoAll) setSelectedStaffId('');
     }
   };
 
-  // Auto-save callback
+  const updateServiceAtIndex = (index: number, serviceId: string) => {
+    setSelectedServiceIds(prev => prev.map((id, i) => i === index ? serviceId : id));
+    // Reset staff selection when services change
+    setSelectedStaffId('');
+  };
+
+  const canProceedToNextStep = (): boolean => {
+    switch (step) {
+      case 1: return selectedServiceIds.length > 0 && selectedServiceIds.every(id => id !== '');
+      case 2: return !!selectedStaffId;
+      case 3: return !!bookingData.date;
+      case 4: return !!bookingData.time;
+      default: return false;
+    }
+  };
+
   const handleAutoSave = useCallback(() => {
     setAutoSaveStatus('saving');
     setTimeout(() => {
@@ -187,96 +153,62 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     }, 300);
   }, []);
 
-  // Auto-save booking data
   useAutoSave(handleAutoSave, bookingData, 800);
 
   const handleSubmit = async () => {
-    if (!user || !canProceedToNextStep()) {
-      return;
-    }
+    if (!user || !canProceedToNextStep()) return;
 
     try {
       setLoading(true);
       const appointments = [];
+      let currentTime = bookingData.time;
       
-      // Create appointment for each service
-      for (const selectedService of selectedServices) {
-        const appointmentData = {
+      for (const serviceId of selectedServiceIds) {
+        const service = services.find(s => s.id === serviceId);
+        if (!service) continue;
+
+        const response = await appointmentAPI.createAppointment({
           salon_id: salon.id,
-          staff_id: selectedService.staffId,
-          service_id: selectedService.id,
+          staff_id: selectedStaffId,
+          service_id: serviceId,
           date: bookingData.date,
-          time: bookingData.time,
+          time: currentTime,
           notes: bookingData.notes
-        };
-        
-        const response = await appointmentAPI.createAppointment(appointmentData);
+        });
         appointments.push(response.appointment);
+        
+        // Calculate next service start time
+        const [h, m] = currentTime.split(':').map(Number);
+        const nextMinutes = h * 60 + m + service.duration;
+        currentTime = `${Math.floor(nextMinutes / 60).toString().padStart(2, '0')}:${(nextMinutes % 60).toString().padStart(2, '0')}`;
       }
 
       setBookingDetails(appointments);
       setShowSuccess(true);
-      // Clear form after successful booking
       clearAppointmentForm();
     } catch (error) {
       console.error('Error booking appointment:', error);
-      alert('Došlo je do greške pri rezervaciji termina. Molimo pokušajte ponovo.');
+      alert('Došlo je do greške pri rezervaciji termina.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSuccessClose = () => {
-    setShowSuccess(false);
-    onClose();
-    if (onBookingComplete) {
-      onBookingComplete();
-    }
-  };
+  const stepTitles = ['Izaberite usluge', 'Izaberite frizera', 'Izaberite datum', 'Izaberite vrijeme'];
 
-  const calculateServiceStartTime = (serviceIndex: number): string => {
-    if (serviceIndex === 0) return bookingData.time;
-    
-    let totalMinutes = 0;
-    for (let i = 0; i < serviceIndex; i++) {
-      totalMinutes += selectedServices[i].service.duration;
-    }
-    
-    const [hours, minutes] = bookingData.time.split(':').map(Number);
-    const startMinutes = hours * 60 + minutes + totalMinutes;
-    const startHours = Math.floor(startMinutes / 60);
-    const startMins = startMinutes % 60;
-    
-    return `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
-  };
+  // Build selectedServices array for TimeSlotPicker
+  const selectedServicesForPicker = getSelectedServices().map(service => ({
+    id: service.id,
+    service: {
+      id: service.id,
+      name: service.name,
+      duration: service.duration,
+      price: service.price,
+      discount_price: service.discount_price
+    },
+    staffId: selectedStaffId
+  }));
 
-  const calculateEndTime = (startTime: string, duration: number): string => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startMinutes = hours * 60 + minutes;
-    const endMinutes = startMinutes + duration;
-    const endHours = Math.floor(endMinutes / 60);
-    const endMins = endMinutes % 60;
-    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-  };
-
-  const getMinDate = () => {
-    return new Date().toISOString().split('T')[0];
-  };
-
-  const getMaxDate = () => {
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 30);
-    return maxDate.toISOString().split('T')[0];
-  };
-
-  const stepTitles = [
-    'Izaberite usluge',
-    'Izaberite frizere',
-    'Izaberite datum',
-    'Izaberite vrijeme'
-  ];
-
-  // Success Modal
   if (showSuccess) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -285,7 +217,6 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Uspješno rezervisano!</h2>
             <p className="text-gray-600 mb-6">Vaš termin je uspješno zakazan u salonu {salon.name}</p>
             
@@ -294,7 +225,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Datum:</span>
-                  <span className="font-medium">{bookingDetails.length > 0 && bookingDetails[0].date ? bookingDetails[0].date : bookingData.date}</span>
+                  <span className="font-medium">{bookingData.date}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Ukupno vrijeme:</span>
@@ -305,49 +236,18 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                   <span className="font-medium text-green-600">{getTotalPrice()} KM</span>
                 </div>
               </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-2">Usluge:</h4>
-                <div className="space-y-2">
-                  {bookingDetails.map((appointment, index) => (
-                    <div key={index} className="text-sm">
-                      <div className="flex justify-between">
-                        <span>{appointment.service.name}</span>
-                        <span>{appointment.time} - {appointment.end_time}</span>
-                      </div>
-                      <div className="text-gray-500">sa {appointment.staff.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
             
             <div className="space-y-3">
               <button
-                onClick={() => {
-                  setShowSuccess(false);
-                  onClose();
-                  // Navigate to appointments section
-                  window.dispatchEvent(new CustomEvent('switchSection', { detail: 'appointments' }));
-                }}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl hover:from-orange-600 hover:to-red-600 transition-all font-medium"
+                onClick={() => { setShowSuccess(false); onClose(); }}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl font-medium"
               >
-                Pogledaj moje termine
-              </button>
-              <button
-                onClick={() => {
-                  setShowSuccess(false);
-                  setShowReviewModal(true);
-                }}
-                className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-              >
-                Ostavi recenziju
+                Zatvori
               </button>
             </div>
           </div>
         </div>
-        
-        {/* Review Modal */}
         {showReviewModal && bookingDetails.length > 0 && (
           <ReviewModal
             salon={salon}
@@ -355,11 +255,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
             staffId={bookingDetails[0].staff_id}
             serviceId={bookingDetails[0].service_id}
             onClose={() => setShowReviewModal(false)}
-            onReviewSubmitted={() => {
-              setShowReviewModal(false);
-              setShowSuccess(false);
-              onClose();
-            }}
+            onReviewSubmitted={() => { setShowReviewModal(false); setShowSuccess(false); onClose(); }}
           />
         )}
       </div>
@@ -373,16 +269,12 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-t-2xl">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rezervacija termina</h2>
-            <button 
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+              <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
           <AutoSaveIndicator status={autoSaveStatus} lastSaved={lastSaved} />
           
-          {/* Progress Steps */}
           <div className="flex items-center">
             {[1, 2, 3, 4].map((stepNum) => (
               <React.Fragment key={stepNum}>
@@ -391,230 +283,144 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                 }`}>
                   {step > stepNum ? <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" /> : stepNum}
                 </div>
-                {stepNum < 4 && (
-                  <div className={`flex-1 h-1 mx-1 sm:mx-2 ${
-                    step > stepNum ? 'bg-orange-500' : 'bg-gray-200'
-                  }`} />
-                )}
+                {stepNum < 4 && <div className={`flex-1 h-1 mx-1 sm:mx-2 ${step > stepNum ? 'bg-orange-500' : 'bg-gray-200'}`} />}
               </React.Fragment>
             ))}
           </div>
-          
           <p className="text-sm text-gray-600 mt-2">{stepTitles[step - 1]}</p>
         </div>
 
         <div className="p-4 sm:p-6">
           {/* Step 1: Service Selection */}
           {step === 1 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-orange-600" />
-                </div>
+                <CreditCard className="w-5 h-5 text-orange-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Izaberite usluge</h3>
               </div>
               
               {loading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex justify-center py-8">
                   <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {selectedServices.map((selectedService, index) => (
-                    <div key={index} className="bg-gray-50 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-gray-900">Usluga {index + 1}</h4>
-                        {selectedServices.length > 1 && (
-                          <button
-                            onClick={() => removeService(index)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const dropdown = document.getElementById(`service-dropdown-${index}`);
-                            if (dropdown) {
-                              dropdown.classList.toggle('hidden');
-                            }
-                          }}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-left bg-white flex items-center justify-between"
-                        >
-                          <span className={selectedService.id ? 'text-gray-900' : 'text-gray-500'}>
-                            {selectedService.id 
-                              ? `${selectedService.service.name} - ${selectedService.service.discount_price || selectedService.service.price} KM (${selectedService.service.duration}min)${selectedService.service.discount_price ? ' (AKCIJA)' : ''}`
-                              : 'Izaberite uslugu'
-                            }
-                          </span>
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                <div className="space-y-3">
+                  {selectedServiceIds.map((serviceId, index) => (
+                    <div key={index} className="flex gap-2">
+                      <select
+                        value={serviceId}
+                        onChange={(e) => updateServiceAtIndex(index, e.target.value)}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="">Izaberite uslugu</option>
+                        {services.map(service => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} - {service.discount_price || service.price} KM ({service.duration}min)
+                          </option>
+                        ))}
+                      </select>
+                      {selectedServiceIds.length > 1 && (
+                        <button onClick={() => removeService(index)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl">
+                          <Trash2 className="w-5 h-5" />
                         </button>
-                        
-                        <div
-                          id={`service-dropdown-${index}`}
-                          className="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto"
-                        >
-                          <div
-                            onClick={() => {
-                              updateService(index, '');
-                              document.getElementById(`service-dropdown-${index}`)?.classList.add('hidden');
-                            }}
-                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-gray-500"
-                          >
-                            Izaberite uslugu
-                          </div>
-                          {services.map(service => (
-                            <div
-                              key={service.id}
-                              onClick={() => {
-                                updateService(index, service.id);
-                                document.getElementById(`service-dropdown-${index}`)?.classList.add('hidden');
-                              }}
-                              className="px-4 py-3 hover:bg-orange-50 cursor-pointer border-t border-gray-100"
-                            >
-                              <div className="font-medium text-gray-900">{service.name}</div>
-                              <div className="text-sm text-gray-600">
-                                {service.discount_price || service.price} KM • {service.duration}min
-                                {service.discount_price && <span className="ml-2 text-orange-600 font-medium">AKCIJA</span>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      {selectedService.service.description && (
-                        <p className="text-sm text-gray-600 mt-2">{selectedService.service.description}</p>
                       )}
                     </div>
                   ))}
                   
                   <button
                     onClick={addService}
-                    className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-orange-300 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-orange-300 rounded-xl hover:bg-orange-50"
                   >
                     <Plus className="w-5 h-5 text-orange-500" />
-                    <span className="text-orange-500 font-medium">Dodaj još jednu uslugu</span>
+                    <span className="text-orange-500 font-medium">Dodaj uslugu</span>
                   </button>
                   
-                  {selectedServices.length > 0 && selectedServices.every(item => item.id) && (
+                  {selectedServiceIds.every(id => id) && selectedServiceIds.length > 0 && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                      <h4 className="font-medium text-orange-800 mb-2">Sažetak usluga:</h4>
-                      <div className="space-y-1 text-sm text-orange-700">
-                        <p>Ukupno usluga: {selectedServices.length}</p>
-                        <p>Ukupno vrijeme: {getTotalDuration()} minuta</p>
-                        <p>Ukupna cijena: {getTotalPrice()} KM</p>
-                      </div>
+                      <p className="text-sm text-orange-700">
+                        <strong>Ukupno:</strong> {selectedServiceIds.length} usluga, {getTotalDuration()} min, {getTotalPrice()} KM
+                      </p>
                     </div>
                   )}
                 </div>
               )}
               
               <button
-                onClick={() => {
-                  // Auto-skip staff selection if all services have only one staff member
-                  const allHaveSingleStaff = selectedServices.every(item => {
-                    const availableStaff = getAvailableStaff(item.id);
-                    return availableStaff.length === 1 && item.staffId;
-                  });
-                  setStep(allHaveSingleStaff ? 3 : 2);
-                }}
-                disabled={!canProceedToNextStep() || loading}
-                className="w-full bg-orange-500 text-white py-3 px-4 rounded-xl hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setStep(2)}
+                disabled={!canProceedToNextStep()}
+                className="w-full bg-orange-500 text-white py-3 rounded-xl font-medium disabled:opacity-50"
               >
                 Nastavi
               </button>
             </div>
           )}
 
-          {/* Step 2: Staff Selection */}
+          {/* Step 2: Staff Selection - ONE staff for ALL services */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-orange-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Izaberite frizere</h3>
+                <User className="w-5 h-5 text-orange-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Izaberite frizera</h3>
               </div>
               
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {selectedServices.map((selectedService, index) => {
-                    const availableStaff = getAvailableStaff(selectedService.id);
-                    
-                    return (
-                      <div key={index} className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-medium text-gray-900 mb-3">
-                          {selectedService.service.name}
-                        </h4>
-                        
-                        {availableStaff.length > 0 ? (
-                          <div className="space-y-3">
-                            {availableStaff.map(member => (
-                              <div
-                                key={member.id}
-                                onClick={() => updateStaff(index, member.id)}
-                                className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                                  selectedService.staffId === member.id
-                                    ? 'border-orange-500 bg-orange-50'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center flex-shrink-0">
-                                    {member.avatar ? (
-                                      <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <User className="w-6 h-6 text-white" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="font-medium text-gray-900">{member.name}</h4>
-                                    <p className="text-sm text-gray-600">{StaffRoleLabels[member.role as StaffRole] || member.role}</p>
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <span className="text-xs text-yellow-600">★ {member.rating}</span>
-                                      <span className="text-xs text-gray-500">({member.review_count} recenzija)</span>
-                                    </div>
-                                  </div>
-                                  {selectedService.staffId === member.id && (
-                                    <Check className="w-5 h-5 text-orange-500" />
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+              <p className="text-sm text-gray-600 mb-4">
+                Izaberite frizera koji će obaviti sve vaše usluge ({getTotalDuration()} min ukupno)
+              </p>
+              
+              {(() => {
+                const availableStaff = getAvailableStaffForAllServices();
+                
+                if (availableStaff.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-600">Nema frizera koji može obaviti sve izabrane usluge.</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-3">
+                    {availableStaff.map(member => (
+                      <div
+                        key={member.id}
+                        onClick={() => setSelectedStaffId(member.id)}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                          selectedStaffId === member.id ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center">
+                            {member.avatar ? (
+                              <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              <User className="w-6 h-6 text-white" />
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-center py-4">
-                            <User className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500 text-sm">Nema dostupnih frizera za ovu uslugu</p>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{member.name}</h4>
+                            <p className="text-sm text-gray-600">{StaffRoleLabels[member.role as StaffRole] || member.role}</p>
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="text-xs text-yellow-600">★ {member.rating}</span>
+                              <span className="text-xs text-gray-500">({member.review_count} recenzija)</span>
+                            </div>
                           </div>
-                        )}
+                          {selectedStaffId === member.id && <Check className="w-5 h-5 text-orange-500" />}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
               
               <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                >
+                <button onClick={() => setStep(1)} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium">
                   Nazad
                 </button>
                 <button
                   onClick={() => setStep(3)}
-                  disabled={!canProceedToNextStep() || loading}
-                  className="flex-1 bg-orange-500 text-white py-3 px-4 rounded-xl hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!canProceedToNextStep()}
+                  className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-medium disabled:opacity-50"
                 >
                   Nastavi
                 </button>
@@ -624,39 +430,30 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
 
           {/* Step 3: Date Selection */}
           {step === 3 && (
-            <div className="space-y-4 min-h-[350px]">
+            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Calendar className="w-4 h-4 text-orange-600" />
-                </div>
+                <Calendar className="w-5 h-5 text-orange-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Izaberite datum</h3>
               </div>
               
-              <div className="pb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
-                <EuropeanDatePicker
-                  value={bookingData.date}
-                  onChange={(date) => updateBookingData({ date, time: '' })}
-                  minDate={new Date()}
-                  maxDate={new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)}
-                  placeholder="Izaberite datum"
-                />
-              </div>
+              <EuropeanDatePicker
+                value={bookingData.date}
+                onChange={(date) => updateBookingData({ date, time: '' })}
+                minDate={new Date()}
+                maxDate={new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0)}
+                placeholder="Izaberite datum"
+              />
               
-              {/* Spacer for calendar dropdown */}
               <div className="h-48"></div>
               
               <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                >
+                <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium">
                   Nazad
                 </button>
                 <button
                   onClick={() => setStep(4)}
                   disabled={!canProceedToNextStep()}
-                  className="flex-1 bg-orange-500 text-white py-3 px-4 rounded-xl hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-medium disabled:opacity-50"
                 >
                   Nastavi
                 </button>
@@ -668,82 +465,43 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
           {step === 4 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-orange-600" />
-                </div>
+                <Clock className="w-5 h-5 text-orange-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Izaberite vrijeme</h3>
               </div>
               
-              {bookingData.date && selectedServices.length > 0 && (
+              {bookingData.date && selectedServicesForPicker.length > 0 && (
                 <TimeSlotPicker
                   salonId={salon.id}
-                  staffId={selectedServices[0].staffId}
-                  serviceId={selectedServices[0].id}
+                  staffId={selectedStaffId}
                   serviceDuration={getTotalDuration()}
                   selectedDate={bookingData.date}
-                  onTimeSelect={(time) => {
-                    updateBookingData({ time });
-                    // Auto-scroll to notes section after selecting time
-                    setTimeout(() => {
-                      const notesElement = document.getElementById('booking-notes');
-                      if (notesElement) {
-                        notesElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }
-                    }, 300);
-                  }}
+                  selectedServices={selectedServicesForPicker}
+                  onTimeSelect={(time) => updateBookingData({ time })}
                   selectedTime={bookingData.time}
                 />
               )}
               
-              {/* Visual indicator for notes below */}
-              {!bookingData.time && (
-                <div className="flex items-center justify-center gap-2 text-sm text-orange-600 animate-pulse">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  <span>Napomene su dostupne ispod</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              )}
-              
-              <div id="booking-notes">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Napomene (opcionalno)
-                  {bookingData.time && (
-                    <span className="ml-2 text-xs text-green-600">✓ Vrijeme odabrano</span>
-                  )}
-                </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Napomene (opcionalno)</label>
                 <textarea
                   value={bookingData.notes}
                   onChange={(e) => updateBookingData({ notes: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Dodatne napomene za frizera..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                  placeholder="Dodatne napomene..."
                 />
               </div>
               
               <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(3)}
-                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                >
+                <button onClick={() => setStep(3)} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium">
                   Nazad
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={!canProceedToNextStep() || loading}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl hover:from-orange-600 hover:to-red-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-medium disabled:opacity-50"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Obrađuje se...
-                    </div>
-                  ) : (
-                    'Potvrdi rezervaciju'
-                  )}
+                  {loading ? 'Obrađuje se...' : 'Potvrdi rezervaciju'}
                 </button>
               </div>
             </div>

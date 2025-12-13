@@ -215,9 +215,23 @@ export const salonAPI = {
     return response.data;
   },
   
-  getAvailableSlots: async (salonId: string, staffId: string, date: string, serviceId: string) => {
+  getAvailableSlots: async (salonId: string, staffId: string, date: string, serviceId: string, totalDuration?: number) => {
     const response = await api.get(`/salons/${salonId}/available-slots`, {
-      params: { staff_id: staffId, date, service_id: serviceId }
+      params: { 
+        staff_id: staffId, 
+        date, 
+        service_id: serviceId,
+        duration: totalDuration // Pass total duration if multiple services selected
+      }
+    });
+    return response.data;
+  },
+  
+  // NEW: Get available slots for multiple services with different staff members
+  getAvailableSlotsForMultipleServices: async (salonId: string, date: string, services: Array<{serviceId: string, staffId: string, duration: number}>) => {
+    const response = await api.post(`/salons/${salonId}/available-slots-multi`, {
+      date,
+      services
     });
     return response.data;
   },
@@ -572,6 +586,16 @@ export const publicAPI = {
   getAvailableSlots: async (staffId: string, serviceId: string, date: string) => {
     const response = await api.get('/v1/public/available-slots', {
       params: { staff_id: staffId, service_id: serviceId, date }
+    });
+    return response.data;
+  },
+
+  // Get available time slots for multiple services (public)
+  getAvailableSlotsForMultipleServices: async (salonId: string, date: string, services: Array<{serviceId: string, staffId: string, duration: number}>) => {
+    const response = await api.post(`/v1/public/available-slots-multi`, {
+      salon_id: salonId,
+      date,
+      services
     });
     return response.data;
   },
@@ -973,6 +997,121 @@ export const jobAdsAPI = {
   // Owner: Delete job ad
   ownerDelete: async (id: number) => {
     const response = await api.delete(`/v1/owner/job-ads/${id}`);
+    return response.data;
+  }
+};
+
+// Widget API
+export const widgetAPI = {
+  // Admin: Get all widget settings
+  getAllSettings: async () => {
+    const response = await api.get('/v1/admin/widget');
+    return response.data;
+  },
+  
+  // Admin: Get widget settings for a salon
+  getSettings: async (salonId: string) => {
+    const response = await api.get(`/v1/admin/widget/${salonId}`);
+    return response.data;
+  },
+  
+  // Admin: Generate or regenerate API key
+  generateKey: async (salonId: string) => {
+    const response = await api.post(`/v1/admin/widget/${salonId}/generate`);
+    return response.data;
+  },
+  
+  // Admin: Update widget settings
+  updateSettings: async (salonId: string, data: {
+    is_active?: boolean;
+    allowed_domains?: string[];
+    primary_color?: string;
+    button_text?: string;
+  }) => {
+    const response = await api.put(`/v1/admin/widget/${salonId}/settings`, data);
+    return response.data;
+  },
+  
+  // Admin: Delete widget settings
+  deleteSettings: async (salonId: string) => {
+    const response = await api.delete(`/v1/admin/widget/${salonId}`);
+    return response.data;
+  },
+  
+  // Admin: Get widget analytics
+  getAnalytics: async (salonId: string, params?: {
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const response = await api.get(`/v1/admin/widget/${salonId}/analytics`, { params });
+    return response.data;
+  },
+  
+  // Public: Get salon widget data (used by widget iframe)
+  getSalonWidget: async (salonSlug: string, apiKey: string) => {
+    const response = await api.get(`/v1/widget/${salonSlug}`, {
+      headers: {
+        'X-Widget-Key': apiKey
+      }
+    });
+    return response.data;
+  },
+  
+  // Public: Get available slots for widget booking (multi-service support)
+  getAvailableSlots: async (apiKey: string, params: {
+    staff_id: number;
+    date: string;
+    services: Array<{ serviceId: string; duration: number }>;
+  }) => {
+    const response = await api.get('/v1/widget/slots/available', {
+      params: {
+        key: apiKey,
+        staff_id: params.staff_id,
+        date: params.date,
+        services: params.services
+      }
+    });
+    return response.data;
+  },
+  
+  // Public: Book appointment via widget (multi-service support)
+  book: async (apiKey: string, data: {
+    salon_id: number;
+    staff_id: number;
+    services: Array<{ id: string }>;
+    date: string;
+    time: string;
+    guest_name: string;
+    guest_phone: string;
+    guest_email?: string;
+    guest_address: string;
+    notes?: string;
+  }) => {
+    const response = await api.post('/v1/widget/book', {
+      ...data,
+      api_key: apiKey
+    });
+    return response.data;
+  }
+};
+
+// Client API
+export const clientAPI = {
+  // Get all clients for a salon
+  getClients: async (params?: { search?: string; page?: number; per_page?: number }) => {
+    const response = await api.get('/v1/clients', { params });
+    return response.data;
+  },
+  
+  // Get single client
+  getClient: async (id: string) => {
+    const response = await api.get(`/v1/clients/${id}`);
+    return response.data;
+  },
+  
+  // Send email to client
+  sendEmail: async (id: string, data: { subject: string; message: string }) => {
+    const response = await api.post(`/v1/clients/${id}/send-email`, data);
     return response.data;
   }
 };

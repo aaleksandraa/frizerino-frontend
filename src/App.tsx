@@ -22,6 +22,7 @@ import {
   JobAdsPage
 } from './components/Public';
 import { GoogleAnalytics } from './components/Analytics';
+import { WidgetBooking } from './pages/WidgetBooking';
 
 // Login page wrapper
 function LoginPage() {
@@ -68,6 +69,9 @@ function AuthWrapper() {
       <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />
       <Route path="/salon/:slug" element={<PublicSalonPage />} />
+      
+      {/* Widget Booking - Embedded iframe route */}
+      <Route path="/widget/:salonSlug" element={<WidgetBooking />} />
       
       {/* Help Pages */}
       <Route path="/pomoc/kako-registrovati-salon" element={<HowToRegisterSalonPage />} />
