@@ -432,10 +432,16 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
                 {/* Notifications */}
                 <div className="relative notifications-dropdown-container">
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       const opening = !showNotifications;
                       setShowNotifications(opening);
-                      if (opening) loadNotifications();
+                      if (opening) {
+                        await loadNotifications();
+                        // Mark all as read when opening notifications
+                        if (unreadCount > 0) {
+                          markAllAsRead();
+                        }
+                      }
                     }}
                     className={`relative p-2 rounded-lg transition-colors ${transparent ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
                   >

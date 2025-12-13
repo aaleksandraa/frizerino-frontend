@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { publicSettingsAPI } from '../../services/api';
 
 interface RegisterFormProps {
   onToggleMode: () => void;
@@ -24,7 +25,21 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [acceptPublicDataDisplay, setAcceptPublicDataDisplay] = useState(false);
   const [error, setError] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
   const { register, loading } = useAuth();
+
+  // Fetch registration settings
+  useEffect(() => {
+    const fetchRegistrationSettings = async () => {
+      try {
+        const settings = await publicSettingsAPI.getRegistrationSettings();
+        setAllowFrizerRegistration(settings.allow_frizer_registration || false);
+      } catch (error) {
+        console.log('Using default registration settings');
+      }
+    };
+    fetchRegistrationSettings();
+  }, []);
 
   // Get return URL from location state or default to dashboard
   const returnTo = (location.state as any)?.returnTo || '/dashboard';
@@ -191,7 +206,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="klijent">Klijent</option>
-            <option value="frizer">Frizer</option>
+            {allowFrizerRegistration && <option value="frizer">Frizer</option>}
             <option value="salon">Vlasnik salona</option>
           </select>
         </div>

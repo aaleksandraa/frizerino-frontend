@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { publicAPI, reviewAPI } from '../../services/api';
+import { publicAPI, reviewAPI, favoriteAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAppearance } from '../../context/AppearanceContext';
 import { Salon, Service, Staff, Review } from '../../types';
@@ -78,6 +78,10 @@ export const PublicSalonPage: React.FC = () => {
   const [reviewStaffId, setReviewStaffId] = useState<string>('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  // Favorite state
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const reviewFormRef = useRef<HTMLDivElement>(null);
 
@@ -127,6 +131,50 @@ export const PublicSalonPage: React.FC = () => {
       setError('Salon nije pronađen');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check favorite status when salon loads and user is logged in
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!salon || !user || user.role !== 'klijent') return;
+      
+      try {
+        const { is_favorite } = await favoriteAPI.checkFavorite(String(salon.id));
+        setIsFavorite(is_favorite);
+      } catch (error) {
+        console.error('Error checking favorite status:', error);
+      }
+    };
+    
+    checkFavoriteStatus();
+  }, [salon, user]);
+
+  // Toggle favorite
+  const handleToggleFavorite = async () => {
+    if (!salon || !user) {
+      // Redirect to login if not logged in
+      navigate('/login', { state: { returnTo: `/salon/${slug}` } });
+      return;
+    }
+    
+    if (user.role !== 'klijent') {
+      return; // Only clients can favorite
+    }
+    
+    setFavoriteLoading(true);
+    try {
+      if (isFavorite) {
+        await favoriteAPI.removeFavorite(String(salon.id));
+        setIsFavorite(false);
+      } else {
+        await favoriteAPI.addFavorite(String(salon.id));
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -336,6 +384,11 @@ export const PublicSalonPage: React.FC = () => {
             onBookingClick: () => setShowBookingModal(true),
             isDescriptionExpanded,
             onToggleDescription: () => setIsDescriptionExpanded(!isDescriptionExpanded),
+            // Favorite props
+            isFavorite,
+            favoriteLoading,
+            onToggleFavorite: handleToggleFavorite,
+            isLoggedIn: !!user,
           };
 
           switch (salonProfileLayout) {

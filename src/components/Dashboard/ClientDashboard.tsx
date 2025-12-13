@@ -42,6 +42,8 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
   const [hasSearched, setHasSearched] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [favoriteLoading, setFavoriteLoading] = useState<number | null>(null);
   const [cities, setCities] = useState<{name: string, slug: string}[]>([]);
   const [stats, setStats] = useState({
     totalAppointments: 0,
@@ -102,6 +104,7 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
       // Load favorites
       const favoritesData = await favoriteAPI.getFavorites();
       setFavorites(favoritesData.slice(0, 2));
+      setFavoriteIds(new Set(favoritesData.map((s: any) => s.id)));
       
       // Calculate stats
       const allAppointments = await appointmentAPI.getAppointments();
@@ -117,6 +120,30 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Toggle favorite
+  const handleToggleFavorite = async (e: React.MouseEvent, salonId: number) => {
+    e.stopPropagation();
+    
+    setFavoriteLoading(salonId);
+    try {
+      if (favoriteIds.has(salonId)) {
+        await favoriteAPI.removeFavorite(String(salonId));
+        setFavoriteIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(salonId);
+          return newSet;
+        });
+      } else {
+        await favoriteAPI.addFavorite(String(salonId));
+        setFavoriteIds(prev => new Set(prev).add(salonId));
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setFavoriteLoading(null);
     }
   };
 
@@ -504,9 +531,26 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
                           e.currentTarget.src = 'https://images.pexels.com/photos/3065171/pexels-photo-3065171.jpeg';
                         }}
                       />
-                      <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium">{salon.rating || '0.0'}</span>
+                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                        <div className="bg-white px-2 py-1 rounded-full flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-sm font-medium">{salon.rating || '0.0'}</span>
+                        </div>
+                        {/* Favorite Heart Button */}
+                        <button
+                          onClick={(e) => handleToggleFavorite(e, salon.id)}
+                          disabled={favoriteLoading === salon.id}
+                          className="bg-white p-1.5 rounded-full hover:bg-red-50 transition-all disabled:opacity-50"
+                          title={favoriteIds.has(salon.id) ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+                        >
+                          {favoriteLoading === salon.id ? (
+                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                          ) : favoriteIds.has(salon.id) ? (
+                            <Heart className="w-4 h-4 text-red-500 fill-current" />
+                          ) : (
+                            <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
+                          )}
+                        </button>
                       </div>
                       {salon.distance && (
                         <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
@@ -632,9 +676,26 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
                           e.currentTarget.src = 'https://images.pexels.com/photos/3065171/pexels-photo-3065171.jpeg';
                         }}
                       />
-                      <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium">{salon.rating || '0.0'}</span>
+                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                        <div className="bg-white px-2 py-1 rounded-full flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-sm font-medium">{salon.rating || '0.0'}</span>
+                        </div>
+                        {/* Favorite Heart Button */}
+                        <button
+                          onClick={(e) => handleToggleFavorite(e, salon.id)}
+                          disabled={favoriteLoading === salon.id}
+                          className="bg-white p-1.5 rounded-full hover:bg-red-50 transition-all disabled:opacity-50"
+                          title={favoriteIds.has(salon.id) ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+                        >
+                          {favoriteLoading === salon.id ? (
+                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                          ) : favoriteIds.has(salon.id) ? (
+                            <Heart className="w-4 h-4 text-red-500 fill-current" />
+                          ) : (
+                            <Heart className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
+                          )}
+                        </button>
                       </div>
                     </div>
                     

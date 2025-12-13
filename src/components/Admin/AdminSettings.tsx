@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Save, User, Lock, Bell, Shield, Eye, EyeOff, BarChart3, Globe, CheckCircle, XCircle, Palette, Image } from 'lucide-react';
+import { Save, User, Lock, Bell, Shield, Eye, EyeOff, BarChart3, Globe, CheckCircle, XCircle, Palette, Image, UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { authAPI, adminAPI } from '../../services/api';
+import { authAPI, adminAPI, adminSettingsAPI, publicSettingsAPI } from '../../services/api';
 
 interface GradientPreset {
   id: string;
@@ -87,18 +87,21 @@ export function AdminSettings() {
   const [salonSearchQuery, setSalonSearchQuery] = useState('');
   const [salonSearchResults, setSalonSearchResults] = useState<Array<{ id: number; name: string; city: string }>>([]);
   const [showSalonDropdown, setShowSalonDropdown] = useState(false);
+
+  // Registration settings
+  const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
   
   // Load analytics settings on mount
   useEffect(() => {
     const loadAnalyticsSettings = async () => {
       try {
-        const response = await adminAPI.getSettings('analytics');
-        if (response.data) {
-          setAnalyticsData({
-            google_analytics_id: response.data.google_analytics_id?.value || '',
-            google_analytics_enabled: response.data.google_analytics_enabled?.value || false,
-          });
-        }
+        // Use public endpoint which returns simpler format
+        const settings = await publicSettingsAPI.getAnalyticsSettings();
+        setAnalyticsData({
+          google_analytics_id: settings.google_analytics_id || '',
+          google_analytics_enabled: settings.google_analytics_enabled || false,
+        });
       } catch (error) {
         console.error('Failed to load analytics settings:', error);
       }
@@ -180,6 +183,19 @@ export function AdminSettings() {
     };
     
     loadFeaturedSalon();
+  }, []);
+
+  // Load registration settings
+  useEffect(() => {
+    const loadRegistrationSettings = async () => {
+      try {
+        const response = await adminSettingsAPI.getRegistrationSettings();
+        setAllowFrizerRegistration(response.allow_frizer_registration || false);
+      } catch (error) {
+        console.error('Failed to load registration settings:', error);
+      }
+    };
+    loadRegistrationSettings();
   }, []);
 
   // Search salons for featured salon dropdown
@@ -295,10 +311,10 @@ export function AdminSettings() {
     setMessage(null);
     
     try {
-      await adminAPI.updateSettings([
-        { key: 'google_analytics_id', value: analyticsData.google_analytics_id },
-        { key: 'google_analytics_enabled', value: analyticsData.google_analytics_enabled },
-      ]);
+      await adminAPI.updateAnalyticsSettings({
+        google_analytics_id: analyticsData.google_analytics_id,
+        google_analytics_enabled: analyticsData.google_analytics_enabled,
+      });
       setMessage({ type: 'success', text: 'Google Analytics podešavanja su uspješno sačuvana!' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Greška prilikom čuvanja podešavanja.' });
@@ -378,9 +394,26 @@ export function AdminSettings() {
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'security', label: 'Sigurnost', icon: Lock },
     { id: 'appearance', label: 'Izgled', icon: Palette },
+    { id: 'registration', label: 'Registracija', icon: UserPlus },
     { id: 'notifications', label: 'Obavještenja', icon: Bell },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
+
+  const handleRegistrationSubmit = async () => {
+    setRegistrationLoading(true);
+    setMessage(null);
+    
+    try {
+      await adminSettingsAPI.updateRegistrationSettings({
+        allow_frizer_registration: allowFrizerRegistration
+      });
+      setMessage({ type: 'success', text: 'Postavke registracije su uspješno sačuvane!' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Greška prilikom čuvanja postavki registracije.' });
+    } finally {
+      setRegistrationLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -551,6 +584,57 @@ export function AdminSettings() {
                 </button>
               </div>
             </form>
+          )}
+
+          {activeTab === 'registration' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
+                  <UserPlus className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Postavke registracije</h3>
+                  <p className="text-sm text-gray-600">Upravljajte opcijama registracije korisnika</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <span className="font-medium text-gray-900 block">Dozvoli registraciju frizera</span>
+                    <span className="text-sm text-gray-600">
+                      Kada je uključeno, korisnici mogu odabrati "Frizer" kao tip korisnika prilikom registracije.
+                      Frizeri mogu upravljati svojim rasporedom i primati rezervacije.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={allowFrizerRegistration}
+                    onChange={(e) => setAllowFrizerRegistration(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Napomena</h4>
+                <p className="text-sm text-blue-800">
+                  Ako je ova opcija isključena, na registracijskoj formi će biti dostupne samo opcije "Klijent" i "Salon".
+                  Frizere možete dodati ručno kroz admin panel ili vlasnik salona može dodati frizere u svoj salon.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleRegistrationSubmit}
+                  disabled={registrationLoading}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {registrationLoading ? 'Čuvanje...' : 'Sačuvaj promjene'}
+                </button>
+              </div>
+            </div>
           )}
 
           {activeTab === 'notifications' && (

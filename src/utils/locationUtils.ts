@@ -1,11 +1,13 @@
 import { LocationSearchResult } from '../types';
 
-// Google Places API utilities
+// Declare google as any to avoid type errors when @types/google.maps is not installed
+declare const google: any;
+
+// Google Places API utilities - Updated to use new Places API (2025)
 export class LocationService {
   private static instance: LocationService;
-  private autocompleteService: google.maps.places.AutocompleteService | null = null;
-  private placesService: google.maps.places.PlacesService | null = null;
-  private geocoder: google.maps.Geocoder | null = null;
+  private geocoder: any = null;
+  private isInitialized: boolean = false;
 
   private constructor() {
     this.initializeServices();
@@ -20,89 +22,100 @@ export class LocationService {
 
   private initializeServices() {
     if (typeof google !== 'undefined' && google.maps) {
-      this.autocompleteService = new google.maps.places.AutocompleteService();
       this.geocoder = new google.maps.Geocoder();
-      
-      // Create a dummy div for PlacesService
-      const dummyDiv = document.createElement('div');
-      this.placesService = new google.maps.places.PlacesService(dummyDiv);
+      this.isInitialized = true;
     }
   }
 
   public async searchLocations(query: string, countryCode: string = 'BA'): Promise<LocationSearchResult[]> {
-    return new Promise((resolve, reject) => {
-      if (!this.autocompleteService) {
-        reject(new Error('Google Places service not available'));
-        return;
+    if (!this.isInitialized || typeof google === 'undefined') {
+      console.warn('Google Maps not initialized');
+      return [];
+    }
+
+    try {
+      // Use the new AutocompleteSuggestion API (recommended as of March 2025)
+      const placesLib = await google.maps.importLibrary('places');
+      const { AutocompleteSuggestion } = placesLib;
+      
+      const request = {
+        input: query,
+        includedRegionCodes: [countryCode],
+        includedPrimaryTypes: ['establishment', 'geocode', 'locality', 'sublocality', 'neighborhood'],
+      };
+
+      const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+
+      if (!suggestions || suggestions.length === 0) {
+        return [];
       }
 
-      this.autocompleteService.getPlacePredictions(
-        {
-          input: query,
-          componentRestrictions: { country: countryCode },
-          types: ['establishment', 'geocode']
-        },
-        (predictions, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-            const results: LocationSearchResult[] = predictions.map(prediction => ({
-              placeId: prediction.place_id,
-              name: prediction.structured_formatting.main_text,
-              address: prediction.description,
-              city: this.extractCity(prediction.terms),
-              country: this.extractCountry(prediction.terms),
-              lat: 0, // Will be filled by getPlaceDetails
-              lng: 0  // Will be filled by getPlaceDetails
-            }));
-            resolve(results);
-          } else {
-            resolve([]);
-          }
-        }
-      );
-    });
+      const results: LocationSearchResult[] = suggestions.map((suggestion: any) => {
+        const placePrediction = suggestion.placePrediction;
+        return {
+          placeId: placePrediction?.placeId || '',
+          name: placePrediction?.mainText?.text || '',
+          address: placePrediction?.text?.text || '',
+          city: this.extractCityFromPrediction(placePrediction),
+          country: countryCode === 'BA' ? 'Bosna i Hercegovina' : '',
+          lat: 0, // Will be filled by getPlaceDetails
+          lng: 0  // Will be filled by getPlaceDetails
+        };
+      });
+
+      return results;
+    } catch (error) {
+      console.error('Error searching locations:', error);
+      return [];
+    }
   }
 
   public async getPlaceDetails(placeId: string): Promise<LocationSearchResult | null> {
-    return new Promise((resolve, reject) => {
-      if (!this.placesService) {
-        reject(new Error('Google Places service not available'));
-        return;
-      }
+    if (!this.isInitialized || typeof google === 'undefined') {
+      console.warn('Google Maps not initialized');
+      return null;
+    }
 
-      this.placesService.getDetails(
-        {
-          placeId: placeId,
-          fields: ['name', 'formatted_address', 'geometry', 'address_components']
-        },
-        (place, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-            const result: LocationSearchResult = {
-              placeId: placeId,
-              name: place.name || '',
-              address: place.formatted_address || '',
-              city: this.extractCityFromComponents(place.address_components),
-              country: this.extractCountryFromComponents(place.address_components),
-              lat: place.geometry?.location?.lat() || 0,
-              lng: place.geometry?.location?.lng() || 0
-            };
-            resolve(result);
-          } else {
-            resolve(null);
-          }
-        }
-      );
-    });
+    try {
+      // Use the new Place API (recommended as of March 2025)
+      const placesLib = await google.maps.importLibrary('places');
+      const { Place } = placesLib;
+      
+      const place = new Place({
+        id: placeId,
+      });
+
+      await place.fetchFields({
+        fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'],
+      });
+
+      const result: LocationSearchResult = {
+        placeId: placeId,
+        name: place.displayName || '',
+        address: place.formattedAddress || '',
+        city: this.extractCityFromAddressComponents(place.addressComponents),
+        country: this.extractCountryFromAddressComponents(place.addressComponents),
+        lat: place.location?.lat() || 0,
+        lng: place.location?.lng() || 0
+      };
+
+      return result;
+    } catch (error) {
+      console.error('Error getting place details:', error);
+      return null;
+    }
   }
 
   public async geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.geocoder) {
-        reject(new Error('Google Geocoder service not available'));
+        console.warn('Google Geocoder service not available');
+        resolve(null);
         return;
       }
 
-      this.geocoder.geocode({ address }, (results, status) => {
-        if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+      this.geocoder.geocode({ address }, (results: any, status: any) => {
+        if (status === 'OK' && results && results[0]) {
           const location = results[0].geometry.location;
           resolve({
             lat: location.lat(),
@@ -162,35 +175,32 @@ export class LocationService {
     return degrees * (Math.PI / 180);
   }
 
-  private extractCity(terms: google.maps.places.PredictionTerm[]): string {
-    // Usually the second-to-last term is the city
-    return terms.length >= 2 ? terms[terms.length - 2].value : '';
+  private extractCityFromPrediction(placePrediction: any): string {
+    if (!placePrediction?.secondaryText?.text) return '';
+    // Secondary text usually contains city, region, country
+    const parts = placePrediction.secondaryText.text.split(',');
+    return parts[0]?.trim() || '';
   }
 
-  private extractCountry(terms: google.maps.places.PredictionTerm[]): string {
-    // Usually the last term is the country
-    return terms.length >= 1 ? terms[terms.length - 1].value : '';
-  }
-
-  private extractCityFromComponents(components?: google.maps.GeocoderAddressComponent[]): string {
+  private extractCityFromAddressComponents(components?: any[]): string {
     if (!components) return '';
     
-    const cityComponent = components.find(component => 
+    const cityComponent = components.find((component: any) => 
       component.types.includes('locality') || 
       component.types.includes('administrative_area_level_1')
     );
     
-    return cityComponent?.long_name || '';
+    return cityComponent?.longText || '';
   }
 
-  private extractCountryFromComponents(components?: google.maps.GeocoderAddressComponent[]): string {
+  private extractCountryFromAddressComponents(components?: any[]): string {
     if (!components) return '';
     
-    const countryComponent = components.find(component => 
+    const countryComponent = components.find((component: any) => 
       component.types.includes('country')
     );
     
-    return countryComponent?.long_name || '';
+    return countryComponent?.longText || '';
   }
 }
 

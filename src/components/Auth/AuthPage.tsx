@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Scissors, Mail, Lock, User, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { salonAPI, authAPI } from '../../services/api';
+import { salonAPI, authAPI, publicSettingsAPI } from '../../services/api';
 
 interface AuthPageProps {
   mode: 'login' | 'register';
@@ -48,7 +48,23 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [acceptContactCommunication, setAcceptContactCommunication] = useState(false);
   const [acceptPublicDataDisplay, setAcceptPublicDataDisplay] = useState(false);
 
+  // Registration settings
+  const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
+
   const returnTo = (location.state as any)?.returnTo;
+
+  // Fetch registration settings
+  useEffect(() => {
+    const fetchRegistrationSettings = async () => {
+      try {
+        const settings = await publicSettingsAPI.getRegistrationSettings();
+        setAllowFrizerRegistration(settings.allow_frizer_registration || false);
+      } catch (error) {
+        console.log('Using default registration settings');
+      }
+    };
+    fetchRegistrationSettings();
+  }, []);
 
   // Fetch salon images for background
   useEffect(() => {
@@ -518,10 +534,10 @@ export function AuthPage({ mode }: AuthPageProps) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tip korisnika
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid gap-2 ${allowFrizerRegistration ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     {[
                       { value: 'klijent', label: 'Klijent', icon: '👤' },
-                      { value: 'frizer', label: 'Frizer', icon: '✂️' },
+                      ...(allowFrizerRegistration ? [{ value: 'frizer', label: 'Frizer', icon: '✂️' }] : []),
                       { value: 'salon', label: 'Salon', icon: '🏪' },
                     ].map((option) => (
                       <button

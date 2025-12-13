@@ -303,11 +303,15 @@ export function Header({ title, onMenuToggle }: HeaderProps) {
             {/* Notifications */}
             <div className="relative notifications-dropdown-container">
               <button 
-                onClick={() => {
+                onClick={async () => {
                   const opening = !showNotifications;
                   setShowNotifications(opening);
                   if (opening) {
-                    loadNotifications();
+                    await loadNotifications();
+                    // Mark all as read when opening notifications
+                    if (unreadCount > 0) {
+                      markAllAsRead();
+                    }
                   }
                 }}
                 className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"

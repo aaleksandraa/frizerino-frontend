@@ -65,7 +65,7 @@ export function FavoriteSalons() {
         </div>
         
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/pretraga')}
           className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all"
         >
           Pronađi nove salone
@@ -163,7 +163,7 @@ export function FavoriteSalons() {
             }
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/pretraga')}
             className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all"
           >
             Pronađi salone

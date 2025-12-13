@@ -786,6 +786,11 @@ export const adminAPI = {
   updateFeaturedSalon: async (data: { salon_id?: number | null; text?: string; visibility?: 'all' | 'location_only'; show_top_rated?: boolean; show_newest?: boolean }) => {
     const response = await api.put('/admin/featured-salon', data);
     return response.data;
+  },
+
+  updateAnalyticsSettings: async (data: { google_analytics_id: string; google_analytics_enabled: boolean }) => {
+    const response = await api.put('/admin/analytics-settings', data);
+    return response.data;
   }
 };
 
@@ -803,6 +808,24 @@ export const publicSettingsAPI = {
   
   getFeaturedSalon: async () => {
     const response = await api.get('/public/featured-salon');
+    return response.data;
+  },
+
+  getRegistrationSettings: async () => {
+    const response = await api.get('/v1/public/registration-settings');
+    return response.data;
+  }
+};
+
+// Admin settings API
+export const adminSettingsAPI = {
+  getRegistrationSettings: async () => {
+    const response = await api.get('/v1/admin/registration-settings');
+    return response.data;
+  },
+
+  updateRegistrationSettings: async (data: { allow_frizer_registration: boolean }) => {
+    const response = await api.put('/v1/admin/registration-settings', data);
     return response.data;
   }
 };

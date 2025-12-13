@@ -8,8 +8,9 @@ import {
   CheckBadgeIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  HeartIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
 
 // Mobile Description Component with expand/collapse
 interface MobileDescriptionProps {
@@ -63,6 +64,11 @@ interface SalonHeroProps {
   onBookingClick: () => void;
   isDescriptionExpanded?: boolean;
   onToggleDescription?: () => void;
+  // Favorite props
+  isFavorite?: boolean;
+  favoriteLoading?: boolean;
+  onToggleFavorite?: () => void;
+  isLoggedIn?: boolean;
 }
 
 // =============================================================================
@@ -79,6 +85,10 @@ export const ClassicHero: React.FC<SalonHeroProps> = ({
   onBookingClick,
   isDescriptionExpanded = false,
   onToggleDescription = () => {},
+  isFavorite = false,
+  favoriteLoading = false,
+  onToggleFavorite = () => {},
+  isLoggedIn = false,
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -94,6 +104,22 @@ export const ClassicHero: React.FC<SalonHeroProps> = ({
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        
+        {/* Favorite Button - Top Right */}
+        <button
+          onClick={onToggleFavorite}
+          disabled={favoriteLoading}
+          className="absolute top-4 right-4 md:top-6 md:right-6 p-2.5 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all disabled:opacity-50 z-10"
+          title={isFavorite ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+        >
+          {favoriteLoading ? (
+            <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+          ) : isFavorite ? (
+            <HeartSolid className="w-6 h-6 text-red-500" />
+          ) : (
+            <HeartIcon className="w-6 h-6 text-gray-600 hover:text-red-500 transition-colors" />
+          )}
+        </button>
         
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 max-w-7xl mx-auto">
           <Link 
@@ -175,6 +201,10 @@ export const ClassicDescFirstHero: React.FC<SalonHeroProps> = ({
   onBookingClick,
   isDescriptionExpanded = false,
   onToggleDescription = () => {},
+  isFavorite = false,
+  favoriteLoading = false,
+  onToggleFavorite = () => {},
+  isLoggedIn = false,
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -190,6 +220,22 @@ export const ClassicDescFirstHero: React.FC<SalonHeroProps> = ({
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        
+        {/* Favorite Button - Top Right */}
+        <button
+          onClick={onToggleFavorite}
+          disabled={favoriteLoading}
+          className="absolute top-4 right-4 md:top-6 md:right-6 p-2.5 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all disabled:opacity-50 z-10"
+          title={isFavorite ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+        >
+          {favoriteLoading ? (
+            <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+          ) : isFavorite ? (
+            <HeartSolid className="w-6 h-6 text-red-500" />
+          ) : (
+            <HeartIcon className="w-6 h-6 text-gray-600 hover:text-red-500 transition-colors" />
+          )}
+        </button>
         
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 max-w-7xl mx-auto">
           <Link 
@@ -280,6 +326,10 @@ export const CompactHero: React.FC<SalonHeroProps> = ({
   onBookingClick,
   isDescriptionExpanded = false,
   onToggleDescription = () => {},
+  isFavorite = false,
+  favoriteLoading = false,
+  onToggleFavorite = () => {},
+  isLoggedIn = false,
 }) => {
   const primaryImage = salon.images?.find(img => img.is_primary) || salon.images?.[0];
 
@@ -295,6 +345,22 @@ export const CompactHero: React.FC<SalonHeroProps> = ({
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        
+        {/* Favorite Button - Top Right */}
+        <button
+          onClick={onToggleFavorite}
+          disabled={favoriteLoading}
+          className="absolute top-3 right-3 md:top-4 md:right-4 p-2 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all disabled:opacity-50 z-10"
+          title={isFavorite ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+        >
+          {favoriteLoading ? (
+            <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+          ) : isFavorite ? (
+            <HeartSolid className="w-5 h-5 text-red-500" />
+          ) : (
+            <HeartIcon className="w-5 h-5 text-gray-600 hover:text-red-500 transition-colors" />
+          )}
+        </button>
         
         <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 max-w-7xl mx-auto">
           <Link 
@@ -374,6 +440,10 @@ export const ModernHero: React.FC<SalonHeroProps> = ({
   onBookingClick,
   isDescriptionExpanded = false,
   onToggleDescription = () => {},
+  isFavorite = false,
+  favoriteLoading = false,
+  onToggleFavorite = () => {},
+  isLoggedIn = false,
 }) => {
   return (
     <>
@@ -390,7 +460,23 @@ export const ModernHero: React.FC<SalonHeroProps> = ({
           </Link>
           
           {/* Main Card */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden relative">
+            {/* Favorite Button - Top Right of Card */}
+            <button
+              onClick={onToggleFavorite}
+              disabled={favoriteLoading}
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 z-10 border border-gray-100"
+              title={isFavorite ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+            >
+              {favoriteLoading ? (
+                <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              ) : isFavorite ? (
+                <HeartSolid className="w-6 h-6 text-red-500" />
+              ) : (
+                <HeartIcon className="w-6 h-6 text-gray-400 hover:text-red-500 transition-colors" />
+              )}
+            </button>
+            
             <div className="md:flex">
               {/* Image Side */}
               <div className="md:w-2/5 relative">
@@ -519,6 +605,10 @@ export const MinimalHero: React.FC<SalonHeroProps> = ({
   onBookingClick,
   isDescriptionExpanded = false,
   onToggleDescription = () => {},
+  isFavorite = false,
+  favoriteLoading = false,
+  onToggleFavorite = () => {},
+  isLoggedIn = false,
 }) => {
   // Note: This layout uses its own image display style, so carousel functions are not used
   void _currentImageIndex; void _onPrevImage; void _onNextImage; void _onGoToImage;
@@ -543,7 +633,7 @@ export const MinimalHero: React.FC<SalonHeroProps> = ({
               {/* Small Image */}
               {salonImages.length > 0 && (
                 <div 
-                  className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden cursor-pointer shadow-md"
+                  className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden cursor-pointer shadow-md relative"
                   onClick={() => onOpenLightbox(0)}
                 >
                   <img
@@ -562,6 +652,21 @@ export const MinimalHero: React.FC<SalonHeroProps> = ({
                   {salon.is_verified && (
                     <CheckBadgeIcon className="w-5 h-5 text-green-500" />
                   )}
+                  {/* Favorite Button - Inline with title */}
+                  <button
+                    onClick={onToggleFavorite}
+                    disabled={favoriteLoading}
+                    className="p-1.5 rounded-full hover:bg-gray-100 transition-all disabled:opacity-50"
+                    title={isFavorite ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+                  >
+                    {favoriteLoading ? (
+                      <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    ) : isFavorite ? (
+                      <HeartSolid className="w-5 h-5 text-red-500" />
+                    ) : (
+                      <HeartIcon className="w-5 h-5 text-gray-400 hover:text-red-500 transition-colors" />
+                    )}
+                  </button>
                 </div>
                 
                 <div className="flex items-center gap-1 text-gray-500 text-sm mb-2">

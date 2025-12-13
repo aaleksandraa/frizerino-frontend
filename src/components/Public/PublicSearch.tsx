@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { publicAPI, locationsAPI, publicSettingsAPI } from '../../services/api';
+import { publicAPI, locationsAPI, publicSettingsAPI, favoriteAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useAppearance } from '../../context/AppearanceContext';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
@@ -16,9 +18,10 @@ import {
   CalendarDaysIcon,
   ClockIcon,
   UserGroupIcon,
-  ArrowsUpDownIcon
+  ArrowsUpDownIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 // Lazy load map component
 const SalonsMapView = lazy(() => import('./SalonsMapView'));
@@ -123,6 +126,12 @@ export const PublicSearch: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const { heroBackgroundImage } = useAppearance();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Favorites state
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [favoriteLoading, setFavoriteLoading] = useState<number | null>(null);
   
   // Refs to prevent double fetching in React StrictMode
   const fetchedRef = useRef({ appearance: false, services: false, topRated: false, cities: false, newest: false, menSalons: false, featured: false });
@@ -434,6 +443,57 @@ export const PublicSearch: React.FC = () => {
   useEffect(() => {
     getUserLocation();
   }, [getUserLocation]);
+
+  // Load user's favorites
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (!user || user.role !== 'klijent') return;
+      
+      try {
+        const favoritesData = await favoriteAPI.getFavorites();
+        const favoriteIds = new Set<number>(favoritesData.map((s: any) => s.id));
+        setFavorites(favoriteIds);
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+      }
+    };
+    
+    loadFavorites();
+  }, [user]);
+
+  // Toggle favorite
+  const handleToggleFavorite = async (e: React.MouseEvent, salonId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/login', { state: { returnTo: '/pretraga' } });
+      return;
+    }
+    
+    if (user.role !== 'klijent') {
+      return;
+    }
+    
+    setFavoriteLoading(salonId);
+    try {
+      if (favorites.has(salonId)) {
+        await favoriteAPI.removeFavorite(String(salonId));
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(salonId);
+          return newSet;
+        });
+      } else {
+        await favoriteAPI.addFavorite(String(salonId));
+        setFavorites(prev => new Set(prev).add(salonId));
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setFavoriteLoading(null);
+    }
+  };
 
   // Search cities with debounce
   useEffect(() => {
@@ -1274,15 +1334,32 @@ export const PublicSearch: React.FC = () => {
                       </div>
                     )}
                     
-                    {/* Rating Badge - top right - styled like top rated salons */}
-                    {salonRating > 0 && (
-                      <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1 shadow-lg">
-                        <StarIconSolid className="h-5 w-5 text-yellow-400" />
-                        <span className="font-bold text-gray-900">
-                          {salonRating.toFixed(1)}
-                        </span>
-                      </div>
-                    )}
+                    {/* Rating Badge & Favorite Button - top right */}
+                    <div className="absolute top-3 right-3 flex items-center gap-2">
+                      {salonRating > 0 && (
+                        <div className="bg-white/95 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1 shadow-lg">
+                          <StarIconSolid className="h-5 w-5 text-yellow-400" />
+                          <span className="font-bold text-gray-900">
+                            {salonRating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                      {/* Favorite Heart Button */}
+                      <button
+                        onClick={(e) => handleToggleFavorite(e, salon.id)}
+                        disabled={favoriteLoading === salon.id}
+                        className="bg-white/95 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all disabled:opacity-50"
+                        title={favorites.has(salon.id) ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
+                      >
+                        {favoriteLoading === salon.id ? (
+                          <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : favorites.has(salon.id) ? (
+                          <HeartIconSolid className="h-5 w-5 text-red-500" />
+                        ) : (
+                          <HeartIcon className="h-5 w-5 text-gray-500 hover:text-red-500 transition-colors" />
+                        )}
+                      </button>
+                    </div>
 
                     {/* Distance Badge - top left */}
                     {distance !== null && (
