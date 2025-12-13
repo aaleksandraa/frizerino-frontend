@@ -11,6 +11,9 @@ export interface User {
   salon?: {
     id: string;
     name: string;
+    address?: string;
+    city?: string;
+    status?: 'pending' | 'approved' | 'suspended';
   };
   staff_profile?: {
     id: string;

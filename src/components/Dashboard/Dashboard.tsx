@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { Sidebar } from '../Layout/Sidebar';
@@ -27,6 +27,8 @@ import { SalonSchedule } from '../Salon/SalonSchedule';
 import { SalonCalendar } from '../Salon/SalonCalendar';
 import { SalonClients } from '../Salon/SalonClients';
 import { SalonJobAds } from '../Salon/SalonJobAds';
+import { SalonSetupWizard } from '../Salon/SalonSetupWizard';
+import { PendingSalonDashboard } from '../Salon/PendingSalonDashboard';
 
 // Admin components
 import { AdminSalons } from '../Admin/AdminSalons';
@@ -44,13 +46,20 @@ import { FrizerSettings } from '../Frizer/FrizerSettings';
 import { FrizerReviews } from '../Frizer/FrizerReviews';
 
 export function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   // Check if user is a client (no sidebar for clients)
   const isClient = user?.role === 'klijent';
+  
+  // Check if salon owner needs to complete setup
+  const isSalonOwner = user?.role === 'salon';
+  const salonStatus = user?.salon?.status;
+  const needsSetup = isSalonOwner && (!user?.salon || !user?.salon?.name || !user?.salon?.address);
+  const isPendingSalon = isSalonOwner && salonStatus === 'pending';
 
   // Parse section from URL query params
   useEffect(() => {
@@ -60,6 +69,13 @@ export function Dashboard() {
       setActiveSection(section);
     }
   }, [location.search]);
+
+  // Check if new salon owner needs setup wizard
+  useEffect(() => {
+    if (needsSetup) {
+      setShowSetupWizard(true);
+    }
+  }, [needsSetup]);
 
   // Listen for section changes from header
   useEffect(() => {
@@ -78,6 +94,19 @@ export function Dashboard() {
     }
   };
 
+  const handleSetupComplete = async () => {
+    setShowSetupWizard(false);
+    // Refresh user data to get updated salon info
+    if (refreshUser) {
+      await refreshUser();
+    }
+  };
+
+  // Show setup wizard for new salon owners
+  if (showSetupWizard && isSalonOwner) {
+    return <SalonSetupWizard onComplete={handleSetupComplete} />;
+  }
+
   const renderContent = () => {
     switch (user?.role) {
       case 'admin':
@@ -95,6 +124,16 @@ export function Dashboard() {
         }
       
       case 'salon':
+        // For pending salons, only show profile and pending dashboard
+        if (isPendingSalon) {
+          switch (activeSection) {
+            case 'profile': return <SalonProfile />;
+            case 'settings': return <SalonProfile />;
+            default: return <PendingSalonDashboard />;
+          }
+        }
+        
+        // For approved salons, show full functionality
         switch (activeSection) {
           case 'dashboard': return <SalonDashboard onSectionChange={setActiveSection} />;
           case 'profile': return <SalonProfile />;
@@ -150,6 +189,7 @@ export function Dashboard() {
           <Sidebar 
             activeSection={activeSection} 
             onSectionChange={setActiveSection}
+            isPendingSalon={isPendingSalon}
           />
         )}
         

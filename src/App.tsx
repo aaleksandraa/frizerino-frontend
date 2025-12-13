@@ -2,7 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppearanceProvider } from './context/AppearanceContext';
-import { AuthPage } from './components/auth/AuthPage';
+import { AuthPage } from './components/Auth/AuthPage';
 import { RegistrationSuccessPage } from './components/Auth/RegistrationSuccessPage';
 import ForgotPasswordPage from './components/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './components/Auth/ResetPasswordPage';

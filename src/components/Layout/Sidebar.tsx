@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Home, 
   Calendar, 
@@ -14,16 +13,18 @@ import {
   Heart,
   ShieldCheck,
   Briefcase,
-  Code
+  Code,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
+  isPendingSalon?: boolean;
 }
 
-export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
+export function Sidebar({ activeSection, onSectionChange, isPendingSalon = false }: SidebarProps) {
   const { user } = useAuth();
 
   const getMenuItems = () => {
@@ -41,6 +42,15 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
         ];
       
       case 'salon':
+        // For pending salons, show limited menu
+        if (isPendingSalon) {
+          return [
+            { id: 'dashboard', label: 'Dashboard', icon: Home },
+            { id: 'profile', label: 'Profil salona', icon: Building }
+          ];
+        }
+        
+        // Full menu for approved salons
         return [
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'profile', label: 'Profil salona', icon: Building },
@@ -90,6 +100,21 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
       {/* Sidebar - Desktop only */}
       <aside className="hidden lg:block lg:static w-64 bg-white border-r border-gray-200">
         <div className="flex flex-col h-full">
+          {/* Pending Salon Notice */}
+          {isPendingSalon && (
+            <div className="p-4 bg-yellow-50 border-b border-yellow-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Čeka odobrenje</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Ostale opcije će biti dostupne nakon odobrenja.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 p-4 pt-6 space-y-2 overflow-y-auto">
             {menuItems.map((item) => {
