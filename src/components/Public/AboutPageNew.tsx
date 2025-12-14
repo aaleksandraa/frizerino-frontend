@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Users
 } from 'lucide-react';
-import { PublicNavbar } from './PublicNavbar';
 import { PublicFooter } from './PublicFooter';
 
 export function AboutPageNew() {
@@ -37,9 +36,7 @@ export function AboutPageNew() {
   };
 
   return (
-    <>
-      <PublicNavbar />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white py-20 overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-10"></div>
@@ -240,8 +237,8 @@ export function AboutPageNew() {
           </div>
         </div>
       </section>
+
+      <PublicFooter />
     </div>
-    <PublicFooter />
-    </>
   );
 }
