@@ -213,8 +213,8 @@ export function PendingSalonDashboard() {
         <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-3" />
         <p className="text-gray-600">
           Imate pitanja? Kontaktirajte nas na{' '}
-          <a href="mailto:podrska@frizerino.ba" className="text-blue-600 hover:underline">
-            podrska@frizerino.ba
+          <a href="mailto:podrska@frizerino.com" className="text-blue-600 hover:underline">
+            podrska@frizerino.com
           </a>
         </p>
       </div>
