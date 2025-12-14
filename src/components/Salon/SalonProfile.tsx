@@ -275,8 +275,13 @@ export function SalonProfile() {
 
       const response = await salonAPI.uploadImages(salon.id, formDataUpload);
       
-      // Refresh salon data to get updated images
-      loadSalonData();
+      // Add newly uploaded images to the existing images array immediately
+      if (response.images && Array.isArray(response.images)) {
+        setImages(prev => [...prev, ...response.images]);
+      } else {
+        // Fallback: reload salon data if response doesn't contain images with URLs
+        loadSalonData();
+      }
     } catch (error) {
       console.error('Error uploading images:', error);
     }

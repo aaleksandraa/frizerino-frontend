@@ -303,10 +303,17 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
         formDataUpload.append('images[]', file);
       });
 
-      await salonAPI.uploadImages(salon.id, formDataUpload);
-
-      const updatedSalon = await salonAPI.getSalon(salon.id);
-      setImages(updatedSalon.images || []);
+      const response = await salonAPI.uploadImages(salon.id, formDataUpload);
+      
+      // Add newly uploaded images to the existing images array
+      if (response.images && Array.isArray(response.images)) {
+        setImages(prev => [...prev, ...response.images]);
+      } else {
+        // Fallback: reload salon data if response doesn't contain images
+        const updatedSalon = await salonAPI.getSalon(salon.id);
+        setImages(updatedSalon.images || []);
+      }
+      
       setSuccess('Fotografije su uspješno uploadovane!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
