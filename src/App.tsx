@@ -21,6 +21,10 @@ import {
   VerifyEmailPage,
   JobAdsPage
 } from './components/Public';
+import { AboutPageNew } from './components/Public/AboutPageNew';
+import { ForClientsPage } from './components/Public/ForClientsPage';
+import { ForSalonsPage } from './components/Public/ForSalonsPage';
+import { AboutPlatformPage } from './components/Public/AboutPlatformPage';
 import { GoogleAnalytics } from './components/Analytics';
 import { WidgetBooking } from './pages/WidgetBooking';
 
@@ -64,7 +68,22 @@ function AuthWrapper() {
       {/* Public Routes - Available to everyone */}
       <Route path="/" element={<PublicSearch />} />
       <Route path="/pretraga" element={<PublicSearch />} />
-      <Route path="/o-nama" element={<AboutPage />} />
+      <Route path="/o-nama-old" element={<AboutPage />} />
+      
+      {/* About Pages - Main page redirects to za-klijente */}
+      <Route path="/o-nama" element={<AboutPageNew />}>
+        <Route index element={<ForClientsPage />} />
+      </Route>
+      <Route path="/za-klijente" element={<AboutPageNew />}>
+        <Route index element={<ForClientsPage />} />
+      </Route>
+      <Route path="/za-salone" element={<AboutPageNew />}>
+        <Route index element={<ForSalonsPage />} />
+      </Route>
+      <Route path="/o-platformi" element={<AboutPageNew />}>
+        <Route index element={<AboutPlatformPage />} />
+      </Route>
+      
       <Route path="/kontakt" element={<ContactPage />} />
       <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />

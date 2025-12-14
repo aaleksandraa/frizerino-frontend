@@ -73,6 +73,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const publicLinks = [
     { path: '/', label: 'Početna', icon: HomeIcon },
     { path: '/pretraga', label: 'Pretraga', icon: MagnifyingGlassIcon },
+    { path: '/o-nama', label: 'O nama', icon: UserCircleIcon },
     { path: '/kontakt', label: 'Kontakt', icon: PhoneIcon },
   ];
 
@@ -82,6 +83,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
     { path: '/pretraga', label: 'Pretraga', icon: MagnifyingGlassIcon },
     { path: '/dashboard?section=appointments', label: 'Moji termini', icon: CalendarDaysIcon },
     { path: '/dashboard?section=favorites', label: 'Omiljeni saloni', icon: HeartIcon },
+    { path: '/o-nama', label: 'O nama', icon: UserCircleIcon },
     { path: '/kontakt', label: 'Kontakt', icon: PhoneIcon },
   ];
 
@@ -388,17 +390,9 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
           {/* Left side: Logo */}
           <div className="flex items-center gap-3">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className={`${transparent ? 'bg-white/20 backdrop-blur-sm' : 'bg-gradient-to-r from-orange-500 to-red-500'} p-2 rounded-lg`}>
-                <ScissorsIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <span className={`text-base lg:text-lg font-bold ${transparent ? 'text-white' : 'text-gray-900'} group-hover:text-orange-600 transition-colors`}>
-                  FK
-                </span>
-                <span className={`text-base lg:text-lg font-bold ${transparent ? 'text-white/80' : 'text-orange-600'} ml-1`}>
-                  Saloni
-                </span>
+            <Link to="/" className="flex items-center group">
+              <div className={`${transparent ? 'bg-white/20 backdrop-blur-sm hover:bg-white/30' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'} p-2 rounded-lg transition-all`}>
+                <ScissorsIcon className="w-6 h-6 text-white" />
               </div>
             </Link>
           </div>
@@ -643,6 +637,14 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
                             <span className="text-gray-700">Pretraga</span>
                           </Link>
                           <Link
+                            to="/o-nama"
+                            onClick={() => setShowProfile(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <UserCircleIcon className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-700">O nama</span>
+                          </Link>
+                          <Link
                             to="/kontakt"
                             onClick={() => setShowProfile(false)}
                             className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -669,14 +671,24 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
 
                         {/* Početna stranica - for non-clients on dashboard pages */}
                         {!isClient && isDashboardPage && (
-                          <Link
-                            to="/"
-                            onClick={() => setShowProfile(false)}
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <HomeIcon className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-700">Početna stranica</span>
-                          </Link>
+                          <>
+                            <Link
+                              to="/"
+                              onClick={() => setShowProfile(false)}
+                              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <HomeIcon className="w-4 h-4 text-gray-500" />
+                              <span className="text-gray-700">Početna stranica</span>
+                            </Link>
+                            <Link
+                              to="/o-nama"
+                              onClick={() => setShowProfile(false)}
+                              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <UserCircleIcon className="w-4 h-4 text-gray-500" />
+                              <span className="text-gray-700">O nama</span>
+                            </Link>
+                          </>
                         )}
                         
                         {/* Client quick links */}
@@ -732,7 +744,17 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
             ) : (
               /* Guest buttons */
               <>
-                {/* Mobile: Show "Kontakt" link */}
+                {/* Mobile: Show "O nama" and "Kontakt" links */}
+                <Link
+                  to="/o-nama"
+                  className={`sm:hidden text-sm font-medium transition-colors ${
+                    transparent ? 'text-white' : 'text-gray-600 hover:text-orange-600'
+                  }`}
+                >
+                  O nama
+                </Link>
+                {/* Mobile separator */}
+                <span className={`sm:hidden text-sm ${transparent ? 'text-white/40' : 'text-gray-300'}`}>|</span>
                 <Link
                   to="/kontakt"
                   className={`sm:hidden text-sm font-medium transition-colors ${

@@ -21,6 +21,7 @@ export const PublicNavbar: React.FC = () => {
   const navLinks = [
     { path: '/', label: 'Početna' },
     { path: '/pretraga', label: 'Pretraga salona' },
+    { path: '/o-nama', label: 'O nama' },
     { path: '/kontakt', label: 'Kontakt' },
   ];
 
@@ -48,21 +49,10 @@ export const PublicNavbar: React.FC = () => {
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-lg">
+            <Link to="/" className="flex items-center group">
+              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all">
                 <ScissorsIcon className="w-6 h-6 text-white" />
               </div>
-              <div className="hidden sm:block">
-                <span className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
-                  Frizersko-Kozmetički
-                </span>
-                <span className="text-lg font-bold text-orange-600 ml-1">
-                  Saloni
-                </span>
-              </div>
-              <span className="sm:hidden text-lg font-bold text-orange-600">
-                FK Saloni
-              </span>
             </Link>
           </div>
 
