@@ -14,7 +14,9 @@ import {
   ScissorsIcon,
   UserGroupIcon,
   PlusIcon,
-  TrashIcon
+  TrashIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
@@ -86,6 +88,12 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const [notes, setNotes] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  
+  // Calendar navigation - current displayed month
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   // Guest data
   const [guestData, setGuestData] = useState<GuestData>({
@@ -813,88 +821,106 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
               </div>
               
               <div className="bg-gray-50 rounded-xl p-3 sm:p-5">
-                {/* Custom date picker with European format - Monday first */}
+                {/* Custom date picker with month navigation */}
                 {(() => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   
-                  // Day names starting from Monday
                   const dayNames = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
                   const monthNames = ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'];
                   
-                  // Get the first day to display (today)
-                  const firstDate = new Date(today);
+                  // Max date is 3 months from now
+                  const maxDate = new Date(today);
+                  maxDate.setMonth(maxDate.getMonth() + 3);
                   
-                  // Find the Monday of this week (or previous Monday if today is before Monday)
-                  const startOfWeek = new Date(firstDate);
-                  const dayOfWeek = startOfWeek.getDay(); // 0=Sunday, 1=Monday, ...
-                  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0, Sunday = 6
-                  startOfWeek.setDate(startOfWeek.getDate() - daysFromMonday);
+                  // Get first day of current displayed month
+                  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
                   
-                  // Generate calendar grid (5 weeks = 35 days max to cover 30 days + alignment)
+                  // Find the Monday before or on the first day of month
+                  const startOfCalendar = new Date(firstDayOfMonth);
+                  const dayOfWeek = startOfCalendar.getDay();
+                  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                  startOfCalendar.setDate(startOfCalendar.getDate() - daysFromMonday);
+                  
+                  // Get last day of current month
+                  const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+                  
+                  // Generate calendar days - only current month days
                   const calendarDays: (Date | null)[] = [];
-                  const endDate = new Date(today);
-                  endDate.setDate(endDate.getDate() + 30);
                   
-                  for (let i = 0; i < 42; i++) { // 6 weeks max
-                    const date = new Date(startOfWeek);
-                    date.setDate(startOfWeek.getDate() + i);
-                    
-                    // Only include if within valid range (today to today+30)
-                    if (date >= today && date <= endDate) {
-                      calendarDays.push(date);
-                    } else if (date < today && date >= startOfWeek) {
-                      // Past days in the first week - show as disabled placeholder
-                      calendarDays.push(null);
-                    } else if (date > endDate) {
-                      // Stop if we've gone past the end date
-                      break;
-                    }
+                  // Add empty slots for days before the 1st of month
+                  for (let i = 0; i < daysFromMonday; i++) {
+                    calendarDays.push(null);
+                  }
+                  
+                  // Add all days of current month
+                  for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+                    calendarDays.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
+                  }
+                  
+                  // Group into weeks
+                  const weeks: (Date | null)[][] = [];
+                  for (let i = 0; i < calendarDays.length; i += 7) {
+                    weeks.push(calendarDays.slice(i, i + 7));
                   }
                   
                   const formatDateValue = (date: Date) => {
                     return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
                   };
                   
-                  // Convert day index (0=Sunday) to Monday-first index (0=Monday)
-                  const getMondayFirstIndex = (date: Date) => {
-                    const day = date.getDay();
-                    return day === 0 ? 6 : day - 1;
+                  // Check if we can go to previous month
+                  const canGoPrev = currentMonth.getFullYear() > today.getFullYear() || 
+                    (currentMonth.getFullYear() === today.getFullYear() && currentMonth.getMonth() > today.getMonth());
+                  
+                  // Check if we can go to next month
+                  const canGoNext = currentMonth.getFullYear() < maxDate.getFullYear() || 
+                    (currentMonth.getFullYear() === maxDate.getFullYear() && currentMonth.getMonth() < maxDate.getMonth());
+                  
+                  const goToPrevMonth = () => {
+                    if (canGoPrev) {
+                      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+                    }
                   };
                   
-                  // Group into weeks
-                  const weeks: (Date | null)[][] = [];
-                  let currentWeek: (Date | null)[] = [];
-                  
-                  // Add empty cells for first week alignment
-                  if (calendarDays[0] === null || calendarDays[0]) {
-                    const firstValidDate = calendarDays.find(d => d !== null);
-                    if (firstValidDate) {
-                      const firstDayIndex = getMondayFirstIndex(firstValidDate);
-                      for (let i = 0; i < firstDayIndex; i++) {
-                        currentWeek.push(null);
-                      }
+                  const goToNextMonth = () => {
+                    if (canGoNext) {
+                      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
                     }
-                  }
-                  
-                  calendarDays.filter(d => d !== null).forEach((date) => {
-                    currentWeek.push(date);
-                    if (currentWeek.length === 7) {
-                      weeks.push(currentWeek);
-                      currentWeek = [];
-                    }
-                  });
-                  
-                  // Add remaining days
-                  if (currentWeek.length > 0) {
-                    weeks.push(currentWeek);
-                  }
+                  };
                   
                   return (
                     <div className="space-y-4">
-                      {/* Month/Year header */}
-                      <div className="text-center font-semibold text-gray-800 text-lg">
-                        {monthNames[today.getMonth()]} {today.getFullYear()}
+                      {/* Month/Year header with navigation */}
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={goToPrevMonth}
+                          disabled={!canGoPrev}
+                          className={`p-2 rounded-lg transition-colors ${
+                            canGoPrev 
+                              ? 'hover:bg-gray-200 text-gray-700' 
+                              : 'text-gray-300 cursor-not-allowed'
+                          }`}
+                        >
+                          <ChevronLeftIcon className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="text-center font-semibold text-gray-800 text-lg">
+                          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={goToNextMonth}
+                          disabled={!canGoNext}
+                          className={`p-2 rounded-lg transition-colors ${
+                            canGoNext 
+                              ? 'hover:bg-gray-200 text-gray-700' 
+                              : 'text-gray-300 cursor-not-allowed'
+                          }`}
+                        >
+                          <ChevronRightIcon className="w-5 h-5" />
+                        </button>
                       </div>
                       
                       {/* Day names header - Monday first */}
@@ -915,20 +941,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                       {weeks.map((week, weekIdx) => (
                         <div key={weekIdx} className="grid grid-cols-7 gap-1 sm:gap-2">
                           {week.map((date, dayIdx) => {
+                            // Empty cell for days before month starts
                             if (!date) {
                               return <div key={`empty-${weekIdx}-${dayIdx}`} className="aspect-square" />;
                             }
                             
+                            const isPast = date < today;
+                            const isFuture = date > maxDate;
                             const dateStr = formatDateValue(date);
                             const isSelected = selectedDate === dateStr;
-                            const isToday = date.getTime() === today.getTime();
+                            const isToday = date.toDateString() === today.toDateString();
                             const isSunday = date.getDay() === 0;
                             const availability = isDateAvailable(date);
-                            const isDisabled = !availability.available;
+                            const isDisabled = isPast || isFuture || !availability.available;
                             
                             return (
                               <button
-                                key={dateStr}
+                                key={`${weekIdx}-${dayIdx}`}
                                 type="button"
                                 disabled={isDisabled}
                                 onClick={() => {
@@ -937,7 +966,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                     setSelectedTime('');
                                   }
                                 }}
-                                title={isDisabled ? availability.reason : undefined}
+                                title={isDisabled && availability.reason ? availability.reason : undefined}
                                 className={`
                                   aspect-square flex flex-col items-center justify-center rounded-xl 
                                   text-sm sm:text-base font-medium transition-all duration-200
@@ -952,8 +981,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                   ${isToday && !isSelected && !isDisabled ? 'ring-2 ring-orange-400 ring-offset-1' : ''}
                                 `}
                               >
-                                <span className="text-base sm:text-xl font-bold">{date.getDate()}</span>
-                                {isDisabled && (
+                                <span className="text-base sm:text-xl font-bold">
+                                  {date.getDate()}
+                                </span>
+                                {isDisabled && !isPast && !isFuture && (
                                   <span className="text-[8px] sm:text-[10px] leading-tight">Zatvoreno</span>
                                 )}
                               </button>
@@ -976,7 +1007,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
               </div>
               
               <p className="text-sm text-gray-500 text-center">
-                Možete rezervisati termin do 30 dana unaprijed
+                Možete rezervisati termin do 3 mjeseca unaprijed
               </p>
             </div>
           )}

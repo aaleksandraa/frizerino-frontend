@@ -64,6 +64,7 @@ type SalonFormData = {
   amenities: string[];
   social_media: SocialMedia;
   auto_confirm: boolean;
+  booking_slot_interval: number;
 };
 
 export function SalonProfile() {
@@ -115,7 +116,8 @@ export function SalonProfile() {
       tiktok: '',
       linkedin: ''
     },
-    auto_confirm: false
+    auto_confirm: false,
+    booking_slot_interval: 30
   });
 
   const [images, setImages] = useState<any[]>([]);
@@ -165,7 +167,8 @@ export function SalonProfile() {
           },
           amenities: salonData.amenities || [],
           social_media: salonData.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
-          auto_confirm: salonData.auto_confirm || false
+          auto_confirm: salonData.auto_confirm || false,
+          booking_slot_interval: salonData.booking_slot_interval || 30
         };
         setFormData(loadedData);
         setOriginalFormData(JSON.parse(JSON.stringify(loadedData)));
@@ -952,14 +955,32 @@ export function SalonProfile() {
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Postavke rezervacija</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Interval slotova za rezervaciju
+                </label>
+                <select
+                  value={formData.booking_slot_interval}
+                  onChange={(e) => handleInputChange('booking_slot_interval', parseInt(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value={15}>15 minuta</option>
+                  <option value={30}>30 minuta (preporučeno)</option>
+                  <option value={45}>45 minuta</option>
+                  <option value={60}>60 minuta (1 sat)</option>
+                </select>
+                <p className="text-sm text-gray-500 mt-2">
+                  Određuje razmak između dostupnih termina za rezervaciju. Na primjer, ako je interval 30 minuta i radno vrijeme počinje u 7:00, slotovi će biti: 7:00, 7:30, 8:00, 8:30...
+                </p>
+              </div>
+
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.auto_confirm}
                   onChange={(e) => handleInputChange('auto_confirm', e.target.checked)}
-                  
-                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <div>
                   <span className="font-medium text-gray-900 block">Automatska potvrda termina</span>

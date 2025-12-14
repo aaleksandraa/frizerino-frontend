@@ -88,7 +88,8 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
       saturday: { open: '09:00', close: '15:00', is_open: true },
       sunday: { open: '10:00', close: '14:00', is_open: false }
     } as WorkingHours,
-    auto_confirm: false
+    auto_confirm: false,
+    booking_slot_interval: 30
   });
 
   // Load existing salon data if available

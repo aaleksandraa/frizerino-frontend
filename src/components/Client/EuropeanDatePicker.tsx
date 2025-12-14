@@ -83,35 +83,29 @@ export function EuropeanDatePicker({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getDaysInMonth = (date: Date): Date[] => {
+  const getDaysInMonth = (date: Date): (Date | null)[] => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     
-    const days: Date[] = [];
+    const days: (Date | null)[] = [];
     
-    // Get Monday as first day of week
+    // Get Monday as first day of week (0 = Monday, 6 = Sunday)
     let startDay = firstDay.getDay() - 1;
     if (startDay < 0) startDay = 6;
     
-    // Add days from previous month
-    for (let i = startDay - 1; i >= 0; i--) {
-      days.push(new Date(year, month, -i));
+    // Add empty slots for days before month starts
+    for (let i = 0; i < startDay; i++) {
+      days.push(null);
     }
     
-    // Add days of current month
+    // Add days of current month only
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push(new Date(year, month, i));
     }
     
-    // Add days from next month to complete the grid (max 35 days = 5 rows)
-    const remaining = Math.min(35 - days.length, 7);
-    for (let i = 1; i <= remaining; i++) {
-      days.push(new Date(year, month + 1, i));
-    }
-    
-    return days.slice(0, 35); // Limit to 5 rows
+    return days;
   };
 
   const isDateDisabled = (date: Date): boolean => {
@@ -131,9 +125,7 @@ export function EuropeanDatePicker({
     return date.toDateString() === selected.toDateString();
   };
 
-  const isCurrentMonth = (date: Date): boolean => {
-    return date.getMonth() === currentMonth.getMonth();
-  };
+
 
   const isToday = (date: Date): boolean => {
     const today = new Date();
@@ -154,10 +146,10 @@ export function EuropeanDatePicker({
     return prevMonth >= currentMonthStart;
   };
 
-  // Check if we can go to next month (only current + 1 month allowed)
+  // Check if we can go to next month (allow up to 3 months ahead)
   const canGoNextMonth = (): boolean => {
     const today = new Date();
-    const maxAllowedMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const maxAllowedMonth = new Date(today.getFullYear(), today.getMonth() + 3, 1);
     const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
     return nextMonth <= maxAllowedMonth;
   };
@@ -233,9 +225,13 @@ export function EuropeanDatePicker({
           {/* Calendar Days */}
           <div className="grid grid-cols-7">
             {days.map((date, index) => {
+              // Empty cell for days before month starts
+              if (!date) {
+                return <div key={`empty-${index}`} className="w-7 h-7 m-px" />;
+              }
+              
               const disabled = isDateDisabled(date);
               const selected = isDateSelected(date);
-              const currentMth = isCurrentMonth(date);
               const today = isToday(date);
 
               return (
@@ -249,8 +245,7 @@ export function EuropeanDatePicker({
                     ${disabled ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-orange-100 cursor-pointer'}
                     ${selected ? 'bg-orange-500 text-white hover:bg-orange-600' : ''}
                     ${today && !selected ? 'ring-1 ring-orange-400 font-bold' : ''}
-                    ${!currentMth && !selected ? 'text-gray-300' : ''}
-                    ${currentMth && !disabled && !selected ? 'text-gray-900' : ''}
+                    ${!disabled && !selected ? 'text-gray-900' : ''}
                   `}
                 >
                   {date.getDate()}
