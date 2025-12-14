@@ -78,7 +78,9 @@ export function FrizerDashboard() {
     }
   };
 
-  const todayAppointments = appointments.filter(app => app.date === selectedDate);
+  const todayAppointments = appointments
+    .filter(app => app.date === selectedDate)
+    .sort((a, b) => a.time.localeCompare(b.time)); // Sort by time ascending for daily view
   const upcomingAppointments = appointments.filter(app => app.date >= getCurrentDateEuropean() && app.status === 'confirmed');
   
   // Date range functions for analytics

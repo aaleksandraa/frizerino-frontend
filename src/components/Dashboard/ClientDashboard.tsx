@@ -99,7 +99,18 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
         type: 'upcoming',
         per_page: 3
       });
-      setUpcomingAppointments(appointmentsData);
+      // Sort upcoming appointments ascending (soonest first)
+      const sortedAppointments = appointmentsData.sort((a: any, b: any) => {
+        const dateA = new Date(a.date.split('.').reverse().join('-'));
+        const dateB = new Date(b.date.split('.').reverse().join('-'));
+        
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime(); // Ascending
+        }
+        
+        return a.time.localeCompare(b.time);
+      });
+      setUpcomingAppointments(sortedAppointments);
       
       // Load favorites
       const favoritesData = await favoriteAPI.getFavorites();

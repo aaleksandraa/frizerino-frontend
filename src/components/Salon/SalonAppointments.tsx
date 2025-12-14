@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Phone, Mail, Plus, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Phone, Mail, Plus, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, serviceAPI, staffAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean, europeanToIsoDate } from '../../utils/dateUtils';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 
 export function SalonAppointments() {
   const { user } = useAuth();
@@ -15,6 +16,8 @@ export function SalonAppointments() {
   const [selectedStaff, setSelectedStaff] = useState('all');
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [showClientModal, setShowClientModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -203,88 +206,130 @@ export function SalonAppointments() {
         <div className="divide-y divide-gray-200">
           {appointments.length > 0 ? (
             appointments.map(appointment => (
-              <div key={appointment.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="text-center min-w-[80px]">
-                        <div className="text-lg font-bold text-gray-900">{appointment.time}</div>
-                        <div className="text-xs text-gray-500">{appointment.service?.duration}min</div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <h4 className="text-lg font-semibold text-gray-900">{appointment.client_name}</h4>
-                        <p className="text-sm text-gray-600">{getServiceName(appointment.service_id)}</p>
-                        <p className="text-sm text-gray-500">sa {getStaffName(appointment.staff_id)}</p>
-                      </div>
-                      
-                      <div className="text-right">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(appointment.status)}`}>
-                          {getStatusText(appointment.status)}
-                        </span>
-                      </div>
+              <div key={appointment.id} className="p-4 md:p-6 hover:bg-gray-50 transition-colors">
+                {/* Mobile-optimized layout */}
+                <div className="flex flex-col md:flex-row md:items-start gap-4">
+                  {/* Time and Status - Mobile: Row, Desktop: Column */}
+                  <div className="flex md:flex-col items-center md:items-start gap-3 md:gap-1 md:min-w-[100px]">
+                    <div className="text-center">
+                      <div className="text-lg md:text-xl font-bold text-gray-900">{appointment.time}</div>
+                      <div className="text-xs text-gray-500">{appointment.service?.duration}min</div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium whitespace-nowrap ${getStatusColor(appointment.status)}`}>
+                      {getStatusText(appointment.status)}
+                    </span>
+                  </div>
+                  
+                  {/* Main Content */}
+                  <div className="flex-1 space-y-3">
+                    {/* Client Name - Clickable */}
+                    <div>
+                      <button
+                        onClick={() => {
+                          setSelectedClient({
+                            id: appointment.client_id ? String(appointment.client_id) : undefined,
+                            name: appointment.client_name,
+                            phone: appointment.client_phone,
+                            email: appointment.client_email
+                          });
+                          setShowClientModal(true);
+                        }}
+                        className="text-lg font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left"
+                      >
+                        {appointment.client_name}
+                      </button>
+                      <p className="text-sm text-gray-600">{getServiceName(appointment.service_id)}</p>
+                      <p className="text-xs md:text-sm text-gray-500">sa {getStaffName(appointment.staff_id)}</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        <span>{appointment.client_phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{appointment.client_email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Cijena: {appointment.total_price} KM</span>
-                      </div>
+                    {/* Contact Info - Mobile: Stacked, Desktop: Grid */}
+                    <div className="flex flex-col md:grid md:grid-cols-2 gap-2 text-sm text-gray-600">
+                      {appointment.client_phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{appointment.client_phone}</span>
+                        </div>
+                      )}
+                      {appointment.client_email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{appointment.client_email}</span>
+                        </div>
+                      )}
                     </div>
                     
+                    {/* Price */}
+                    <div className="text-sm md:text-base font-medium text-gray-900">
+                      Cijena: {appointment.total_price} KM
+                    </div>
+                    
+                    {/* Notes */}
                     {appointment.notes && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600"><strong>Napomene:</strong> {appointment.notes}</p>
                       </div>
                     )}
+                    
+                    {/* Action Buttons - Mobile: Full width, Desktop: Inline */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 pt-2">
+                      {appointment.status === 'pending' && (
+                        <>
+                          <button 
+                            onClick={() => handleAppointmentAction(appointment.id, 'confirm')}
+                            className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            Potvrdi
+                          </button>
+                          <button 
+                            onClick={() => handleAppointmentAction(appointment.id, 'cancel')}
+                            className="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                          >
+                            Odbaci
+                          </button>
+                          <button className="w-full sm:w-auto bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                            Uredi
+                          </button>
+                        </>
+                      )}
+                      
+                      {appointment.status === 'confirmed' && (
+                        <>
+                          <button 
+                            onClick={() => handleAppointmentAction(appointment.id, 'complete')}
+                            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          >
+                            Označi kao završen
+                          </button>
+                          <button className="w-full sm:w-auto bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium">
+                            Promijeni vrijeme
+                          </button>
+                          <button className="w-full sm:w-auto bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                            Uredi
+                          </button>
+                        </>
+                      )}
+                      
+                      {appointment.status === 'cancelled' && (
+                        <div className="text-sm text-gray-500 italic py-2">
+                          Termin je otkazan
+                        </div>
+                      )}
+                      
+                      {/* Completed appointments - No edit button, moved to bottom */}
+                      {appointment.status === 'completed' && (
+                        <div className="w-full text-sm text-gray-500 italic py-2 border-t pt-3 mt-2">
+                          ✓ Termin je završen
+                        </div>
+                      )}
+                      
+                      {/* Contact button for non-completed */}
+                      {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                        <button className="w-full sm:w-auto bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                          Kontaktiraj klijenta
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {appointment.status === 'pending' && (
-                    <>
-                      <button 
-                        onClick={() => handleAppointmentAction(appointment.id, 'confirm')}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
-                      >
-                        Potvrdi
-                      </button>
-                      <button 
-                        onClick={() => handleAppointmentAction(appointment.id, 'cancel')}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
-                      >
-                        Odbaci
-                      </button>
-                    </>
-                  )}
-                  
-                  {appointment.status === 'confirmed' && (
-                    <>
-                      <button 
-                        onClick={() => handleAppointmentAction(appointment.id, 'complete')}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        Označi kao završen
-                      </button>
-                      <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm">
-                        Promeni vreme
-                      </button>
-                    </>
-                  )}
-                  
-                  <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm">
-                    Kontaktiraj klijenta
-                  </button>
-                  <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm">
-                    Uredi
-                  </button>
                 </div>
               </div>
             ))
@@ -310,8 +355,23 @@ export function SalonAppointments() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSuccess={loadData}
-          salonId={user.salon.id}
+          salonId={Number(user.salon.id)}
           preselectedDate={selectedDate}
+        />
+      )}
+
+      {/* Client Details Modal */}
+      {selectedClient && (
+        <ClientDetailsModal
+          isOpen={showClientModal}
+          onClose={() => {
+            setShowClientModal(false);
+            setSelectedClient(null);
+          }}
+          clientId={selectedClient.id}
+          clientName={selectedClient.name}
+          clientPhone={selectedClient.phone}
+          clientEmail={selectedClient.email}
         />
       )}
     </div>

@@ -578,7 +578,20 @@ export function SalonClients() {
               <div>
                 <h5 className="text-lg font-bold text-gray-900 mb-4">Istorija termina</h5>
                 <div className="space-y-3">
-                  {selectedClient.appointments.map((appointment) => (
+                  {selectedClient.appointments
+                    .sort((a, b) => {
+                      // Sort by date descending (newest first)
+                      const dateA = new Date(a.date.split('.').reverse().join('-'));
+                      const dateB = new Date(b.date.split('.').reverse().join('-'));
+                      
+                      if (dateA.getTime() !== dateB.getTime()) {
+                        return dateB.getTime() - dateA.getTime();
+                      }
+                      
+                      // If same date, sort by time descending
+                      return b.time.localeCompare(a.time);
+                    })
+                    .map((appointment) => (
                     <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>

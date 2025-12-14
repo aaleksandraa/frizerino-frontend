@@ -20,6 +20,7 @@ import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { StaffRole, StaffRoleLabels } from '../../types';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 
 export function FrizerCalendar() {
   const { user } = useAuth();
@@ -32,6 +33,8 @@ export function FrizerCalendar() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [highlightedAppointment, setHighlightedAppointment] = useState<number | null>(null);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [showClientModal, setShowClientModal] = useState(false);
 
   // Read date and appointment from URL params
   useEffect(() => {
@@ -413,10 +416,23 @@ export function FrizerCalendar() {
                     </div>
                     
                     <div className="space-y-2 text-sm">
-                      {/* Client Name */}
+                      {/* Client Name - Clickable */}
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">{appointment.client_name}</span>
+                        <span
+                          onClick={() => {
+                            setSelectedClient({
+                              id: appointment.client_id ? String(appointment.client_id) : undefined,
+                              name: appointment.client_name,
+                              phone: appointment.client_phone,
+                              email: appointment.client_email
+                            });
+                            setShowClientModal(true);
+                          }}
+                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                        >
+                          {appointment.client_name}
+                        </span>
                         {appointment.is_guest && (
                           <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Ručno dodano</span>
                         )}
@@ -518,6 +534,21 @@ export function FrizerCalendar() {
           salonId={user.staff_profile.salon_id}
           staffId={user.staff_profile.id}
           preselectedDate={selectedDate}
+        />
+      )}
+
+      {/* Client Details Modal */}
+      {selectedClient && (
+        <ClientDetailsModal
+          isOpen={showClientModal}
+          onClose={() => {
+            setShowClientModal(false);
+            setSelectedClient(null);
+          }}
+          clientId={selectedClient.id}
+          clientName={selectedClient.name}
+          clientPhone={selectedClient.phone}
+          clientEmail={selectedClient.email}
         />
       )}
     </div>
