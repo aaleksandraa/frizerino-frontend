@@ -779,10 +779,11 @@ export const PublicSearch: React.FC = () => {
         )}
         <div className="max-w-7xl mx-auto w-full md:mt-16 relative z-10">
           <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white text-center mb-4">
-            Pronađi savršeni salon
+            Pronađite i rezervišite salon online
           </h1>
           <p className="text-white/80 text-center mb-6 md:mb-8 text-base md:text-lg px-4">
-            Rezervišite termin u najboljim frizerskim i kozmetičkim salonima
+            Pretražite frizerske i kozmetičke salone po gradu, blizini i slobodnim terminima.
+Rezervacija je brza i besplatna.
           </p>
           
           {/* Main Search Input with Suggestions */}
@@ -793,7 +794,7 @@ export const PublicSearch: React.FC = () => {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Pretraži salone ili usluge (npr. šišanje, farbanje, manikir...)"
+                  placeholder="Pretraži salone, usluge ili grad (npr. šišanje, Sarajevo)...)"
                   value={filters.q}
                   onChange={(e) => {
                     handleFilterChange('q', e.target.value);
