@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Clock, 
+import { useState, useEffect } from 'react';
+import {
+  Save,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
   Camera,
   Upload,
   X,
   CheckCircle,
   AlertCircle,
   Building,
-  FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { salonAPI } from '../../services/api';
@@ -40,6 +42,10 @@ type TargetAudience = {
   children: boolean;
 };
 
+interface ValidationErrors {
+  [key: string]: string;
+}
+
 interface SalonSetupWizardProps {
   onComplete: () => void;
 }
@@ -48,7 +54,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
   const { user, refreshUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<ValidationErrors>({});
   const [success, setSuccess] = useState<string | null>(null);
   const [salon, setSalon] = useState<any>(null);
   const [images, setImages] = useState<any[]>([]);
@@ -67,6 +73,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
     website: '',
     latitude: null as number | null,
     longitude: null as number | null,
+    location: { lat: 43.8563, lng: 18.4131 }, // Default Sarajevo
     target_audience: {
       women: true,
       men: true,
@@ -92,8 +99,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
           const salonData = await salonAPI.getSalon(user.salon.id);
           setSalon(salonData);
           setImages(salonData.images || []);
-          
-          // Pre-fill form with existing data
+
           setFormData(prev => ({
             ...prev,
             name: salonData.name || '',
@@ -108,6 +114,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
             website: salonData.website || '',
             latitude: salonData.latitude || null,
             longitude: salonData.longitude || null,
+            location: salonData.location || { lat: 43.8563, lng: 18.4131 },
             target_audience: salonData.target_audience || prev.target_audience,
             working_hours: salonData.working_hours || prev.working_hours,
             auto_confirm: salonData.auto_confirm || false
@@ -117,13 +124,20 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
         }
       }
     };
-    
+
     loadSalonData();
   }, [user]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    setError(null);
+    // Clear error for this field when user types
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
   const handleWorkingHoursChange = (day: string, field: string, value: any) => {
@@ -139,87 +153,126 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
     }));
   };
 
+  // Validate current step
   const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.name.trim()) {
-          setError('Naziv salona je obavezan');
-          return false;
-        }
-        if (!formData.email.trim()) {
-          setError('Email je obavezan');
-          return false;
-        }
-        if (!formData.phone.trim()) {
-          setError('Telefon je obavezan');
-          return false;
-        }
-        if (!formData.description.trim()) {
-          setError('Opis salona je obavezan');
-          return false;
-        }
-        return true;
-      case 2:
-        if (!formData.address.trim()) {
-          setError('Adresa je obavezna');
-          return false;
-        }
-        if (!formData.city.trim()) {
-          setError('Grad/Mjesto je obavezno');
-          return false;
-        }
-        return true;
-      case 3:
-        return true; // Working hours are optional
-      default:
-        return true;
+    const newErrors: ValidationErrors = {};
+
+    if (step === 1) {
+      if (!formData.name.trim()) {
+        newErrors.name = 'Naziv salona je obavezan';
+      }
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email je obavezan';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Unesite validan email';
+      }
+      if (!formData.phone.trim()) {
+        newErrors.phone = 'Telefon je obavezan';
+      }
+      if (!formData.description.trim()) {
+        newErrors.description = 'Opis salona je obavezan';
+      } else if (formData.description.trim().length < 20) {
+        newErrors.description = 'Opis mora imati najmanje 20 karaktera';
+      }
     }
+
+    if (step === 2) {
+      if (!formData.address.trim()) {
+        newErrors.address = 'Adresa je obavezna';
+      }
+      if (!formData.city.trim()) {
+        newErrors.city = 'Grad/Mjesto je obavezno';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(prev + 1, 4));
-      setError(null);
+      setErrors({});
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleBack = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
-    setError(null);
+    setErrors({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSave = async () => {
-    if (!validateStep(currentStep)) return;
-    
+  // Save all data at once (on step 3 or when completing)
+  const handleSaveAll = async () => {
+    // Validate all steps before saving
+    const allErrors: ValidationErrors = {};
+
+    // Step 1 validation
+    if (!formData.name.trim()) allErrors.name = 'Naziv salona je obavezan';
+    if (!formData.email.trim()) allErrors.email = 'Email je obavezan';
+    if (!formData.phone.trim()) allErrors.phone = 'Telefon je obavezan';
+    if (!formData.description.trim()) allErrors.description = 'Opis salona je obavezan';
+
+    // Step 2 validation
+    if (!formData.address.trim()) allErrors.address = 'Adresa je obavezna';
+    if (!formData.city.trim()) allErrors.city = 'Grad/Mjesto je obavezno';
+
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      // Go to the first step with errors
+      if (allErrors.name || allErrors.email || allErrors.phone || allErrors.description) {
+        setCurrentStep(1);
+      } else if (allErrors.address || allErrors.city) {
+        setCurrentStep(2);
+      }
+      return false;
+    }
+
     setSaving(true);
-    setError(null);
-    
+    setErrors({});
+
     try {
+      // Prepare data for API - ensure location has valid coordinates
+      const dataToSend = {
+        ...formData,
+        location: {
+          lat: formData.latitude || formData.location.lat || 43.8563,
+          lng: formData.longitude || formData.location.lng || 18.4131
+        }
+      };
+
       let response;
       if (salon?.id) {
-        response = await salonAPI.updateSalon(salon.id, formData);
+        response = await salonAPI.updateSalon(salon.id, dataToSend);
       } else {
-        response = await salonAPI.createSalon(formData);
+        response = await salonAPI.createSalon(dataToSend);
       }
-      
-      setSalon(response.salon || response);
+
+      const savedSalon = response.salon || response;
+      setSalon(savedSalon);
       setSuccess('Podaci su uspješno sačuvani!');
-      
-      // Refresh user data to get updated salon info
+
       if (refreshUser) {
         await refreshUser();
       }
-      
-      // Move to next step or complete
-      if (currentStep < 4) {
-        setTimeout(() => {
-          setCurrentStep(prev => prev + 1);
-          setSuccess(null);
-        }, 1000);
-      }
+
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
     } catch (err: any) {
       console.error('Error saving salon:', err);
-      setError(err.response?.data?.message || 'Greška prilikom čuvanja podataka');
+
+      // Handle validation errors from backend
+      if (err.response?.data?.errors) {
+        const backendErrors: ValidationErrors = {};
+        Object.entries(err.response.data.errors).forEach(([key, messages]: [string, any]) => {
+          backendErrors[key] = Array.isArray(messages) ? messages[0] : messages;
+        });
+        setErrors(backendErrors);
+      } else {
+        setErrors({ general: err.response?.data?.message || 'Greška prilikom čuvanja podataka' });
+      }
+      return false;
     } finally {
       setSaving(false);
     }
@@ -227,18 +280,23 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || !salon?.id) {
-      setError('Morate prvo sačuvati osnovne podatke prije uploada fotografija');
-      return;
+    if (!files) return;
+
+    // If salon doesn't exist yet, save it first
+    if (!salon?.id) {
+      const saved = await handleSaveAll();
+      if (!saved) {
+        setErrors({ general: 'Morate prvo sačuvati osnovne podatke prije uploada fotografija' });
+        return;
+      }
     }
 
     setUploadingImages(true);
-    setError(null);
+    setErrors({});
 
     try {
       const formDataUpload = new FormData();
       Array.from(files).forEach(file => {
-        // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
           throw new Error(`Datoteka ${file.name} je prevelika. Maksimalna veličina je 5MB.`);
         }
@@ -246,15 +304,14 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
       });
 
       await salonAPI.uploadImages(salon.id, formDataUpload);
-      
-      // Refresh salon data to get updated images
+
       const updatedSalon = await salonAPI.getSalon(salon.id);
       setImages(updatedSalon.images || []);
       setSuccess('Fotografije su uspješno uploadovane!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       console.error('Error uploading images:', err);
-      setError(err.message || err.response?.data?.message || 'Greška prilikom uploada fotografija');
+      setErrors({ general: err.message || 'Greška prilikom uploada fotografija' });
     } finally {
       setUploadingImages(false);
     }
@@ -268,12 +325,32 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
       setImages(prev => prev.filter(img => img.id !== imageId));
     } catch (err: any) {
       console.error('Error removing image:', err);
-      setError('Greška prilikom brisanja fotografije');
+      setErrors({ general: 'Greška prilikom brisanja fotografije' });
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    // Save data first if not saved
+    if (!salon?.id) {
+      const saved = await handleSaveAll();
+      if (!saved) return;
+    }
     onComplete();
+  };
+
+  const handleSaveAndContinue = async () => {
+    if (!validateStep(currentStep)) return;
+
+    // On step 2, save all data
+    if (currentStep === 2) {
+      const saved = await handleSaveAll();
+      if (saved) {
+        setCurrentStep(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      handleNext();
+    }
   };
 
   const dayNames: Record<string, string> = {
@@ -293,35 +370,70 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
     { number: 4, title: 'Fotografije', icon: ImageIcon }
   ];
 
+  const renderFieldError = (field: string) => {
+    if (!errors[field]) return null;
+    return (
+      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+        <AlertCircle className="w-4 h-4" />
+        {errors[field]}
+      </p>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
             Dobrodošli u Frizerino! 🎉
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm sm:text-base">
             Popunite podatke o vašem salonu kako bi klijenti mogli pronaći i rezervisati termine.
           </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex justify-center mb-8">
+        {/* Progress Steps - Mobile */}
+        <div className="flex sm:hidden justify-between items-center mb-6 px-2">
+          {steps.map((step, index) => {
+            const isActive = currentStep === step.number;
+            const isCompleted = currentStep > step.number;
+
+            return (
+              <div key={step.number} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  isCompleted
+                    ? 'bg-green-500 text-white'
+                    : isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                }`}>
+                  {isCompleted ? '✓' : step.number}
+                </div>
+                {index < steps.length - 1 && (
+                  <div className={`w-8 h-1 mx-1 ${currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'}`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Progress Steps - Desktop */}
+        <div className="hidden sm:flex justify-center mb-8">
           <div className="flex items-center space-x-4">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.number;
               const isCompleted = currentStep > step.number;
-              
+
               return (
-                <React.Fragment key={step.number}>
+                <div key={step.number} className="flex items-center">
                   <div className="flex flex-col items-center">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                      isCompleted 
-                        ? 'bg-green-500 text-white' 
-                        : isActive 
-                          ? 'bg-blue-600 text-white' 
+                      isCompleted
+                        ? 'bg-green-500 text-white'
+                        : isActive
+                          ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 text-gray-500'
                     }`}>
                       {isCompleted ? (
@@ -335,22 +447,23 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-16 h-1 ${currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'}`} />
+                    <div className={`w-16 h-1 mx-2 ${currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'}`} />
                   )}
-                </React.Fragment>
+                </div>
               );
             })}
           </div>
         </div>
 
-        {/* Alert Messages */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className="text-red-800">{error}</p>
+        {/* General Error */}
+        {errors.general && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-800">{errors.general}</p>
           </div>
         )}
 
+        {/* Success Message */}
         {success && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -359,18 +472,18 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
         )}
 
         {/* Form Content */}
-        <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 mb-6">
 
           {/* Step 1: Basic Information */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <Building className="w-5 h-5 text-blue-600" />
                 Osnovni podaci o salonu
               </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Naziv salona <span className="text-red-500">*</span>
                   </label>
@@ -378,38 +491,53 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="npr. Beauty Studio Marija"
                   />
+                  {renderFieldError('name')}
                 </div>
-                
-                <div>
+
+                <div className="sm:col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Email <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="info@salon.ba"
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="info@salon.ba"
+                    />
+                  </div>
+                  {renderFieldError('email')}
                 </div>
-                
-                <div>
+
+                <div className="sm:col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Telefon <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+387 33 123 456"
-                  />
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        errors.phone ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="+387 33 123 456"
+                    />
+                  </div>
+                  {renderFieldError('phone')}
                 </div>
-                
-                <div>
+
+                <div className="sm:col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Website (opciono)
                   </label>
@@ -417,12 +545,12 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     type="url"
                     value={formData.website}
                     onChange={(e) => handleInputChange('website', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="https://www.mojsalon.ba"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Opis salona <span className="text-red-500">*</span>
@@ -431,21 +559,24 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Opišite vaš salon, usluge koje nudite, atmosferu, iskustvo..."
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.description ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Opišite vaš salon, usluge koje nudite, atmosferu, iskustvo... (min. 20 karaktera)"
                 />
+                {renderFieldError('description')}
                 <p className="text-sm text-gray-500 mt-1">
-                  Dobar opis pomaže klijentima da vas pronađu i odaberu.
+                  {formData.description.length}/20 karaktera (minimum)
                 </p>
               </div>
 
               {/* Target Audience */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Kome je salon namijenjen
                 </label>
                 <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.target_audience.women}
@@ -453,11 +584,11 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                         ...prev,
                         target_audience: { ...prev.target_audience, women: e.target.checked }
                       }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span>Žene</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.target_audience.men}
@@ -465,11 +596,11 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                         ...prev,
                         target_audience: { ...prev.target_audience, men: e.target.checked }
                       }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span>Muškarci</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.target_audience.children}
@@ -477,7 +608,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                         ...prev,
                         target_audience: { ...prev.target_audience, children: e.target.checked }
                       }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span>Djeca</span>
                   </label>
@@ -489,13 +620,13 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
           {/* Step 2: Location */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-blue-600" />
                 Lokacija salona
               </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Adresa <span className="text-red-500">*</span>
                   </label>
@@ -503,11 +634,14 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     type="text"
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.address ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="npr. Ferhadija 15"
                   />
+                  {renderFieldError('address')}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Grad / Mjesto <span className="text-red-500">*</span>
@@ -522,12 +656,24 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                         postal_code: location.postal_code || prev.postal_code,
                         latitude: location.latitude ?? prev.latitude,
                         longitude: location.longitude ?? prev.longitude,
+                        location: {
+                          lat: location.latitude || prev.location.lat,
+                          lng: location.longitude || prev.location.lng
+                        }
                       }));
+                      if (errors.city) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.city;
+                          return newErrors;
+                        });
+                      }
                     }}
                     disabled={false}
                   />
+                  {renderFieldError('city')}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Poštanski broj
@@ -536,19 +682,19 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     type="text"
                     value={formData.postal_code}
                     onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="71000"
                   />
                 </div>
-                
-                <div>
+
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Zemlja
                   </label>
                   <select
                     value={formData.country}
                     onChange={(e) => handleInputChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="Bosna i Hercegovina">Bosna i Hercegovina</option>
                     <option value="Srbija">Srbija</option>
@@ -558,37 +704,11 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                 </div>
               </div>
 
-              {/* Coordinates */}
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                  Koordinate (opciono - za prikaz na mapi)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Latitude</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData.latitude || ''}
-                      onChange={(e) => handleInputChange('latitude', e.target.value ? parseFloat(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      placeholder="43.8563"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Longitude</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData.longitude || ''}
-                      onChange={(e) => handleInputChange('longitude', e.target.value ? parseFloat(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      placeholder="18.4131"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Koordinate možete pronaći na Google Maps - desni klik na lokaciju.
+              {/* Coordinates Info */}
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  💡 Koordinate za mapu će biti automatski postavljene na osnovu odabranog grada.
+                  Možete ih kasnije preciznije podesiti u profilu salona.
                 </p>
               </div>
             </div>
@@ -597,44 +717,42 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
           {/* Step 3: Working Hours */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-blue-600" />
                 Radno vrijeme
               </h2>
-              
-              <div className="space-y-4">
+
+              <div className="space-y-3">
                 {Object.entries(dayNames).map(([day, dayName]) => {
                   const dayHours = formData.working_hours[day as keyof WorkingHours];
                   return (
-                    <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-28">
-                        <span className="font-medium text-gray-700">{dayName}</span>
-                      </div>
-                      
-                      <label className="flex items-center gap-2">
+                    <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-full sm:w-28 font-medium text-gray-700">{dayName}</div>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={dayHours.is_open}
                           onChange={(e) => handleWorkingHoursChange(day, 'is_open', e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="text-sm text-gray-600">Radi</span>
                       </label>
-                      
+
                       {dayHours.is_open && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 ml-0 sm:ml-4">
                           <input
                             type="time"
                             value={dayHours.open}
                             onChange={(e) => handleWorkingHoursChange(day, 'open', e.target.value)}
-                            className="px-3 py-1 border border-gray-300 rounded text-sm"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           />
                           <span className="text-gray-400">-</span>
                           <input
                             type="time"
                             value={dayHours.close}
                             onChange={(e) => handleWorkingHoursChange(day, 'close', e.target.value)}
-                            className="px-3 py-1 border border-gray-300 rounded text-sm"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                       )}
@@ -645,12 +763,12 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
 
               {/* Auto-confirm setting */}
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <label className="flex items-start gap-3">
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.auto_confirm}
                     onChange={(e) => handleInputChange('auto_confirm', e.target.checked)}
-                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>
                     <span className="font-medium text-gray-900">Automatska potvrda termina</span>
@@ -666,11 +784,11 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
           {/* Step 4: Photos */}
           {currentStep === 4 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <Camera className="w-5 h-5 text-blue-600" />
                 Fotografije salona
               </h2>
-              
+
               {!salon?.id ? (
                 <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
                   <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
@@ -678,7 +796,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                     Morate prvo sačuvati osnovne podatke
                   </p>
                   <p className="text-yellow-700 text-sm mt-1">
-                    Kliknite "Sačuvaj i nastavi" na prethodnim koracima.
+                    Vratite se na prethodne korake i kliknite "Sačuvaj i nastavi".
                   </p>
                 </div>
               ) : (
@@ -688,16 +806,17 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         {uploadingImages ? (
                           <>
-                            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                            <Loader2 className="w-10 h-10 mb-3 text-blue-500 animate-spin" />
                             <p className="text-sm text-gray-500">Uploadovanje...</p>
                           </>
                         ) : (
                           <>
                             <Upload className="w-10 h-10 mb-3 text-gray-400" />
-                            <p className="mb-2 text-sm text-gray-500">
-                              <span className="font-semibold">Kliknite za upload</span> ili prevucite fotografije
+                            <p className="mb-2 text-sm text-gray-500 text-center px-4">
+                              <span className="font-semibold">Kliknite za upload</span>
+                              <span className="hidden sm:inline"> ili prevucite fotografije</span>
                             </p>
-                            <p className="text-xs text-gray-500">PNG, JPG ili JPEG (MAX. 5MB po fotografiji)</p>
+                            <p className="text-xs text-gray-500">PNG, JPG ili JPEG (MAX. 5MB)</p>
                           </>
                         )}
                       </div>
@@ -711,23 +830,23 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                       />
                     </label>
                   </div>
-                  
+
                   {images.length > 0 && (
                     <div>
                       <p className="text-sm text-gray-600 mb-3">
                         Uploadovane fotografije ({images.length}/20)
                       </p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {images.map((image) => (
-                          <div key={image.id} className="relative group">
+                          <div key={image.id} className="relative group aspect-square">
                             <img
                               src={image.url}
                               alt="Salon"
-                              className="w-full h-24 object-cover rounded-lg"
+                              className="w-full h-full object-cover rounded-lg"
                             />
                             <button
                               onClick={() => removeImage(image.id)}
-                              className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -736,7 +855,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {images.length === 0 && (
                     <p className="text-center text-gray-500 py-4">
                       Još niste uploadovali fotografije. Fotografije pomažu klijentima da vide vaš salon.
@@ -749,42 +868,79 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row justify-between gap-3">
           <button
             onClick={handleBack}
             disabled={currentStep === 1}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="order-2 sm:order-1 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
+            <ChevronLeft className="w-5 h-5" />
             Nazad
           </button>
-          
-          <div className="flex gap-3">
-            {currentStep < 4 && (
+
+          <div className="order-1 sm:order-2 flex flex-col sm:flex-row gap-3">
+            {currentStep < 3 && (
               <button
-                onClick={handleSave}
+                onClick={handleNext}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                Dalje
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
+            {currentStep === 2 && (
+              <button
+                onClick={handleSaveAndContinue}
                 disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Čuvanje...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="w-5 h-5" />
                     Sačuvaj i nastavi
                   </>
                 )}
               </button>
             )}
-            
+
+            {currentStep === 3 && (
+              <button
+                onClick={async () => {
+                  if (salon?.id) {
+                    await handleSaveAll();
+                  }
+                  setCurrentStep(4);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={saving}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Čuvanje...
+                  </>
+                ) : (
+                  <>
+                    Dalje
+                    <ChevronRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            )}
+
             {currentStep === 4 && (
               <button
                 onClick={handleComplete}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-5 h-5" />
                 Završi podešavanje
               </button>
             )}
@@ -798,7 +954,7 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
             <div>
               <p className="text-blue-800 font-medium">Šta se dešava nakon podešavanja?</p>
               <p className="text-blue-700 text-sm mt-1">
-                Nakon što popunite podatke, vaš salon će biti poslan na pregled administratoru. 
+                Nakon što popunite podatke, vaš salon će biti poslan na pregled administratoru.
                 Kada bude odobren, dobićete email obavijest i moći ćete dodavati usluge, zaposlene i primati rezervacije.
               </p>
             </div>
