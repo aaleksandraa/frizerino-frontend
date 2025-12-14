@@ -22,6 +22,7 @@ import {
   HeartIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { LoginPromptModal } from '../Common/LoginPromptModal';
 
 // Lazy load map component
 const SalonsMapView = lazy(() => import('./SalonsMapView'));
@@ -132,6 +133,7 @@ export const PublicSearch: React.FC = () => {
   // Favorites state
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [favoriteLoading, setFavoriteLoading] = useState<number | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
   // Refs to prevent double fetching in React StrictMode
   const fetchedRef = useRef({ appearance: false, services: false, topRated: false, cities: false, newest: false, menSalons: false, featured: false });
@@ -467,7 +469,7 @@ export const PublicSearch: React.FC = () => {
     e.stopPropagation();
     
     if (!user) {
-      navigate('/login', { state: { returnTo: '/pretraga' } });
+      setShowLoginPrompt(true);
       return;
     }
     
@@ -1829,6 +1831,13 @@ export const PublicSearch: React.FC = () => {
       
       {/* Footer */}
       <PublicFooter />
+      
+      {/* Login Prompt Modal */}
+      <LoginPromptModal 
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        returnTo="/pretraga"
+      />
     </div>
   );
 };

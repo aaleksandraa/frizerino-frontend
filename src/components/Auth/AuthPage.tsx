@@ -275,11 +275,11 @@ export function AuthPage({ mode }: AuthPageProps) {
           {/* Middle content */}
           <div className="max-w-lg">
             <h1 className="text-4xl xl:text-5xl font-bold mb-6 leading-tight">
-              Pronađite savršen salon za vas
+              Online zakazivanje frizera i kozmetičkih tretmana
             </h1>
             <p className="text-lg xl:text-xl text-gray-200 mb-8">
               Rezervišite termine u najboljim frizerskim i kozmetičkim salonima. 
-              Brzo, jednostavno i besplatno.
+              Brzo, jednostavno i bez telefonskih poziva.
             </p>
             
             {/* Features */}
@@ -290,7 +290,7 @@ export function AuthPage({ mode }: AuthPageProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-lg">Besplatna rezervacija termina</span>
+                <span className="text-lg">Besplatna rezervacija termina </span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -298,7 +298,7 @@ export function AuthPage({ mode }: AuthPageProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-lg">Pregledajte salone i recenzije</span>
+                <span className="text-lg">Provjerene recenzije stvarnih klijenata</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -306,7 +306,7 @@ export function AuthPage({ mode }: AuthPageProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-lg">Podsjećanje na termine</span>
+                <span className="text-lg">Podsjetnici da nikada ne zaboravite termin</span>
               </div>
             </div>
           </div>

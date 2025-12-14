@@ -26,6 +26,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid, ScissorsIcon } from '@heroicons/react/24/solid';
+import { LoginPromptModal } from '../Common/LoginPromptModal';
 
 // Lazy load map component
 const SalonLocationMap = lazy(() => import('./SalonLocationMap'));
@@ -84,6 +85,7 @@ export const PublicSalonPage: React.FC = () => {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const reviewFormRef = useRef<HTMLDivElement>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Check for writeReview query param
   const [searchParams] = useSearchParams();
@@ -153,8 +155,8 @@ export const PublicSalonPage: React.FC = () => {
   // Toggle favorite
   const handleToggleFavorite = async () => {
     if (!salon || !user) {
-      // Redirect to login if not logged in
-      navigate('/login', { state: { returnTo: `/salon/${slug}` } });
+      // Show login prompt modal
+      setShowLoginPrompt(true);
       return;
     }
     
@@ -1006,6 +1008,13 @@ export const PublicSalonPage: React.FC = () => {
       )}
 
       <PublicFooter />
+      
+      {/* Login Prompt Modal */}
+      <LoginPromptModal 
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        returnTo={`/salon/${slug}`}
+      />
     </>
   );
 };
