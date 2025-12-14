@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 axios.defaults.withCredentials = true; // 🔐 Za session cookies
@@ -75,7 +75,6 @@ api.interceptors.response.use(
       // List of endpoints that should NOT trigger redirect on 401
       const publicEndpoints = [
         '/user',
-        '/v1/public/',
         '/public/',
         '/sanctum/',
         '/login',
@@ -162,7 +161,7 @@ export const authAPI = {
   },
 
   resendVerificationEmail: async (email: string) => {
-    const response = await api.post('/v1/email/resend', { email });
+    const response = await api.post('/email/resend', { email });
     return response.data;
   }
 };
@@ -524,19 +523,19 @@ export const favoriteAPI = {
 export const publicAPI = {
   // Get all cities with salon counts
   getCities: async () => {
-    const response = await api.get('/v1/public/cities');
+    const response = await api.get('/public/cities');
     return response.data;
   },
 
   // Get salons for a specific city
   getSalonsByCity: async (citySlug: string) => {
-    const response = await api.get(`/v1/public/cities/${citySlug}`);
+    const response = await api.get(`/public/cities/${citySlug}`);
     return response.data;
   },
 
   // Get salon by slug (SEO-friendly)
   getSalonBySlug: async (slug: string) => {
-    const response = await api.get(`/v1/public/salon/${slug}`);
+    const response = await api.get(`/public/salon/${slug}`);
     return response.data;
   },
 
@@ -554,7 +553,7 @@ export const publicAPI = {
     time?: string;
     duration?: number;
   }) => {
-    const response = await api.get('/v1/public/search', { params });
+    const response = await api.get('/public/search', { params });
     return response.data;
   },
 
@@ -572,19 +571,19 @@ export const publicAPI = {
     time?: string;
     duration?: number;
   }) => {
-    const response = await api.get('/v1/public/search', { params });
+    const response = await api.get('/public/search', { params });
     return response.data;
   },
 
   // Get popular services for search suggestions
   getPopularServices: async () => {
-    const response = await api.get('/v1/public/services');
+    const response = await api.get('/public/services');
     return response.data;
   },
 
   // Get available time slots (public)
   getAvailableSlots: async (staffId: string, serviceId: string, date: string) => {
-    const response = await api.get('/v1/public/available-slots', {
+    const response = await api.get('/public/available-slots', {
       params: { staff_id: staffId, service_id: serviceId, date }
     });
     return response.data;
@@ -613,13 +612,13 @@ export const publicAPI = {
     guest_phone: string;
     guest_address: string;
   }) => {
-    const response = await api.post('/v1/public/book', data);
+    const response = await api.post('/public/book', data);
     return response.data;
   },
 
   // Get sitemap data
   getSitemap: async () => {
-    const response = await api.get('/v1/public/sitemap');
+    const response = await api.get('/public/sitemap');
     return response.data;
   }
 };
@@ -812,7 +811,7 @@ export const publicSettingsAPI = {
   },
 
   getRegistrationSettings: async () => {
-    const response = await api.get('/v1/public/registration-settings');
+    const response = await api.get('/public/registration-settings');
     return response.data;
   }
 };
@@ -820,12 +819,12 @@ export const publicSettingsAPI = {
 // Admin settings API
 export const adminSettingsAPI = {
   getRegistrationSettings: async () => {
-    const response = await api.get('/v1/admin/registration-settings');
+    const response = await api.get('/admin/registration-settings');
     return response.data;
   },
 
   updateRegistrationSettings: async (data: { allow_frizer_registration: boolean }) => {
-    const response = await api.put('/v1/admin/registration-settings', data);
+    const response = await api.put('/admin/registration-settings', data);
     return response.data;
   }
 };
@@ -834,25 +833,25 @@ export const adminSettingsAPI = {
 export const locationsAPI = {
   // Get all active locations (for dropdowns)
   getAll: async (params?: { search?: string; entity?: string; canton?: string }) => {
-    const response = await api.get('/v1/public/locations', { params });
+    const response = await api.get('/public/locations', { params });
     return response.data;
   },
   
   // Get locations grouped by entity/canton (for organized dropdown)
   getGrouped: async () => {
-    const response = await api.get('/v1/public/locations/grouped');
+    const response = await api.get('/public/locations/grouped');
     return response.data;
   },
   
   // Get all cantons (FBiH) and regions (RS)
   getCantons: async () => {
-    const response = await api.get('/v1/public/locations/cantons');
+    const response = await api.get('/public/locations/cantons');
     return response.data;
   },
   
   // Admin: Get all locations with pagination
   adminGetAll: async (params?: { page?: number; per_page?: number; search?: string }) => {
-    const response = await api.get('/v1/admin/locations', { params });
+    const response = await api.get('/admin/locations', { params });
     return response.data;
   },
   
@@ -867,13 +866,13 @@ export const locationsAPI = {
     longitude?: number;
     population?: number;
   }) => {
-    const response = await api.post('/v1/admin/locations', data);
+    const response = await api.post('/admin/locations', data);
     return response.data;
   },
   
   // Admin: Get single location
   get: async (id: number) => {
-    const response = await api.get(`/v1/admin/locations/${id}`);
+    const response = await api.get(`/admin/locations/${id}`);
     return response.data;
   },
   
@@ -889,13 +888,13 @@ export const locationsAPI = {
     population?: number;
     is_active?: boolean;
   }) => {
-    const response = await api.put(`/v1/admin/locations/${id}`, data);
+    const response = await api.put(`/admin/locations/${id}`, data);
     return response.data;
   },
   
   // Admin: Delete location
   delete: async (id: number) => {
-    const response = await api.delete(`/v1/admin/locations/${id}`);
+    const response = await api.delete(`/admin/locations/${id}`);
     return response.data;
   }
 };
@@ -926,7 +925,7 @@ export const jobAdsAPI = {
     per_page?: number; 
     status?: string 
   }) => {
-    const response = await api.get('/v1/admin/job-ads', { params });
+    const response = await api.get('/admin/job-ads', { params });
     return response.data;
   },
   
@@ -943,7 +942,7 @@ export const jobAdsAPI = {
     salon_id?: number;
     is_active?: boolean;
   }) => {
-    const response = await api.post('/v1/admin/job-ads', data);
+    const response = await api.post('/admin/job-ads', data);
     return response.data;
   },
   
@@ -960,25 +959,25 @@ export const jobAdsAPI = {
     salon_id?: number;
     is_active?: boolean;
   }>) => {
-    const response = await api.put(`/v1/admin/job-ads/${id}`, data);
+    const response = await api.put(`/admin/job-ads/${id}`, data);
     return response.data;
   },
   
   // Admin: Delete job ad
   delete: async (id: number) => {
-    const response = await api.delete(`/v1/admin/job-ads/${id}`);
+    const response = await api.delete(`/admin/job-ads/${id}`);
     return response.data;
   },
   
   // Admin: Toggle active status
   toggleActive: async (id: number) => {
-    const response = await api.put(`/v1/admin/job-ads/${id}/toggle-active`);
+    const response = await api.put(`/admin/job-ads/${id}/toggle-active`);
     return response.data;
   },
   
   // Admin: Update owner posting setting
   updateOwnerPostingSetting: async (allow: boolean) => {
-    const response = await api.put('/v1/admin/job-ads/owner-posting-setting', {
+    const response = await api.put('/admin/job-ads/owner-posting-setting', {
       allow_owner_posting: allow
     });
     return response.data;
@@ -986,7 +985,7 @@ export const jobAdsAPI = {
   
   // Owner: Get my job ads
   ownerGetAll: async () => {
-    const response = await api.get('/v1/owner/job-ads');
+    const response = await api.get('/owner/job-ads');
     return response.data;
   },
   
@@ -999,7 +998,7 @@ export const jobAdsAPI = {
     contact_phone?: string;
     deadline?: string;
   }) => {
-    const response = await api.post('/v1/owner/job-ads', data);
+    const response = await api.post('/owner/job-ads', data);
     return response.data;
   },
   
@@ -1013,13 +1012,13 @@ export const jobAdsAPI = {
     deadline?: string;
     is_active?: boolean;
   }>) => {
-    const response = await api.put(`/v1/owner/job-ads/${id}`, data);
+    const response = await api.put(`/owner/job-ads/${id}`, data);
     return response.data;
   },
   
   // Owner: Delete job ad
   ownerDelete: async (id: number) => {
-    const response = await api.delete(`/v1/owner/job-ads/${id}`);
+    const response = await api.delete(`/owner/job-ads/${id}`);
     return response.data;
   }
 };
@@ -1028,19 +1027,19 @@ export const jobAdsAPI = {
 export const widgetAPI = {
   // Admin: Get all widget settings
   getAllSettings: async () => {
-    const response = await api.get('/v1/admin/widget');
+    const response = await api.get('/admin/widget');
     return response.data;
   },
   
   // Admin: Get widget settings for a salon
   getSettings: async (salonId: string) => {
-    const response = await api.get(`/v1/admin/widget/${salonId}`);
+    const response = await api.get(`/admin/widget/${salonId}`);
     return response.data;
   },
   
   // Admin: Generate or regenerate API key
   generateKey: async (salonId: string) => {
-    const response = await api.post(`/v1/admin/widget/${salonId}/generate`);
+    const response = await api.post(`/admin/widget/${salonId}/generate`);
     return response.data;
   },
   
@@ -1051,13 +1050,13 @@ export const widgetAPI = {
     primary_color?: string;
     button_text?: string;
   }) => {
-    const response = await api.put(`/v1/admin/widget/${salonId}/settings`, data);
+    const response = await api.put(`/admin/widget/${salonId}/settings`, data);
     return response.data;
   },
   
   // Admin: Delete widget settings
   deleteSettings: async (salonId: string) => {
-    const response = await api.delete(`/v1/admin/widget/${salonId}`);
+    const response = await api.delete(`/admin/widget/${salonId}`);
     return response.data;
   },
   
@@ -1066,13 +1065,13 @@ export const widgetAPI = {
     start_date?: string;
     end_date?: string;
   }) => {
-    const response = await api.get(`/v1/admin/widget/${salonId}/analytics`, { params });
+    const response = await api.get(`/admin/widget/${salonId}/analytics`, { params });
     return response.data;
   },
   
   // Public: Get salon widget data (used by widget iframe)
   getSalonWidget: async (salonSlug: string, apiKey: string) => {
-    const response = await api.get(`/v1/widget/${salonSlug}`, {
+    const response = await api.get(`/widget/${salonSlug}`, {
       headers: {
         'X-Widget-Key': apiKey
       }
@@ -1086,7 +1085,7 @@ export const widgetAPI = {
     date: string;
     services: Array<{ serviceId: string; duration: number }>;
   }) => {
-    const response = await api.get('/v1/widget/slots/available', {
+    const response = await api.get('/widget/slots/available', {
       params: {
         key: apiKey,
         staff_id: params.staff_id,
@@ -1110,7 +1109,7 @@ export const widgetAPI = {
     guest_address: string;
     notes?: string;
   }) => {
-    const response = await api.post('/v1/widget/book', {
+    const response = await api.post('/widget/book', {
       ...data,
       api_key: apiKey
     });
@@ -1122,19 +1121,19 @@ export const widgetAPI = {
 export const clientAPI = {
   // Get all clients for a salon
   getClients: async (params?: { search?: string; page?: number; per_page?: number }) => {
-    const response = await api.get('/v1/clients', { params });
+    const response = await api.get('/clients', { params });
     return response.data;
   },
   
   // Get single client
   getClient: async (id: string) => {
-    const response = await api.get(`/v1/clients/${id}`);
+    const response = await api.get(`/clients/${id}`);
     return response.data;
   },
   
   // Send email to client
   sendEmail: async (id: string, data: { subject: string; message: string }) => {
-    const response = await api.post(`/v1/clients/${id}/send-email`, data);
+    const response = await api.post(`/clients/${id}/send-email`, data);
     return response.data;
   }
 };
