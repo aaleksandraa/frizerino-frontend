@@ -2,17 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   Save, 
   MapPin, 
-  Phone, 
-  Mail, 
-  Globe, 
   Clock, 
-  Camera,
   Plus,
   X,
   Search,
   CheckCircle,
-  Upload,
-  Trash2
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { salonAPI } from '../../services/api';
@@ -74,7 +69,8 @@ type SalonFormData = {
 export function SalonProfile() {
   const { user } = useAuth();
   const [salon, setSalon] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState<SalonFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locationService] = useState(() => LocationService.getInstance());
@@ -138,7 +134,7 @@ export function SalonProfile() {
         const salonData = await salonAPI.getSalon(user.salon.id);
         setSalon(salonData);
         setImages(salonData.images || []);
-        setFormData({
+        const loadedData: SalonFormData = {
           name: salonData.name,
           description: salonData.description,
           address: salonData.address,
@@ -170,8 +166,11 @@ export function SalonProfile() {
           amenities: salonData.amenities || [],
           social_media: salonData.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
           auto_confirm: salonData.auto_confirm || false
-        });
+        };
+        setFormData(loadedData);
+        setOriginalFormData(JSON.parse(JSON.stringify(loadedData)));
         setLocationQuery(salonData.address);
+        setHasChanges(false);
       }
     } catch (error) {
       console.error('Error loading salon data:', error);
@@ -185,6 +184,7 @@ export function SalonProfile() {
       ...prev,
       [field]: value
     }));
+    setHasChanges(true);
   };
 
   const handleWorkingHoursChange = (day: string, field: string, value: any) => {
@@ -198,6 +198,7 @@ export function SalonProfile() {
         }
       }
     }));
+    setHasChanges(true);
   };
 
   const handleSocialMediaChange = (platform: string, value: string) => {
@@ -208,6 +209,7 @@ export function SalonProfile() {
         [platform]: value
       }
     }));
+    setHasChanges(true);
   };
 
   const handleLocationSearch = async (query: string) => {
@@ -240,6 +242,7 @@ export function SalonProfile() {
         setLocationQuery(details.address);
         setShowLocationSearch(false);
         setLocationSearchResults([]);
+        setHasChanges(true);
       }
     } catch (error) {
       console.error('Error getting place details:', error);
@@ -253,6 +256,7 @@ export function SalonProfile() {
         amenities: [...prev.amenities, newAmenity.trim()]
       }));
       setNewAmenity('');
+      setHasChanges(true);
     }
   };
 
@@ -261,6 +265,7 @@ export function SalonProfile() {
       ...prev,
       amenities: prev.amenities.filter(a => a !== amenity)
     }));
+    setHasChanges(true);
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -305,16 +310,26 @@ export function SalonProfile() {
         // Update existing salon
         const response = await salonAPI.updateSalon(salon.id, formData);
         setSalon(response.salon);
+        setOriginalFormData(JSON.parse(JSON.stringify(formData)));
+        setHasChanges(false);
       } else {
         // Create new salon
         const response = await salonAPI.createSalon(formData);
         setSalon(response.salon);
+        setOriginalFormData(JSON.parse(JSON.stringify(formData)));
+        setHasChanges(false);
       }
-      setIsEditing(false);
     } catch (error) {
       console.error('Error saving salon:', error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (originalFormData) {
+      setFormData(JSON.parse(JSON.stringify(originalFormData)));
+      setHasChanges(false);
     }
   };
 
@@ -345,33 +360,25 @@ export function SalonProfile() {
         <h1 className="text-2xl font-bold text-gray-900">
           {salon ? 'Profil salona' : 'Kreiranje profila salona'}
         </h1>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Otkaži
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Čuvanje...' : 'Sačuvaj'}
-              </button>
-            </>
-          ) : (
+        {hasChanges && (
+          <div className="flex gap-2">
             <button
-              onClick={() => setIsEditing(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleCancel}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
             >
-              {salon ? 'Uredi profil' : 'Kreiraj profil'}
+              <X className="w-4 h-4" />
+              Otkaži
             </button>
-          )}
-        </div>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Čuvanje...' : 'Sačuvaj'}
+            </button>
+          </div>
+        )}
       </div>
 
       {salon && salon.status === 'pending' && (
@@ -413,7 +420,7 @@ export function SalonProfile() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="Beauty Studio Marija"
                 />
@@ -427,7 +434,7 @@ export function SalonProfile() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="info@salon.rs"
                 />
@@ -441,7 +448,7 @@ export function SalonProfile() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="+387 33 123 456"
                 />
@@ -455,7 +462,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.website}
                   onChange={(e) => handleInputChange('website', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="https://salon.ba"
                 />
@@ -469,7 +476,7 @@ export function SalonProfile() {
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                disabled={!isEditing}
+                
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                 placeholder="Opišite vaš salon, usluge koje nudite, atmosferu..."
@@ -481,42 +488,41 @@ export function SalonProfile() {
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Lokacija</h3>
             
-            {isEditing && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pretražite lokaciju
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    value={locationQuery}
-                    onChange={(e) => {
-                      setLocationQuery(e.target.value);
-                      handleLocationSearch(e.target.value);
-                      setShowLocationSearch(true);
-                    }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Unesite adresu ili naziv mesta..."
-                  />
-                  
-                  {showLocationSearch && locationSearchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {locationSearchResults.map((result, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleLocationSelect(result)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-900">{result.name}</div>
-                          <div className="text-sm text-gray-600">{result.address}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pretražite lokaciju
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={locationQuery}
+                  onChange={(e) => {
+                    setLocationQuery(e.target.value);
+                    handleLocationSearch(e.target.value);
+                    setShowLocationSearch(true);
+                    setHasChanges(true);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Unesite adresu ili naziv mesta..."
+                />
+                
+                {showLocationSearch && locationSearchResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {locationSearchResults.map((result, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleLocationSelect(result)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-gray-900">{result.name}</div>
+                        <div className="text-sm text-gray-600">{result.address}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -527,7 +533,7 @@ export function SalonProfile() {
                   type="text"
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="Ferhadija 15"
                 />
@@ -548,8 +554,8 @@ export function SalonProfile() {
                       latitude: location.latitude ?? prev.latitude,
                       longitude: location.longitude ?? prev.longitude,
                     }));
+                    setHasChanges(true);
                   }}
-                  disabled={!isEditing}
                 />
               </div>
               
@@ -561,7 +567,7 @@ export function SalonProfile() {
                   type="text"
                   value={formData.postal_code}
                   onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="71000"
                 />
@@ -574,7 +580,7 @@ export function SalonProfile() {
                 <select
                   value={formData.country}
                   onChange={(e) => handleInputChange('country', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                 >
                   <option value="Bosna i Hercegovina">Bosna i Hercegovina</option>
@@ -602,7 +608,7 @@ export function SalonProfile() {
                     step="any"
                     value={formData.latitude || ''}
                     onChange={(e) => handleInputChange('latitude', e.target.value ? parseFloat(e.target.value) : null)}
-                    disabled={!isEditing}
+                    
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 text-sm"
                     placeholder="43.8563"
                   />
@@ -614,7 +620,7 @@ export function SalonProfile() {
                     step="any"
                     value={formData.longitude || ''}
                     onChange={(e) => handleInputChange('longitude', e.target.value ? parseFloat(e.target.value) : null)}
-                    disabled={!isEditing}
+                    
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 text-sm"
                     placeholder="18.4131"
                   />
@@ -627,7 +633,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.google_maps_url}
                   onChange={(e) => handleInputChange('google_maps_url', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 text-sm"
                   placeholder="https://maps.google.com/..."
                 />
@@ -680,7 +686,7 @@ export function SalonProfile() {
                       type="checkbox"
                       checked={dayHours.is_open}
                       onChange={(e) => handleWorkingHoursChange(day, 'is_open', e.target.checked)}
-                      disabled={!isEditing}
+                      
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                     />
                     <span className="text-sm text-gray-600">Radi</span>
@@ -692,7 +698,7 @@ export function SalonProfile() {
                         type="time"
                         value={dayHours.open}
                         onChange={(e) => handleWorkingHoursChange(day, 'open', e.target.value)}
-                        disabled={!isEditing}
+                        
                         className="px-3 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-50"
                       />
                       <span className="text-gray-400">-</span>
@@ -700,7 +706,7 @@ export function SalonProfile() {
                         type="time"
                         value={dayHours.close}
                         onChange={(e) => handleWorkingHoursChange(day, 'close', e.target.value)}
-                        disabled={!isEditing}
+                        
                         className="px-3 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-50"
                       />
                     </div>
@@ -717,7 +723,7 @@ export function SalonProfile() {
               Fotografije salona ({images.length}/20)
             </h3>
             
-            {isEditing && images.length < 20 && (
+            {images.length < 20 && (
               <div className="mb-4">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -746,14 +752,12 @@ export function SalonProfile() {
                     alt={`Salon fotografija ${index + 1}`}
                     className="w-full h-24 object-cover rounded-lg"
                   />
-                  {isEditing && (
-                    <button
-                      onClick={() => removeImage(image.id)}
-                      className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => removeImage(image.id)}
+                    className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -771,15 +775,17 @@ export function SalonProfile() {
                 <input
                   type="checkbox"
                   checked={formData.target_audience?.women}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    target_audience: {
-                      ...prev.target_audience,
-                      women: e.target.checked
-                    }
-                  }))}
-                  disabled={!isEditing}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  onChange={(e) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      target_audience: {
+                        ...prev.target_audience,
+                        women: e.target.checked
+                      }
+                    }));
+                    setHasChanges(true);
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">Žene</span>
               </label>
@@ -788,15 +794,17 @@ export function SalonProfile() {
                 <input
                   type="checkbox"
                   checked={formData.target_audience?.men}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    target_audience: {
-                      ...prev.target_audience,
-                      men: e.target.checked
-                    }
-                  }))}
-                  disabled={!isEditing}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  onChange={(e) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      target_audience: {
+                        ...prev.target_audience,
+                        men: e.target.checked
+                      }
+                    }));
+                    setHasChanges(true);
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">Muškarci</span>
               </label>
@@ -805,15 +813,17 @@ export function SalonProfile() {
                 <input
                   type="checkbox"
                   checked={formData.target_audience?.children}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    target_audience: {
-                      ...prev.target_audience,
-                      children: e.target.checked
-                    }
-                  }))}
-                  disabled={!isEditing}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  onChange={(e) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      target_audience: {
+                        ...prev.target_audience,
+                        children: e.target.checked
+                      }
+                    }));
+                    setHasChanges(true);
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">Djeca</span>
               </label>
@@ -824,26 +834,24 @@ export function SalonProfile() {
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Pogodnosti</h3>
             
-            {isEditing && (
-              <div className="mb-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newAmenity}
-                    onChange={(e) => setNewAmenity(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addAmenity()}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="Dodaj pogodnost..."
-                  />
-                  <button
-                    onClick={addAmenity}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
+            <div className="mb-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newAmenity}
+                  onChange={(e) => setNewAmenity(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addAmenity()}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="Dodaj pogodnost..."
+                />
+                <button
+                  onClick={addAmenity}
+                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
-            )}
+            </div>
             
             <div className="flex flex-wrap gap-2">
               {formData.amenities.map((amenity, index) => (
@@ -852,14 +860,12 @@ export function SalonProfile() {
                   className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                 >
                   {amenity}
-                  {isEditing && (
-                    <button
-                      onClick={() => removeAmenity(amenity)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => removeAmenity(amenity)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               ))}
             </div>
@@ -878,7 +884,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.social_media?.facebook || ''}
                   onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 text-sm"
                   placeholder="https://facebook.com/salon"
                 />
@@ -892,7 +898,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.social_media?.instagram || ''}
                   onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 text-sm"
                   placeholder="https://instagram.com/salon"
                 />
@@ -906,7 +912,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.social_media?.twitter || ''}
                   onChange={(e) => handleSocialMediaChange('twitter', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 text-sm"
                   placeholder="https://x.com/salon"
                 />
@@ -920,7 +926,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.social_media?.tiktok || ''}
                   onChange={(e) => handleSocialMediaChange('tiktok', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 text-sm"
                   placeholder="https://tiktok.com/@salon"
                 />
@@ -934,7 +940,7 @@ export function SalonProfile() {
                   type="url"
                   value={formData.social_media?.linkedin || ''}
                   onChange={(e) => handleSocialMediaChange('linkedin', e.target.value)}
-                  disabled={!isEditing}
+                  
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 text-sm"
                   placeholder="https://linkedin.com/company/salon"
                 />
@@ -952,7 +958,7 @@ export function SalonProfile() {
                   type="checkbox"
                   checked={formData.auto_confirm}
                   onChange={(e) => handleInputChange('auto_confirm', e.target.checked)}
-                  disabled={!isEditing}
+                  
                   className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <div>
