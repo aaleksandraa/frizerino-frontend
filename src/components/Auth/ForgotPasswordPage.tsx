@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      await api.post('/v1/forgot-password', { email });
+      await api.post('/forgot-password', { email });
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Greška pri slanju emaila. Pokušajte ponovo.');

@@ -94,7 +94,7 @@ export function AdminConsents() {
       if (filters.from_date) params.append('from_date', filters.from_date);
       if (filters.to_date) params.append('to_date', filters.to_date);
 
-      const response = await api.get(`/v1/admin/consents?${params.toString()}`);
+      const response = await api.get(`/admin/consents?${params.toString()}`);
       setConsents(response.data.consents);
       setStats(response.data.stats);
     } catch (error) {
@@ -117,7 +117,7 @@ export function AdminConsents() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const response = await api.get('/v1/admin/consents/export');
+      const response = await api.get('/admin/consents/export');
       const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

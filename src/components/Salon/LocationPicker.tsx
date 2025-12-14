@@ -200,16 +200,24 @@ export function LocationPicker({ value, onChange, disabled = false, error }: Loc
         </div>
         <div className="flex items-center gap-1">
           {value && (
-            <button
-              type="button"
+            <span
               onClick={(e) => {
                 e.stopPropagation();
                 clearSelection();
               }}
-              className="p-1 hover:bg-gray-100 rounded-full"
+              className="p-1 hover:bg-gray-100 rounded-full cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  clearSelection();
+                }
+              }}
             >
               <X className="w-4 h-4 text-gray-400" />
-            </button>
+            </span>
           )}
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>

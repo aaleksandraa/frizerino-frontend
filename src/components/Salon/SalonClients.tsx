@@ -122,7 +122,7 @@ export function SalonClients() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/v1/clients', {
+      const response = await api.get('/clients', {
         params: { search }
       });
       setClients(response.data.clients || []);
@@ -158,7 +158,7 @@ export function SalonClients() {
 
   const fetchClientDetails = async (clientId: number) => {
     try {
-      const response = await api.get(`/v1/clients/${clientId}`);
+      const response = await api.get(`/clients/${clientId}`);
       setSelectedClient(response.data);
       setShowClientDetails(true);
     } catch (error) {
@@ -199,7 +199,7 @@ export function SalonClients() {
 
     try {
       setSendingEmail(true);
-      await api.post('/v1/clients/send-email', {
+      await api.post('/clients/send-email', {
         client_ids: selectedClients,
         subject: emailSubject,
         message: emailMessage

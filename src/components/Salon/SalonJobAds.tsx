@@ -585,26 +585,34 @@ export function SalonJobAds() {
                     Rok prijave
                   </label>
                   <div className="relative">
+                    {/* Hidden date input for calendar picker */}
+                    <input
+                      type="date"
+                      value={formData.deadline}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, deadline: value });
+                        // Update display format
+                        if (value) {
+                          setDeadlineDisplay(formatDateToEuropean(value));
+                        } else {
+                          setDeadlineDisplay('');
+                        }
+                      }}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    {/* Visible European format display */}
                     <input
                       type="text"
                       value={deadlineDisplay}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow only numbers and dots
-                        const cleaned = value.replace(/[^\d.]/g, '');
-                        setDeadlineDisplay(cleaned);
-                        // Try to parse as European date
-                        const isoDate = parseEuropeanDate(cleaned);
-                        if (isoDate) {
-                          setFormData({ ...formData, deadline: isoDate });
-                        }
-                      }}
+                      readOnly
                       placeholder="dd.mm.yyyy"
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Format: dd.mm.yyyy</p>
+                  <p className="text-xs text-gray-400 mt-1">Kliknite za odabir datuma</p>
                 </div>
               </div>
 

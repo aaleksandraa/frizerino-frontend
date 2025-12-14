@@ -104,7 +104,7 @@ export const AdminWidgetManagement: React.FC = () => {
   const loadWidgetData = async (salonId: number) => {
     try {
       setLoading(true);
-      const response = await api.get(`/v1/admin/widget/${salonId}`);
+      const response = await api.get(`/admin/widget/${salonId}`);
       
       setWidget(response.data.widget);
       setEmbedCode(response.data.embed_code);
@@ -129,7 +129,7 @@ export const AdminWidgetManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await api.post(`/v1/admin/widget/${selectedSalon.id}/generate`);
+      const response = await api.post(`/admin/widget/${selectedSalon.id}/generate`);
       
       setWidget(response.data.widget);
       setEmbedCode(response.data.embed_code);
@@ -155,7 +155,7 @@ export const AdminWidgetManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      await api.put(`/v1/admin/widget/${selectedSalon.id}/settings`, {
+      await api.put(`/admin/widget/${selectedSalon.id}/settings`, {
         is_active: isActive,
         allowed_domains: allowedDomains,
       });
@@ -182,7 +182,7 @@ export const AdminWidgetManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await api.get(`/v1/admin/widget/${selectedSalon.id}/analytics?days=${days}`);
+      const response = await api.get(`/admin/widget/${selectedSalon.id}/analytics?days=${days}`);
       setAnalytics(response.data);
       setShowAnalytics(true);
     } catch (error) {
