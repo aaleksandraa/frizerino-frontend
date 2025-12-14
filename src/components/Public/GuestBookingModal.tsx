@@ -792,8 +792,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                           </div>
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{staffMember.name}</p>
-                            <p className="text-sm text-gray-500">{staffMember.role}</p>
-                            {staffMember.rating && (
+                            <p className="text-sm text-gray-500">{staffMember.role || 'Frizer'}</p>
+                            {staffMember.rating && staffMember.rating > 0 && (
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="text-xs text-yellow-600">★ {staffMember.rating}</span>
                                 <span className="text-xs text-gray-500">({staffMember.review_count || 0} recenzija)</span>

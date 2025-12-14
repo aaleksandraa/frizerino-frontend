@@ -592,8 +592,7 @@ export const publicAPI = {
 
   // Get available time slots for multiple services (public)
   getAvailableSlotsForMultipleServices: async (salonId: string, date: string, services: Array<{serviceId: string, staffId: string, duration: number}>) => {
-    const response = await api.post(`/v1/public/available-slots-multi`, {
-      salon_id: salonId,
+    const response = await api.post(`/salons/${salonId}/available-slots-multi`, {
       date,
       services
     });
