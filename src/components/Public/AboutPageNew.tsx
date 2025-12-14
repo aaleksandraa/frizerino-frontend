@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Users
 } from 'lucide-react';
+import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
 
 export function AboutPageNew() {
@@ -36,7 +37,9 @@ export function AboutPageNew() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <>
+      <MainNavbar />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white py-20 overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-10"></div>
@@ -165,9 +168,10 @@ export function AboutPageNew() {
       </section>
 
       {/* Tabs Navigation */}
-      <section className="py-8 bg-white border-b sticky top-0 z-10 shadow-sm">
+      <section className="py-6 md:py-8 bg-white border-b md:sticky md:top-0 z-10 md:shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center gap-4 flex-wrap">
+          {/* Desktop Tabs */}
+          <div className="hidden md:flex justify-center gap-4 flex-wrap">
             <Link
               to="/za-klijente"
               onClick={(e) => handleTabClick('/za-klijente', e)}
@@ -197,6 +201,43 @@ export function AboutPageNew() {
                 isAboutPage
                   ? 'bg-pink-600 text-white shadow-lg'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              O platformi
+            </Link>
+          </div>
+
+          {/* Mobile Tabs - Vertical Stack */}
+          <div className="md:hidden space-y-3">
+            <Link
+              to="/za-klijente"
+              onClick={(e) => handleTabClick('/za-klijente', e)}
+              className={`block w-full px-6 py-4 rounded-xl font-semibold transition-all text-center ${
+                isClientsPage
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+              }`}
+            >
+              Za klijente
+            </Link>
+            <Link
+              to="/za-salone"
+              onClick={(e) => handleTabClick('/za-salone', e)}
+              className={`block w-full px-6 py-4 rounded-xl font-semibold transition-all text-center ${
+                isSalonsPage
+                  ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+              }`}
+            >
+              Za vlasnike salona
+            </Link>
+            <Link
+              to="/o-platformi"
+              onClick={(e) => handleTabClick('/o-platformi', e)}
+              className={`block w-full px-6 py-4 rounded-xl font-semibold transition-all text-center ${
+                isAboutPage
+                  ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
               }`}
             >
               O platformi
@@ -238,7 +279,8 @@ export function AboutPageNew() {
         </div>
       </section>
 
-      <PublicFooter />
-    </div>
+        <PublicFooter />
+      </div>
+    </>
   );
 }
