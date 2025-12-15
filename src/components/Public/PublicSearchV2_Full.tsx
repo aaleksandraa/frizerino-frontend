@@ -1070,7 +1070,7 @@ Rezervacija je brza i besplatna.
                 }`}
               >
                 <MapIcon className="h-5 w-5" />
-                <span>Prikaz na mapi</span>
+                <span>Mapa</span>
               </button>
             </div>
 
@@ -1083,11 +1083,6 @@ Rezervacija je brza i besplatna.
                 <ArrowsUpDownIcon className="h-5 w-5" />
                 <span className="hidden md:inline">
                   {sortOptions.find(opt => opt.value === sortBy)?.label || 'Sortiraj'}
-                  {sortDirection === 'desc' ? ' ↓' : ' ↑'}
-                </span>
-                {/* Mobile: Only arrows */}
-                <span className="md:hidden text-lg">
-                  {sortDirection === 'desc' ? '↓' : '↑'}
                 </span>
               </button>
 
