@@ -1082,9 +1082,7 @@ Rezervacija je brza i besplatna.
                 className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
               >
                 <ArrowsUpDownIcon className="h-5 w-5" />
-                <span className="hidden md:inline">
-                  {sortOptions.find(opt => opt.value === sortBy)?.label || 'Sortiraj'}
-                </span>
+                <span className="hidden lg:inline">Sortiranje</span>
               </button>
 
               {showSortDropdown && (
@@ -1382,20 +1380,43 @@ Rezervacija je brza i besplatna.
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
           </div>
         ) : viewMode === 'map' ? (
-          /* Map View */
-          <Suspense fallback={
-            <div className="h-[600px] rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                <p className="text-gray-600">Učitavanje mape...</p>
+          /* Map View - with fullscreen option */
+          <div className="relative">
+            <Suspense fallback={
+              <div className="h-[300px] rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Učitavanje mape...</p>
+                </div>
               </div>
-            </div>
-          }>
-            <SalonsMapView 
-              salons={sortedSalons} 
-              userLocation={userLocation}
-            />
-          </Suspense>
+            }>
+              <div className="h-[300px] rounded-xl overflow-hidden shadow-lg relative">
+                <SalonsMapView 
+                  salons={sortedSalons} 
+                  userLocation={userLocation}
+                />
+                {/* Fullscreen button */}
+                <button
+                  onClick={() => {
+                    const mapContainer = document.querySelector('.h-\\[300px\\]') as HTMLElement;
+                    if (mapContainer) {
+                      if (!document.fullscreenElement) {
+                        mapContainer.requestFullscreen();
+                      } else {
+                        document.exitFullscreen();
+                      }
+                    }
+                  }}
+                  className="absolute top-4 right-4 z-10 p-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+                  title="Prikaz preko cijelog ekrana"
+                >
+                  <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </button>
+              </div>
+            </Suspense>
+          </div>
         ) : (
           /* List View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
