@@ -13,7 +13,6 @@ import {
   MagnifyingGlassIcon, 
   MapPinIcon, 
   StarIcon,
-  AdjustmentsHorizontalIcon,
   XMarkIcon,
   ListBulletIcon,
   MapIcon,
@@ -126,9 +125,15 @@ export const PublicSearchV2: React.FC = () => {
   const [salons, setSalons] = useState<Salon[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { heroBackgroundImage } = useAppearance();
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
   
   // Favorites state
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
@@ -669,6 +674,7 @@ export const PublicSearchV2: React.FC = () => {
   useEffect(() => {
     const searchSalons = async () => {
       setLoading(true);
+      setCurrentPage(1); // Reset to page 1 when filters change
       try {
         const params: Record<string, string> = {};
         if (filters.q) params.q = filters.q;
@@ -681,6 +687,12 @@ export const PublicSearchV2: React.FC = () => {
         
         const response = await publicAPI.search(params);
         setSalons(response.salons || response.data || []);
+        
+        // Update pagination meta
+        if (response.meta) {
+          setTotalPages(response.meta.last_page || 1);
+          setTotalResults(response.meta.total || 0);
+        }
       } catch (error) {
         console.error('Error searching salons:', error);
         setSalons([]);
@@ -720,6 +732,40 @@ export const PublicSearchV2: React.FC = () => {
     };
     setFilters(emptyFilters);
     setSearchParams(new URLSearchParams());
+  };
+
+  // Load more results
+  const loadMoreResults = async () => {
+    if (loadingMore || currentPage >= totalPages) return;
+    
+    setLoadingMore(true);
+    try {
+      const params: Record<string, string> = {
+        page: String(currentPage + 1),
+      };
+      if (filters.q) params.q = filters.q;
+      if (filters.city) params.city = filters.city;
+      if (filters.service) params.service = filters.service;
+      if (filters.min_rating) params.min_rating = filters.min_rating;
+      if (filters.audience) params.audience = filters.audience;
+      if (filters.date) params.date = filters.date;
+      if (filters.time) params.time = filters.time;
+      
+      const response = await publicAPI.search(params);
+      const newSalons = response.salons || response.data || [];
+      setSalons(prev => [...prev, ...newSalons]);
+      setCurrentPage(prev => prev + 1);
+      
+      // Update pagination meta
+      if (response.meta) {
+        setTotalPages(response.meta.last_page || 1);
+        setTotalResults(response.meta.total || 0);
+      }
+    } catch (error) {
+      console.error('Error loading more salons:', error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
@@ -1580,6 +1626,29 @@ Rezervacija je brza i besplatna.
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {!loading && salons.length > 0 && currentPage < totalPages && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={loadMoreResults}
+              disabled={loadingMore}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Učitavanje...
+                </>
+              ) : (
+                <>
+                  Učitaj još ({salons.length} od {totalResults})
+                  <ChevronDownIcon className="h-5 w-5" />
+                </>
+              )}
+            </button>
           </div>
         )}
 
