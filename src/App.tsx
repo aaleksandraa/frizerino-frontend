@@ -58,7 +58,6 @@ function AuthWrapper() {
   // Try to load from localStorage first for instant display
   const [searchVersion, setSearchVersion] = useState<'v1' | 'v2'>(() => {
     const cached = localStorage.getItem('search_version');
-    console.log('📦 localStorage search_version:', cached);
     return (cached as 'v1' | 'v2') || 'v1';
   });
   const [versionLoaded, setVersionLoaded] = useState(false);
@@ -69,10 +68,8 @@ function AuthWrapper() {
       try {
         const settings = await publicSettingsAPI.getAppearanceSettings();
         const version = settings.search_version || 'v1';
-        console.log('🌐 API search_version:', version);
         setSearchVersion(version);
         localStorage.setItem('search_version', version);
-        console.log('💾 Saved to localStorage:', version);
         setVersionLoaded(true);
       } catch (error) {
         console.error('Error loading search version:', error);
@@ -87,7 +84,6 @@ function AuthWrapper() {
   }, []);
 
   const SearchComponent = searchVersion === 'v2' ? PublicSearchV2 : PublicSearch;
-  console.log('🎯 Rendering with version:', searchVersion, '| Component:', SearchComponent.name);
 
   if (loading) {
     return (

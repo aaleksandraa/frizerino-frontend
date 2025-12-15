@@ -1014,8 +1014,9 @@ Rezervacija je brza i besplatna.
       {/* Main Content */}
       <div id="salon-results" className="flex-grow bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          {/* Controls Bar - View Mode, Audience, Sort */}
+          {/* Controls Bar - Audience (left), View Mode & Sort (right) */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            {/* Left side - Clear filters & Audience (desktop only) */}
             <div className="flex items-center gap-3">
               {hasActiveFilters && (
                 <button
@@ -1026,47 +1027,51 @@ Rezervacija je brza i besplatna.
                   Očisti sve
                 </button>
               )}
+
+              {/* Audience Filter - Desktop only (text only, no icons) */}
+              <div className="hidden md:flex items-center gap-2">
+                {audienceOptions.filter(opt => opt.value !== '').map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleFilterChange('audience', option.value)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      filters.audience === option.value
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:border-pink-300'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-          {/* View Mode, Audience & Sort Controls */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+          {/* Right side - View Mode & Sort Controls */}
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle - with text labels */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-pink-50 text-pink-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                title="Lista"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                  viewMode === 'list' 
+                    ? 'bg-pink-50 text-pink-600 border-pink-300' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
               >
                 <ListBulletIcon className="h-5 w-5" />
+                <span>Lista</span>
               </button>
               <button
                 onClick={() => setViewMode('map')}
-                className={`p-2 ${viewMode === 'map' ? 'bg-pink-50 text-pink-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                title="Mapa"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                  viewMode === 'map' 
+                    ? 'bg-pink-50 text-pink-600 border-pink-300' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
               >
                 <MapIcon className="h-5 w-5" />
+                <span>Prikaz na mapi</span>
               </button>
-            </div>
-
-            {/* Audience Filter - Compact buttons */}
-            <div className="flex items-center gap-2">
-              {audienceOptions.filter(opt => opt.value !== '').map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleFilterChange('audience', option.value)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    filters.audience === option.value
-                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:border-pink-300'
-                  }`}
-                  title={option.label}
-                >
-                  {option.value === 'women' && '👩'}
-                  {option.value === 'men' && '👨'}
-                  {option.value === 'children' && '👶'}
-                  <span className="ml-1 hidden lg:inline">{option.label}</span>
-                </button>
-              ))}
             </div>
 
             {/* Sort Dropdown */}
@@ -1131,7 +1136,7 @@ Rezervacija je brza i besplatna.
 
         {/* Expanded Filters Panel - Always visible in V2, compact single row */}
         <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-3 md:mb-0">
               {/* City Filter - Autocomplete */}
               <div className="md:col-span-1">
                 <label className="hidden md:block text-xs font-medium text-gray-600 mb-1.5">Grad</label>
@@ -1310,6 +1315,23 @@ Rezervacija je brza i besplatna.
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Audience Filter - Mobile: below time, Desktop: hidden (moved to controls bar) */}
+            <div className="flex gap-2 md:hidden mt-3">
+              {audienceOptions.filter(opt => opt.value !== '').map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleFilterChange('audience', option.value)}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filters.audience === option.value
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
 
