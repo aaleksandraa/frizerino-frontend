@@ -162,7 +162,7 @@ export function SalonCalendar() {
     let dayAppointments = appointments.filter(app => app.date === dateStr);
     
     if (selectedStaff !== 'all') {
-      dayAppointments = dayAppointments.filter(app => app.staff_id === selectedStaff);
+      dayAppointments = dayAppointments.filter(app => String(app.staff_id) === String(selectedStaff));
     }
     
     return dayAppointments;
@@ -247,7 +247,7 @@ export function SalonCalendar() {
   const selectedDateAppointments = appointments
     .filter(app => {
       const matchesDate = app.date === selectedDate;
-      const matchesStaff = selectedStaff === 'all' || app.staff_id === selectedStaff;
+      const matchesStaff = selectedStaff === 'all' || String(app.staff_id) === String(selectedStaff);
       return matchesDate && matchesStaff;
     })
     .sort((a, b) => a.time.localeCompare(b.time));
