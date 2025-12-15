@@ -1070,7 +1070,7 @@ Rezervacija je brza i besplatna.
                 }`}
               >
                 <MapIcon className="h-5 w-5" />
-                <span className="hidden xs:inline sm:hidden">Mapa</span>
+                <span className="sm:hidden">Mapa</span>
                 <span className="hidden sm:inline">Prikaz na mapi</span>
               </button>
             </div>
