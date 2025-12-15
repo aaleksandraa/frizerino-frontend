@@ -1082,7 +1082,7 @@ Rezervacija je brza i besplatna.
                 className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
               >
                 <ArrowsUpDownIcon className="h-5 w-5" />
-                <span className="hidden lg:inline">Sortiranje</span>
+                <span>Sortiranje</span>
               </button>
 
               {showSortDropdown && (
@@ -1383,14 +1383,14 @@ Rezervacija je brza i besplatna.
           /* Map View - with fullscreen option */
           <div className="relative">
             <Suspense fallback={
-              <div className="h-[300px] rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center">
+              <div className="h-[360px] rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
                   <p className="text-gray-600">Učitavanje mape...</p>
                 </div>
               </div>
             }>
-              <div className="h-[300px] rounded-xl overflow-hidden shadow-lg relative">
+              <div className="h-[360px] rounded-xl overflow-hidden shadow-lg relative">
                 <SalonsMapView 
                   salons={sortedSalons} 
                   userLocation={userLocation}
@@ -1398,7 +1398,7 @@ Rezervacija je brza i besplatna.
                 {/* Fullscreen button */}
                 <button
                   onClick={() => {
-                    const mapContainer = document.querySelector('.h-\\[300px\\]') as HTMLElement;
+                    const mapContainer = document.querySelector('.h-\\[360px\\]') as HTMLElement;
                     if (mapContainer) {
                       if (!document.fullscreenElement) {
                         mapContainer.requestFullscreen();
