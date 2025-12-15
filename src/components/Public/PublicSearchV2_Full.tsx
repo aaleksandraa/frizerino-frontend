@@ -1047,12 +1047,12 @@ Rezervacija je brza i besplatna.
             </div>
 
           {/* Right side - View Mode & Sort Controls */}
-          <div className="flex items-center gap-3">
-            {/* View Mode Toggle - with text labels */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* View Mode Toggle - responsive text */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all text-sm ${
                   viewMode === 'list' 
                     ? 'bg-pink-50 text-pink-600 border-pink-300' 
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -1063,14 +1063,15 @@ Rezervacija je brza i besplatna.
               </button>
               <button
                 onClick={() => setViewMode('map')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all text-sm ${
                   viewMode === 'map' 
                     ? 'bg-pink-50 text-pink-600 border-pink-300' 
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <MapIcon className="h-5 w-5" />
-                <span>Mapa</span>
+                <span className="hidden xs:inline sm:hidden">Mapa</span>
+                <span className="hidden sm:inline">Prikaz na mapi</span>
               </button>
             </div>
 
@@ -1078,7 +1079,7 @@ Rezervacija je brza i besplatna.
             <div className="relative">
               <button
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
               >
                 <ArrowsUpDownIcon className="h-5 w-5" />
                 <span className="hidden md:inline">
