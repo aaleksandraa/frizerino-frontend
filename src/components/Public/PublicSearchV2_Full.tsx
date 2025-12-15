@@ -109,33 +109,9 @@ const FilterBadge: React.FC<FilterBadgeProps> = ({ label, value, onClear }) => (
   </span>
 );
 
-// Generate time slots in 5-minute intervals starting from 08:00
-// Order: 08:00 -> 23:55, then 00:00 -> 07:55
-const generateTimeSlots = (): string[] => {
-  const slots: string[] = [];
-  
-  // First: 08:00 to 23:55
-  for (let hour = 8; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 5) {
-      const h = hour.toString().padStart(2, '0');
-      const m = minute.toString().padStart(2, '0');
-      slots.push(`${h}:${m}`);
-    }
-  }
-  
-  // Then: 00:00 to 07:55
-  for (let hour = 0; hour < 8; hour++) {
-    for (let minute = 0; minute < 60; minute += 5) {
-      const h = hour.toString().padStart(2, '0');
-      const m = minute.toString().padStart(2, '0');
-      slots.push(`${h}:${m}`);
-    }
-  }
-  
-  return slots;
-};
-
-const timeSlots = generateTimeSlots();
+// Hours (00-23) and Minutes (00, 15, 30, 45) for time picker
+const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minutes = ['00', '15', '30', '45'];
 
 // Sort options
 const sortOptions = [
@@ -215,6 +191,10 @@ export const PublicSearchV2: React.FC = () => {
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
   const serviceInputRef = useRef<HTMLDivElement>(null);
 
+  // Time picker - separate hour and minute
+  const [selectedHour, setSelectedHour] = useState('');
+  const [selectedMinute, setSelectedMinute] = useState('');
+
   // Dynamic gradient from settings
   const [gradientStyle, setGradientStyle] = useState<React.CSSProperties>({
     background: 'linear-gradient(to bottom right, #f43f5e, #ec4899, #a855f7)'
@@ -239,6 +219,15 @@ export const PublicSearchV2: React.FC = () => {
     date: searchParams.get('date') || '',
     time: searchParams.get('time') || '',
   });
+
+  // Initialize hour and minute from filters.time
+  useEffect(() => {
+    if (filters.time) {
+      const [hour, minute] = filters.time.split(':');
+      setSelectedHour(hour);
+      setSelectedMinute(minute);
+    }
+  }, []);
 
   // Normalize text - remove Croatian diacritics for fuzzy search
   const normalizeText = (text: string): string => {
@@ -1015,9 +1004,9 @@ Rezervacija je brza i besplatna.
       <div id="salon-results" className="flex-grow bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-6">
           {/* Controls Bar - Audience (left), View Mode & Sort (right) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
             {/* Left side - Clear filters & Audience (desktop only) */}
-            <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
               {hasActiveFilters && (
                 <button
                   onClick={clearAllFilters}
@@ -1029,7 +1018,7 @@ Rezervacija je brza i besplatna.
               )}
 
               {/* Audience Filter - Desktop only (text only, no icons) */}
-              <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 {audienceOptions.filter(opt => opt.value !== '').map((option) => (
                   <button
                     key={option.value}
@@ -1046,8 +1035,8 @@ Rezervacija je brza i besplatna.
               </div>
             </div>
 
-          {/* Right side - View Mode & Sort Controls */}
-          <div className="flex items-center gap-2 ml-auto">
+          {/* Right side - View Mode & Sort Controls - Mobile: Full width centered */}
+          <div className="flex items-center justify-center md:justify-end gap-2 w-full md:w-auto">
             {/* View Mode Toggle - responsive text */}
             <div className="flex items-center gap-2">
               <button
@@ -1296,18 +1285,47 @@ Rezervacija je brza i besplatna.
                 />
               </div>
 
-              {/* Time Filter - 5-minute intervals (08:00-23:55, then 00:00-07:55) */}
+              {/* Time Filter - Separate hour and minute selectors */}
               <div className="md:col-span-1">
-                <select
-                  value={filters.time}
-                  onChange={(e) => handleFilterChange('time', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all"
-                >
-                  <option value="">Vrijeme termina</option>
-                  {timeSlots.map((time) => (
-                    <option key={time} value={time}>{time}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedHour}
+                    onChange={(e) => {
+                      setSelectedHour(e.target.value);
+                      if (e.target.value && selectedMinute) {
+                        handleFilterChange('time', `${e.target.value}:${selectedMinute}`);
+                      } else if (!e.target.value) {
+                        handleFilterChange('time', '');
+                        setSelectedMinute('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all text-center font-medium"
+                  >
+                    <option value="">Sat</option>
+                    {hours.map((hour) => (
+                      <option key={hour} value={hour}>{hour}h</option>
+                    ))}
+                  </select>
+                  <span className="flex items-center text-gray-400 font-bold">:</span>
+                  <select
+                    value={selectedMinute}
+                    onChange={(e) => {
+                      setSelectedMinute(e.target.value);
+                      if (selectedHour && e.target.value) {
+                        handleFilterChange('time', `${selectedHour}:${e.target.value}`);
+                      } else if (!e.target.value) {
+                        handleFilterChange('time', '');
+                      }
+                    }}
+                    disabled={!selectedHour}
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all text-center font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Min</option>
+                    {minutes.map((minute) => (
+                      <option key={minute} value={minute}>{minute}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 

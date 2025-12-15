@@ -18,10 +18,6 @@ export function SalonAppointments() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<any>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showTimeChangeModal, setShowTimeChangeModal] = useState(false);
-  const [newTime, setNewTime] = useState('');
 
   useEffect(() => {
     loadData();
@@ -103,21 +99,6 @@ export function SalonAppointments() {
       loadData();
     } catch (error) {
       console.error('Error updating appointment:', error);
-    }
-  };
-
-  const handleTimeChange = async () => {
-    if (!editingAppointment || !newTime) return;
-    
-    try {
-      await appointmentAPI.updateAppointment(editingAppointment.id, { time: newTime });
-      setShowTimeChangeModal(false);
-      setEditingAppointment(null);
-      setNewTime('');
-      loadData();
-    } catch (error) {
-      console.error('Error changing time:', error);
-      alert('Greška prilikom promjene vremena');
     }
   };
 
@@ -327,46 +308,16 @@ export function SalonAppointments() {
                           >
                             Odbaci
                           </button>
-                          <button 
-                            onClick={() => {
-                              setEditingAppointment(appointment);
-                              setShowEditModal(true);
-                            }}
-                            className="w-full sm:w-auto bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-                          >
-                            Uredi
-                          </button>
                         </>
                       )}
                       
                       {appointment.status === 'confirmed' && (
-                        <>
-                          <button 
-                            onClick={() => handleAppointmentAction(appointment.id, 'complete')}
-                            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                          >
-                            Označi kao završen
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingAppointment(appointment);
-                              setNewTime(appointment.time);
-                              setShowTimeChangeModal(true);
-                            }}
-                            className="w-full sm:w-auto bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
-                          >
-                            Promijeni vrijeme
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingAppointment(appointment);
-                              setShowEditModal(true);
-                            }}
-                            className="w-full sm:w-auto bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-                          >
-                            Uredi
-                          </button>
-                        </>
+                        <button 
+                          onClick={() => handleAppointmentAction(appointment.id, 'complete')}
+                          className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                        >
+                          Označi kao završen
+                        </button>
                       )}
                       
                       {appointment.status === 'cancelled' && (
@@ -439,66 +390,7 @@ export function SalonAppointments() {
         />
       )}
 
-      {/* Time Change Modal */}
-      {showTimeChangeModal && editingAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Promijeni vrijeme termina</h3>
-            <p className="text-gray-600 mb-4">
-              Klijent: <strong>{editingAppointment.client_name}</strong><br />
-              Trenutno vrijeme: <strong>{editingAppointment.time}</strong>
-            </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Novo vrijeme</label>
-              <input
-                type="time"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowTimeChangeModal(false);
-                  setEditingAppointment(null);
-                  setNewTime('');
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Otkaži
-              </button>
-              <button
-                onClick={handleTimeChange}
-                disabled={!newTime}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Sačuvaj
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Edit Modal - Reuse ManualBookingModal with pre-filled data */}
-      {showEditModal && editingAppointment && user?.salon && (
-        <ManualBookingModal
-          isOpen={showEditModal}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingAppointment(null);
-          }}
-          onSuccess={() => {
-            setShowEditModal(false);
-            setEditingAppointment(null);
-            loadData();
-          }}
-          salonId={Number(user.salon.id)}
-          preselectedDate={editingAppointment.date}
-          editMode={true}
-          appointmentData={editingAppointment}
-        />
-      )}
     </div>
   );
 }
