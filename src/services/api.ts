@@ -765,6 +765,11 @@ export const adminAPI = {
     return response.data;
   },
 
+  updateSearchVersion: async (version: 'v1' | 'v2') => {
+    const response = await api.put('/admin/search-version', { version });
+    return response.data;
+  },
+
   // Salon Profile Layout settings
   getSalonProfileLayout: async () => {
     const response = await api.get('/admin/salon-profile-layout');

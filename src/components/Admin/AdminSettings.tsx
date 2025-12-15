@@ -91,6 +91,10 @@ export function AdminSettings() {
   // Registration settings
   const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
   const [registrationLoading, setRegistrationLoading] = useState(false);
+
+  // Search version setting
+  const [searchVersion, setSearchVersion] = useState<'v1' | 'v2'>('v1');
+  const [searchVersionLoading, setSearchVersionLoading] = useState(true);
   
   // Load analytics settings on mount
   useEffect(() => {
@@ -130,6 +134,11 @@ export function AdminSettings() {
         if (appearanceResponse.sticky_navbar !== undefined) {
           setStickyNavbar(appearanceResponse.sticky_navbar);
         }
+        // Load search version setting
+        if (appearanceResponse.search_version) {
+          setSearchVersion(appearanceResponse.search_version);
+        }
+        setSearchVersionLoading(false);
       } catch (error) {
         console.error('Failed to load gradient settings:', error);
       }
@@ -257,6 +266,9 @@ export function AdminSettings() {
 
       // Save sticky navbar setting
       await adminAPI.updateStickyNavbar(stickyNavbar);
+
+      // Save search version setting
+      await adminAPI.updateSearchVersion(searchVersion);
 
       // Save featured salon settings
       await adminAPI.updateFeaturedSalon({
@@ -1413,6 +1425,109 @@ export function AdminSettings() {
                       }`}
                     />
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Search Version Section */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Verzija Pretrage</h3>
+                  <p className="text-sm text-gray-600">Izaberite kako će izgledati pretraga salona</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {searchVersionLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <span className="ml-3 text-gray-600">Učitavanje...</span>
+                  </div>
+                ) : (
+                  <>
+                {/* Version 1 */}
+                <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  searchVersion === 'v1' 
+                    ? 'border-purple-500 bg-purple-50' 
+                    : 'border-gray-200 hover:border-purple-200 bg-white'
+                }`}>
+                  <input
+                    type="radio"
+                    name="searchVersion"
+                    value="v1"
+                    checked={searchVersion === 'v1'}
+                    onChange={(e) => setSearchVersion(e.target.value as 'v1' | 'v2')}
+                    className="mt-1 w-5 h-5 text-purple-600 focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">Verzija 1 - Sklopljeni Filteri</span>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Trenutna</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Filteri se otvaraju klikom na dugme "Filteri". Kompaktniji prikaz, manje prostora zauzima.
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">Kompaktno</span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">Manje prostora</span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">Klasičan izgled</span>
+                    </div>
+                  </div>
+                </label>
+
+                {/* Version 2 */}
+                <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  searchVersion === 'v2' 
+                    ? 'border-purple-500 bg-purple-50' 
+                    : 'border-gray-200 hover:border-purple-200 bg-white'
+                }`}>
+                  <input
+                    type="radio"
+                    name="searchVersion"
+                    value="v2"
+                    checked={searchVersion === 'v2'}
+                    onChange={(e) => setSearchVersion(e.target.value as 'v1' | 'v2')}
+                    className="mt-1 w-5 h-5 text-purple-600 focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">Verzija 2 - Raspakovan Filteri</span>
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Novo</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Svi filteri uvijek vidljivi. Autocomplete za grad i uslugu. Toggle buttons za gender (M/Ž/D). Brži pristup filterima.
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Autocomplete</span>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Uvijek vidljivo</span>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Brži pristup</span>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Moderan</span>
+                    </div>
+                  </div>
+                </label>
+                </>
+                )}
+              </div>
+
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 mb-1">Napomena</p>
+                    <p className="text-sm text-blue-700">
+                      Nakon promjene verzije, osvježite stranicu da vidite izmjene. Korisnici će odmah vidjeti novu verziju pretrage.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

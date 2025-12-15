@@ -1,7 +1,8 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppearanceProvider } from './context/AppearanceContext';
+import { publicSettingsAPI } from './services/api';
 import { AuthPage } from './components/Auth/AuthPage';
 import { RegistrationSuccessPage } from './components/Auth/RegistrationSuccessPage';
 import ForgotPasswordPage from './components/Auth/ForgotPasswordPage';
@@ -21,6 +22,7 @@ import {
   VerifyEmailPage,
   JobAdsPage
 } from './components/Public';
+import PublicSearchV2 from './components/Public/PublicSearchV2_Full';
 import { AboutPageNew } from './components/Public/AboutPageNew';
 import { ForClientsPage } from './components/Public/ForClientsPage';
 import { ForSalonsPage } from './components/Public/ForSalonsPage';
@@ -51,6 +53,41 @@ function ScrollToTop() {
 
 function AuthWrapper() {
   const { user, loading } = useAuth();
+  
+  // Determine which search version to use - MUST BE AT TOP
+  // Try to load from localStorage first for instant display
+  const [searchVersion, setSearchVersion] = useState<'v1' | 'v2'>(() => {
+    const cached = localStorage.getItem('search_version');
+    console.log('📦 localStorage search_version:', cached);
+    return (cached as 'v1' | 'v2') || 'v1';
+  });
+  const [versionLoaded, setVersionLoaded] = useState(false);
+
+  // Load search version from API and cache it
+  useEffect(() => {
+    const loadSearchVersion = async () => {
+      try {
+        const settings = await publicSettingsAPI.getAppearanceSettings();
+        const version = settings.search_version || 'v1';
+        console.log('🌐 API search_version:', version);
+        setSearchVersion(version);
+        localStorage.setItem('search_version', version);
+        console.log('💾 Saved to localStorage:', version);
+        setVersionLoaded(true);
+      } catch (error) {
+        console.error('Error loading search version:', error);
+        // Fallback to ENV variable if API fails
+        const envVersion = import.meta.env.VITE_SEARCH_VERSION || 'v1';
+        setSearchVersion(envVersion as 'v1' | 'v2');
+        localStorage.setItem('search_version', envVersion);
+        setVersionLoaded(true);
+      }
+    };
+    loadSearchVersion();
+  }, []);
+
+  const SearchComponent = searchVersion === 'v2' ? PublicSearchV2 : PublicSearch;
+  console.log('🎯 Rendering with version:', searchVersion, '| Component:', SearchComponent.name);
 
   if (loading) {
     return (
@@ -66,8 +103,8 @@ function AuthWrapper() {
   return (
     <Routes>
       {/* Public Routes - Available to everyone */}
-      <Route path="/" element={<PublicSearch />} />
-      <Route path="/pretraga" element={<PublicSearch />} />
+      <Route path="/" element={<SearchComponent />} />
+      <Route path="/pretraga" element={<SearchComponent />} />
       <Route path="/o-nama-old" element={<AboutPage />} />
       
       {/* About Pages - Main page redirects to za-klijente */}
@@ -119,7 +156,7 @@ function AuthWrapper() {
       
       {/* Catch-all - Shows dashboard if logged in, otherwise public search */}
       <Route path="/*" element={
-        !user ? <PublicSearch /> : <Dashboard />
+        !user ? <SearchComponent /> : <Dashboard />
       } />
     </Routes>
   );
