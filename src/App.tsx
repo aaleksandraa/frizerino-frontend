@@ -22,6 +22,7 @@ import {
   VerifyEmailPage,
   JobAdsPage
 } from './components/Public';
+import { PricingPage } from './components/Public/PricingPage';
 import PublicSearchV2 from './components/Public/PublicSearchV2_Full';
 import { AboutPageNew } from './components/Public/AboutPageNew';
 import { ForClientsPage } from './components/Public/ForClientsPage';
@@ -118,6 +119,7 @@ function AuthWrapper() {
       </Route>
       
       <Route path="/kontakt" element={<ContactPage />} />
+      <Route path="/cjenovnik" element={<PricingPage />} />
       <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />
       <Route path="/salon/:slug" element={<PublicSalonPage />} />

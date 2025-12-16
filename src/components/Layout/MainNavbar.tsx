@@ -21,7 +21,8 @@ import {
   UsersIcon,
   ClockIcon,
   ChartBarIcon,
-  WrenchScrewdriverIcon
+  WrenchScrewdriverIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 import { ScissorsIcon } from '@heroicons/react/24/solid';
 
@@ -73,6 +74,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const publicLinks = [
     { path: '/', label: 'Početna', icon: HomeIcon },
     { path: '/pretraga', label: 'Pretraga', icon: MagnifyingGlassIcon },
+    { path: '/cjenovnik', label: 'Cjenovnik', icon: CreditCardIcon },
     { path: '/o-nama', label: 'O nama', icon: UserCircleIcon },
     { path: '/kontakt', label: 'Kontakt', icon: PhoneIcon },
   ];

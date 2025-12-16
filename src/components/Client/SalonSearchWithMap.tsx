@@ -136,15 +136,15 @@ export function SalonSearchWithMap() {
 
   const handleSalonSelect = (salon: Salon) => {
     setSelectedSalon(salon);
-    navigate(`/salon/${salon.id}`);
+    navigate(`/salon/${salon.slug || salon.id}`);
   };
 
   const handleSalonClick = (salon: Salon) => {
-    navigate(`/salon/${salon.id}`);
+    navigate(`/salon/${salon.slug || salon.id}`);
   };
 
   const handleBookAppointment = (salon: Salon) => {
-    navigate(`/salon/${salon.id}`);
+    navigate(`/salon/${salon.slug || salon.id}`);
   };
 
   if (loading) {

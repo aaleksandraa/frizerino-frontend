@@ -58,6 +58,11 @@ export const PublicFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/cjenovnik" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
+                  Cjenovnik
+                </Link>
+              </li>
+              <li>
                 <Link to="/login" className="text-gray-400 hover:text-orange-500 transition-colors text-sm">
                   Prijava
                 </Link>

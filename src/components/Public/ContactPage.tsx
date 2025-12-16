@@ -4,10 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
 import { 
-  MapPinIcon, 
-  PhoneIcon, 
   EnvelopeIcon,
-  ClockIcon,
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
@@ -56,9 +53,43 @@ export const ContactPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>Kontakt | Frizersko-Kozmetički Saloni BiH</title>
-        <meta name="description" content="Kontaktirajte nas za sva pitanja o frizersko-kozmetičkim salonima u Bosni i Hercegovini. Tu smo da vam pomognemo." />
-        <link rel="canonical" href="/kontakt" />
+        <title>Kontakt | Frizerino – Online zakazivanje frizera i salona</title>
+        <meta name="description" content="Kontaktirajte Frizerino tim za pitanja o online zakazivanju frizera, registraciji salona ili tehničkoj podršci. Odgovaramo u roku od 24 sata." />
+        <link rel="canonical" href="https://frizerino.com/kontakt" />
+        
+        {/* Schema.org - ContactPage */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            "name": "Kontakt - Frizerino",
+            "description": "Kontaktirajte Frizerino tim za pitanja o online zakazivanju frizera, registraciji salona ili tehničkoj podršci.",
+            "url": "https://frizerino.com/kontakt"
+          })}
+        </script>
+
+        {/* Schema.org - Organization with ContactPoint */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Frizerino",
+            "url": "https://frizerino.com",
+            "logo": "https://frizerino.com/logo.png",
+            "description": "Online platforma za zakazivanje termina u frizerskim i kozmetičkim salonima širom Bosne i Hercegovine",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "info@frizerino.com",
+              "availableLanguage": ["bs", "hr", "sr"],
+              "areaServed": "BA"
+            },
+            "sameAs": [
+              "https://www.facebook.com/frizerino",
+              "https://www.instagram.com/frizerino"
+            ]
+          })}
+        </script>
       </Helmet>
 
       <MainNavbar />
@@ -79,101 +110,103 @@ export const ContactPage: React.FC = () => {
         {/* Content */}
         <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Contact Info */}
+            {/* FAQ Section */}
             <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  Informacije
-                </h2>
-                
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-orange-100 p-3 rounded-lg">
-                      <MapPinIcon className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Adresa</h3>
-                      <p className="text-gray-600">
-                        Ferhadija 15<br />
-                        71000 Sarajevo<br />
-                        Bosna i Hercegovina
-                      </p>
-                    </div>
+              {/* Email Contact */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="bg-orange-100 p-3 rounded-lg">
+                    <EnvelopeIcon className="w-6 h-6 text-orange-600" />
                   </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-orange-100 p-3 rounded-lg">
-                      <PhoneIcon className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Telefon</h3>
-                      <p className="text-gray-600">
-                        <a href="tel:+38733123456" className="hover:text-orange-600">
-                          +387 33 123 456
-                        </a>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-orange-100 p-3 rounded-lg">
-                      <EnvelopeIcon className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Email</h3>
-                      <p className="text-gray-600">
-                        <a href="mailto:info@frizerski-saloni.ba" className="hover:text-orange-600">
-                          info@frizerski-saloni.ba
-                        </a>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-orange-100 p-3 rounded-lg">
-                      <ClockIcon className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Radno vrijeme podrške</h3>
-                      <p className="text-gray-600">
-                        Pon - Pet: 09:00 - 17:00<br />
-                        Sub: 09:00 - 13:00
-                      </p>
-                    </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Email</h3>
+                    <p className="text-gray-600">
+                      <a href="mailto:info@frizerino.com" className="hover:text-orange-600">
+                        info@frizerino.com
+                      </a>
+                    </p>
                   </div>
                 </div>
+                <p className="text-sm text-gray-500">
+                  Odgovaramo u roku od 24 sata radnim danima
+                </p>
               </div>
 
-              {/* FAQ Quick Links */}
+              {/* FAQ Preview */}
               <div className="bg-orange-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Česta pitanja</h3>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <Link to="/pomoc/kako-registrovati-salon" className="text-orange-600 hover:underline">
-                      Kako registrovati salon?
+                <h3 className="font-semibold text-gray-900 mb-4">Najčešća pitanja</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Link to="/pomoc/kako-zakazati-termin" className="text-orange-600 hover:text-orange-700 font-medium block mb-1">
+                      Kako funkcioniše online zakazivanje termina?
                     </Link>
-                  </li>
-                  <li>
-                    <Link to="/pomoc/kako-zakazati-termin" className="text-orange-600 hover:underline">
-                      Kako zakazati termin?
+                    <p className="text-sm text-gray-600">
+                      Pretražite salone, izaberite uslugu i termin koji vam odgovara. Potvrda stiže odmah.
+                    </p>
+                  </div>
+
+                  <div className="border-t border-orange-200 pt-4">
+                    <Link to="/pomoc/kako-zakazati-termin" className="text-orange-600 hover:text-orange-700 font-medium block mb-1">
+                      Da li je rezervacija besplatna za klijente?
                     </Link>
-                  </li>
-                  <li>
-                    <Link to="/pomoc/kako-otkazati-rezervaciju" className="text-orange-600 hover:underline">
-                      Kako otkazati rezervaciju?
+                    <p className="text-sm text-gray-600">
+                      Da, zakazivanje termina je potpuno besplatno. Plaćate samo uslugu u salonu.
+                    </p>
+                  </div>
+
+                  <div className="border-t border-orange-200 pt-4">
+                    <Link to="/pomoc/kako-registrovati-salon" className="text-orange-600 hover:text-orange-700 font-medium block mb-1">
+                      Kako registrovati frizerski salon?
                     </Link>
-                  </li>
-                  <li>
-                    <Link to="/politika-privatnosti" className="text-orange-600 hover:underline">
-                      Politika privatnosti
+                    <p className="text-sm text-gray-600">
+                      Registracija je jednostavna - popunite osnovne podatke i počnite primati rezervacije.
+                    </p>
+                  </div>
+
+                  <div className="border-t border-orange-200 pt-4">
+                    <Link to="/pomoc/kako-otkazati-rezervaciju" className="text-orange-600 hover:text-orange-700 font-medium block mb-1">
+                      Kako otkazati termin?
                     </Link>
-                  </li>
-                </ul>
+                    <p className="text-sm text-gray-600">
+                      Otkazivanje je moguće do 24 sata prije termina kroz vaš profil ili kontaktiranjem salona.
+                    </p>
+                  </div>
+
+                  <div className="border-t border-orange-200 pt-4">
+                    <Link to="/cjenovnik" className="text-orange-600 hover:text-orange-700 font-medium block mb-1">
+                      Koliko košta korištenje platforme?
+                    </Link>
+                    <p className="text-sm text-gray-600">
+                      Prvi mjesec je besplatan. Zatim 15 KM mjesečno (ili 10 KM ako platite godišnje unaprijed).
+                    </p>
+                  </div>
+                </div>
+
+                <Link 
+                  to="/pomoc/kako-zakazati-termin" 
+                  className="block mt-4 text-center text-orange-600 hover:text-orange-700 font-medium text-sm"
+                >
+                  Pogledaj sve FAQ →
+                </Link>
               </div>
             </div>
 
             {/* Contact Form */}
             <div className="lg:col-span-2">
+              {/* Info Block Above Form */}
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 mb-6 border border-orange-100">
+                <h2 className="text-xl font-bold text-gray-900 mb-3">
+                  Kako vam možemo pomoći?
+                </h2>
+                <p className="text-gray-700 mb-4">
+                  Pišite nam ako imate pitanje o zakazivanju termina, registraciji salona, tehničkoj podršci ili saradnji.
+                </p>
+                <div className="flex items-center gap-2 text-orange-700">
+                  <CheckCircleIcon className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium">Na većinu upita odgovaramo u roku od 24 sata</span>
+                </div>
+              </div>
+
               <div className="bg-white rounded-lg shadow-sm p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Pošaljite nam poruku
@@ -273,6 +306,11 @@ export const ContactPage: React.FC = () => {
                       )}
                       {loading ? 'Slanje...' : 'Pošalji poruku'}
                     </button>
+
+                    {/* Privacy Notice */}
+                    <p className="text-sm text-gray-500 mt-4">
+                      Odgovaramo u roku od 24 sata radnim danima. Vaši podaci se koriste isključivo za odgovor na upit.
+                    </p>
                   </form>
                 )}
               </div>
