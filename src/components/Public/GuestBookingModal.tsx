@@ -563,7 +563,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             <div className="space-y-3">
               {user && (
                 <button
-                  onClick={() => { onClose(); navigate('/dashboard?section=appointments'); }}
+                  onClick={() => { onClose(); navigate('/moji-termini'); }}
                   className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl hover:from-orange-600 hover:to-red-600 transition-all font-medium"
                 >
                   Pogledaj moje termine

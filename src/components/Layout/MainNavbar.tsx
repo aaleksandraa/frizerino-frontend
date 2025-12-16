@@ -83,8 +83,8 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const clientLinks = [
     { path: '/', label: 'Početna', icon: HomeIcon },
     { path: '/pretraga', label: 'Pretraga', icon: MagnifyingGlassIcon },
-    { path: '/dashboard?section=appointments', label: 'Moji termini', icon: CalendarDaysIcon },
-    { path: '/dashboard?section=favorites', label: 'Omiljeni saloni', icon: HeartIcon },
+    { path: '/moji-termini', label: 'Moji termini', icon: CalendarDaysIcon },
+    { path: '/omiljeni-saloni', label: 'Omiljeni saloni', icon: HeartIcon },
     { path: '/o-nama', label: 'O nama', icon: UserCircleIcon },
     { path: '/kontakt', label: 'Kontakt', icon: PhoneIcon },
   ];
@@ -267,7 +267,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
         case 'appointment_completed':
           // Klijenti idu na appointments sekciju, saloni/frizeri na kalendar
           if (user?.role === 'klijent') {
-            navigate('/dashboard?section=appointments');
+            navigate('/moji-termini');
           } else if (notification.appointment_date) {
             navigate(`/dashboard?section=calendar&date=${notification.appointment_date}&appointment=${notification.appointment_id || notification.related_id}`);
           } else {
@@ -282,7 +282,11 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
           break;
         case 'favorite_added':
         case 'new_favorite':
-          navigate('/dashboard?section=favorites');
+          if (user?.role === 'klijent') {
+            navigate('/omiljeni-saloni');
+          } else {
+            navigate('/dashboard?section=favorites');
+          }
           break;
         default:
           navigate('/dashboard');
@@ -697,7 +701,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
                         {isClient && (
                           <>
                             <Link
-                              to="/dashboard?section=appointments"
+                              to="/moji-termini"
                               onClick={() => setShowProfile(false)}
                               className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                             >
@@ -706,7 +710,7 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
                             </Link>
                             
                             <Link
-                              to="/dashboard?section=favorites"
+                              to="/omiljeni-saloni"
                               onClick={() => setShowProfile(false)}
                               className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                             >

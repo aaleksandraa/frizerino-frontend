@@ -30,6 +30,9 @@ import { ForSalonsPage } from './components/Public/ForSalonsPage';
 import { AboutPlatformPage } from './components/Public/AboutPlatformPage';
 import { GoogleAnalytics } from './components/Analytics';
 import { WidgetBooking } from './pages/WidgetBooking';
+import { ClientAppointmentsPage } from './pages/ClientAppointmentsPage';
+import { ClientFavoritesPage } from './pages/ClientFavoritesPage';
+import { ClientHomePage } from './pages/ClientHomePage';
 
 // Login page wrapper
 function LoginPage() {
@@ -146,6 +149,17 @@ function AuthWrapper() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/zaboravljena-lozinka" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      
+      {/* Client Routes - Dedicated pages for logged in clients */}
+      <Route path="/moji-termini" element={
+        !user ? <AuthPage mode="login" /> : <ClientAppointmentsPage />
+      } />
+      <Route path="/omiljeni-saloni" element={
+        !user ? <AuthPage mode="login" /> : <ClientFavoritesPage />
+      } />
+      <Route path="/moj-profil" element={
+        !user ? <AuthPage mode="login" /> : <ClientHomePage />
+      } />
       
       {/* Dashboard Route - For logged in users */}
       <Route path="/dashboard/*" element={
