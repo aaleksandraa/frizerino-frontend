@@ -742,7 +742,7 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Nadolazeći termini</h3>
               <button 
-                onClick={() => navigate('/dashboard/appointments')}
+                onClick={() => navigate('/dashboard?section=appointments')}
                 className="text-orange-600 hover:text-orange-700 text-sm font-medium"
               >
                 Pogledaj sve
@@ -796,7 +796,7 @@ export function ClientDashboard({ onBookingComplete }: ClientDashboardProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Omiljeni saloni</h3>
               <button 
-                onClick={() => navigate('/dashboard/favorites')}
+                onClick={() => navigate('/dashboard?section=favorites')}
                 className="text-orange-600 hover:text-orange-700 text-sm font-medium"
               >
                 Pogledaj sve
