@@ -33,6 +33,7 @@ import { WidgetBooking } from './pages/WidgetBooking';
 import { ClientAppointmentsPage } from './pages/ClientAppointmentsPage';
 import { ClientFavoritesPage } from './pages/ClientFavoritesPage';
 import { ClientHomePage } from './pages/ClientHomePage';
+import { StaffProfilePage } from './pages/StaffProfilePage';
 
 // Login page wrapper
 function LoginPage() {
@@ -126,6 +127,7 @@ function AuthWrapper() {
       <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />
       <Route path="/salon/:slug" element={<PublicSalonPage />} />
+      <Route path="/profil/:slug" element={<StaffProfilePage />} />
       
       {/* Widget Booking - Embedded iframe route */}
       <Route path="/widget/:salonSlug" element={<WidgetBooking />} />

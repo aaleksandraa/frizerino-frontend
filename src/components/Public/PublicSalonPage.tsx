@@ -519,10 +519,13 @@ export const PublicSalonPage: React.FC = () => {
                       return (
                         <div
                           key={member.id}
-                          className="p-4 border border-gray-200 rounded-lg hover:border-orange-300 transition-colors"
+                          className="p-4 border border-gray-200 rounded-lg hover:border-orange-300 transition-colors group"
                         >
                           <div className="flex items-start gap-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Link 
+                              to={member.slug ? `/profil/${member.slug}` : '#'}
+                              className="w-16 h-16 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center flex-shrink-0 hover:ring-2 hover:ring-orange-400 transition-all"
+                            >
                               {member.avatar ? (
                                 <img
                                   src={member.avatar}
@@ -532,9 +535,14 @@ export const PublicSalonPage: React.FC = () => {
                               ) : (
                                 <UserGroupIcon className="w-8 h-8 text-orange-400" />
                               )}
-                            </div>
+                            </Link>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-gray-900">{member.name}</h3>
+                              <Link 
+                                to={member.slug ? `/profil/${member.slug}` : '#'}
+                                className="font-medium text-gray-900 hover:text-orange-600 transition-colors"
+                              >
+                                {member.name}
+                              </Link>
                               <p className="text-sm text-orange-600">
                                 {StaffRoleLabels[member.role as StaffRole] || member.role}
                               </p>
@@ -542,6 +550,14 @@ export const PublicSalonPage: React.FC = () => {
                                 <p className="text-xs text-gray-500 mt-1">
                                   {member.services.length} usluga
                                 </p>
+                              )}
+                              {member.slug && (
+                                <Link
+                                  to={`/profil/${member.slug}`}
+                                  className="text-xs text-orange-600 hover:text-orange-700 font-medium mt-1 inline-block"
+                                >
+                                  Pogledaj profil →
+                                </Link>
                               )}
                             </div>
                             <button
