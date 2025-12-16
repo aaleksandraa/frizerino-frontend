@@ -93,7 +93,10 @@ export function FavoriteSalons() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredFavorites.map((salon) => (
             <div key={salon.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-all duration-200 overflow-hidden">
-              <div className="relative h-48">
+              <div 
+                className="relative h-48 cursor-pointer"
+                onClick={() => navigate(`/salon/${salon.slug || salon.id}`)}
+              >
                 <img
                   src={salon.images && salon.images.length > 0 ? salon.images[0].url : 'https://images.pexels.com/photos/3065171/pexels-photo-3065171.jpeg'}
                   alt={salon.name}
@@ -117,7 +120,12 @@ export function FavoriteSalons() {
               </div>
               
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{salon.name}</h3>
+                <h3 
+                  className="text-xl font-bold text-gray-900 mb-2 cursor-pointer hover:text-orange-600 transition-colors"
+                  onClick={() => navigate(`/salon/${salon.slug || salon.id}`)}
+                >
+                  {salon.name}
+                </h3>
                 <div className="flex items-center gap-2 text-gray-600 mb-3">
                   <MapPin className="w-4 h-4" />
                   <span className="text-sm">{salon.address}, {salon.city}</span>
@@ -132,13 +140,13 @@ export function FavoriteSalons() {
                 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/salon/${salon.id}`)}
+                    onClick={() => navigate(`/salon/${salon.slug || salon.id}`)}
                     className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all font-medium"
                   >
                     Rezerviši termin
                   </button>
                   <button
-                    onClick={() => navigate(`/salon/${salon.id}`)}
+                    onClick={() => navigate(`/salon/${salon.slug || salon.id}`)}
                     className="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Detalji
