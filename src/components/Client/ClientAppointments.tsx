@@ -307,7 +307,7 @@ export function ClientAppointments() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Moji termini</h1>
         <button 
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/pretraga')}
           className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
         >
           Rezerviši novi termin
@@ -352,7 +352,7 @@ export function ClientAppointments() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Nema nadolazećih termina</h3>
                   <p className="text-gray-600 mb-6">Rezervišite termin u vašem omiljenom salonu</p>
                   <button 
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/pretraga')}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
                   >
                     Rezerviši termin
