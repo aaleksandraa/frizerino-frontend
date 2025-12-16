@@ -57,9 +57,12 @@ export function Header({ title, onMenuToggle }: HeaderProps) {
     
     try {
       setLoading(true);
+      console.log('Loading notifications...');
       const response = await notificationAPI.getNotifications({ per_page: 10 });
+      console.log('Notifications response:', response);
       // Handle paginated response
       const notificationData = response.data || response;
+      console.log('Notification data:', notificationData);
       setNotifications(Array.isArray(notificationData) ? notificationData : []);
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -73,10 +76,14 @@ export function Header({ title, onMenuToggle }: HeaderProps) {
     if (!user) return;
     
     try {
+      console.log('Loading unread count...');
       const response = await notificationAPI.getUnreadCount();
+      console.log('Unread count response:', response);
       setUnreadCount(response.count);
     } catch (error) {
       console.error('Error loading unread count:', error);
+      // Set to 0 on error to prevent UI issues
+      setUnreadCount(0);
     }
   };
 
