@@ -259,32 +259,71 @@ export const PublicSearchV2: React.FC = () => {
     return normalizedName.includes(normalizedQuery) || normalizedCategory.includes(normalizedQuery);
   }).slice(0, 6);
 
-  // Get user's location for distance calculation
-  const getUserLocation = useCallback((forNearMe: boolean = false) => {
-    if (navigator.geolocation) {
-      if (forNearMe) setLocationLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          if (forNearMe) {
-            setNearMeActive(true);
-            setSortBy('distance');
-            setSortDirection('asc');
-          }
-          setLocationLoading(false);
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          setLocationLoading(false);
-          if (forNearMe) {
-            alert('Nije moguće dobiti vašu lokaciju. Provjerite da li je lokacija omogućena u pregledniku.');
-          }
-        }
-      );
+  // Get user's approximate location from IP (no permission needed)
+  const getApproximateLocation = useCallback(async () => {
+    try {
+      // Use ipapi.co for IP-based geolocation (free, no API key needed)
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+      
+      if (data.latitude && data.longitude) {
+        setUserLocation({
+          lat: data.latitude,
+          lng: data.longitude
+        });
+        console.log('Approximate location from IP:', data.city, data.country_name);
+      }
+    } catch (error) {
+      console.warn('Could not get approximate location:', error);
+      // Fallback to Sarajevo coordinates if IP geolocation fails
+      setUserLocation({
+        lat: 43.8563,
+        lng: 18.4131
+      });
     }
+  }, []);
+
+  // Get user's precise GPS location (requires permission - only when "Blizu mene" clicked)
+  const getPreciseLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      alert('Vaš preglednik ne podržava geolokaciju.');
+      return;
+    }
+
+    setLocationLoading(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setNearMeActive(true);
+        setSortBy('distance');
+        setSortDirection('asc');
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.warn('Geolocation error:', error);
+        setLocationLoading(false);
+        
+        let errorMessage = 'Nije moguće dobiti vašu lokaciju.';
+        if (error.code === 1) {
+          errorMessage = 'Pristup lokaciji je odbijen. Molimo omogućite pristup lokaciji u podešavanjima preglednika.';
+        } else if (error.code === 2) {
+          errorMessage = 'Lokacija nije dostupna. Provjerite da li je GPS uključen.';
+        } else if (error.code === 3) {
+          errorMessage = 'Zahtjev za lokaciju je istekao. Pokušajte ponovo.';
+        }
+        
+        alert(errorMessage);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
   }, []);
 
   // Fetch appearance settings (gradient)
@@ -466,9 +505,10 @@ export const PublicSearchV2: React.FC = () => {
   
   const topServices = allServices.slice(0, getMaxServicesToShow());
 
+  // Get approximate location on mount (no permission needed)
   useEffect(() => {
-    getUserLocation();
-  }, [getUserLocation]);
+    getApproximateLocation();
+  }, [getApproximateLocation]);
 
   // Load user's favorites
   useEffect(() => {
@@ -984,10 +1024,14 @@ Rezervacija je brza i besplatna.
             <button
               onClick={() => {
                 if (nearMeActive) {
+                  // Deactivate near me mode
                   setNearMeActive(false);
                   setSortBy('rating');
+                  // Revert to approximate location
+                  getApproximateLocation();
                 } else {
-                  getUserLocation(true);
+                  // Request precise GPS location (will ask for permission)
+                  getPreciseLocation();
                 }
               }}
               disabled={locationLoading}
@@ -1003,7 +1047,7 @@ Rezervacija je brza i besplatna.
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Tražim lokaciju...</span>
+                  <span>Tražim preciznu lokaciju...</span>
                 </>
               ) : (
                 <>
@@ -1014,7 +1058,12 @@ Rezervacija je brza i besplatna.
             </button>
             {nearMeActive && userLocation && (
               <p className="text-white/80 text-xs text-center mt-2">
-                Prikazujem salone sortirane po udaljenosti od vaše lokacije
+                📍 Prikazujem salone sortirane po udaljenosti od vaše GPS lokacije
+              </p>
+            )}
+            {!nearMeActive && userLocation && (
+              <p className="text-white/80 text-xs text-center mt-2">
+                💡 Kliknite "Blizu mene" za preciznu GPS lokaciju
               </p>
             )}
           </div>
