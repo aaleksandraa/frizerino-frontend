@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
+import { publicAPI } from '../../services/api';
 import { 
   EnvelopeIcon,
   CheckCircleIcon,
@@ -38,13 +39,21 @@ export const ContactPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    // Simulate sending (in production, this would call an API)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await publicAPI.sendContactForm({
+        name: form.name,
+        email: form.email,
+        subject: form.subject,
+        message: form.message
+      });
+      
       setSuccess(true);
       setForm({ name: '', email: '', subject: '', message: '' });
-    } catch {
-      setError('Greška pri slanju poruke. Pokušajte ponovo.');
+    } catch (err: any) {
+      console.error('Contact form error:', err);
+      const errorMessage = err?.response?.data?.message || 
+                          'Greška pri slanju poruke. Pokušajte ponovo ili nas kontaktirajte direktno na podrska@frizerino.com';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

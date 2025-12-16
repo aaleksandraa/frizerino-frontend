@@ -620,6 +620,17 @@ export const publicAPI = {
   getSitemap: async () => {
     const response = await api.get('/public/sitemap');
     return response.data;
+  },
+
+  // Contact form
+  sendContactForm: async (data: {
+    name: string;
+    email: string;
+    subject?: string;
+    message: string;
+  }) => {
+    const response = await api.post('/public/contact', data);
+    return response.data;
   }
 };
 
