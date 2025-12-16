@@ -1503,6 +1503,7 @@ Rezervacija je brza i besplatna.
                       <img
                         src={primaryImage}
                         alt={salon.name}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
@@ -1717,6 +1718,7 @@ Rezervacija je brza i besplatna.
                     <img
                       src={featuredCoverImage}
                       alt={featuredSalon.name}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
@@ -1805,6 +1807,7 @@ Rezervacija je brza i besplatna.
                         <img
                           src={primaryImage}
                           alt={salon.name}
+                          loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
@@ -1888,7 +1891,7 @@ Rezervacija je brza i besplatna.
                     <div className="flex items-start gap-4">
                       <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
                         {primaryImage ? (
-                          <img src={primaryImage} alt={salon.name} className="w-full h-full object-cover" />
+                          <img src={primaryImage} alt={salon.name} loading="lazy" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-blue-200 to-indigo-200 flex items-center justify-center">
                             <span className="text-2xl font-bold text-white">{salon.name.charAt(0)}</span>
@@ -1942,7 +1945,7 @@ Rezervacija je brza i besplatna.
                   >
                     <div className="relative h-40">
                       {primaryImage ? (
-                        <img src={primaryImage} alt={salon.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img src={primaryImage} alt={salon.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-slate-200 to-gray-300 flex items-center justify-center">
                           <span className="text-4xl">💈</span>
