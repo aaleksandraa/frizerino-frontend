@@ -130,11 +130,13 @@ export function ClientAppointments() {
 
   const handleRescheduleAppointment = (appointment: any) => {
     // Navigate to salon page for rescheduling
-    navigate(`/salon/${appointment.salon.slug || appointment.salon.id}?reschedule=${appointment.id}`);
+    const salonIdentifier = appointment.salon?.slug || appointment.salon?.id;
+    navigate(`/salon/${salonIdentifier}?reschedule=${appointment.id}`);
   };
 
   const handleContactSalon = (appointment: any) => {
-    navigate(`/salon/${appointment.salon.slug || appointment.salon.id}`);
+    const salonIdentifier = appointment.salon?.slug || appointment.salon?.id;
+    navigate(`/salon/${salonIdentifier}`);
   };
 
   const handleLeaveReview = (appointment: any) => {
