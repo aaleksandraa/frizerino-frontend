@@ -281,7 +281,8 @@ export function SalonProfile() {
     try {
       const formDataUpload = new FormData();
       Array.from(files).forEach(file => {
-        formDataUpload.append('images[]', file);
+        // Backend expects 'images' not 'images[]'
+        formDataUpload.append('images', file);
       });
 
       const response = await salonAPI.uploadImages(salon.id, formDataUpload);
