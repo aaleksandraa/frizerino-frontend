@@ -301,8 +301,8 @@ export function SalonSetupWizard({ onComplete }: SalonSetupWizardProps) {
         if (file.size > 5 * 1024 * 1024) {
           throw new Error(`Datoteka ${file.name} je prevelika. Maksimalna veličina je 5MB.`);
         }
-        // Backend expects 'images' not 'images[]'
-        formDataUpload.append('images', file);
+        // Laravel expects 'images[]' for array of files
+        formDataUpload.append('images[]', file);
       });
 
       const response = await salonAPI.uploadImages(salon.id, formDataUpload);

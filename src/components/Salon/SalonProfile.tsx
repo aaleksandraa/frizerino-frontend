@@ -124,6 +124,8 @@ export function SalonProfile() {
 
   const [images, setImages] = useState<any[]>([]);
   const [newAmenity, setNewAmenity] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     loadSalonData();
@@ -278,11 +280,39 @@ export function SalonProfile() {
     const files = event.target.files;
     if (!files || !salon) return;
 
+    setUploadError(null);
+    setUploadSuccess(null);
+
     try {
+      // Frontend validation
+      const filesArray = Array.from(files);
+      
+      // Check file count
+      if (filesArray.length > 10) {
+        setUploadError('Možete uploadovati maksimalno 10 slika odjednom.');
+        return;
+      }
+
+      // Check each file
+      for (const file of filesArray) {
+        // Check file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          setUploadError(`Slika "${file.name}" je prevelika. Maksimalna veličina je 5MB.`);
+          return;
+        }
+
+        // Check file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+          setUploadError(`Slika "${file.name}" mora biti u formatu: JPEG, PNG ili WebP.`);
+          return;
+        }
+      }
+
       const formDataUpload = new FormData();
-      Array.from(files).forEach(file => {
-        // Backend expects 'images' not 'images[]'
-        formDataUpload.append('images', file);
+      filesArray.forEach(file => {
+        // Laravel expects 'images[]' for array of files
+        formDataUpload.append('images[]', file);
       });
 
       const response = await salonAPI.uploadImages(salon.id, formDataUpload);
@@ -290,23 +320,58 @@ export function SalonProfile() {
       // Add newly uploaded images to the existing images array immediately
       if (response.images && Array.isArray(response.images)) {
         setImages(prev => [...prev, ...response.images]);
+        setUploadSuccess(`Uspješno uploadovano ${response.images.length} ${response.images.length === 1 ? 'slika' : 'slika'}!`);
+        setTimeout(() => setUploadSuccess(null), 3000);
       } else {
         // Fallback: reload salon data if response doesn't contain images with URLs
         loadSalonData();
+        setUploadSuccess('Slike su uspješno uploadovane!');
+        setTimeout(() => setUploadSuccess(null), 3000);
       }
-    } catch (error) {
+
+      // Clear the file input
+      event.target.value = '';
+    } catch (error: any) {
       console.error('Error uploading images:', error);
+      
+      // Extract error message from server response
+      let errorMessage = 'Greška prilikom uploada slika.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const firstErrorKey = Object.keys(errors)[0];
+        const firstError = errors[firstErrorKey];
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setUploadError(errorMessage);
     }
   };
 
   const removeImage = async (imageId: string) => {
     if (!salon) return;
 
+    setUploadError(null);
+    setUploadSuccess(null);
+
     try {
       await salonAPI.deleteImage(salon.id, imageId);
       setImages(prev => prev.filter(img => img.id !== imageId));
-    } catch (error) {
+      setUploadSuccess('Slika je uspješno obrisana!');
+      setTimeout(() => setUploadSuccess(null), 3000);
+    } catch (error: any) {
       console.error('Error removing image:', error);
+      
+      let errorMessage = 'Greška prilikom brisanja slike.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      setUploadError(errorMessage);
     }
   };
 
@@ -808,6 +873,24 @@ export function SalonProfile() {
               Fotografije salona ({images.length}/20)
             </h3>
             
+            {/* Error Message */}
+            {uploadError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm">{uploadError}</span>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {uploadSuccess && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-start gap-2">
+                <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="text-sm">{uploadSuccess}</span>
+              </div>
+            )}
+            
             {images.length < 20 && (
               <div className="mb-4">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
@@ -816,12 +899,12 @@ export function SalonProfile() {
                     <p className="mb-2 text-sm text-gray-500">
                       <span className="font-semibold">Kliknite za upload</span> ili prevucite fotografije
                     </p>
-                    <p className="text-xs text-gray-500">PNG, JPG ili JPEG (MAX. 5MB)</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, WebP (MAX. 5MB po slici, max 10 slika odjednom)</p>
                   </div>
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                     onChange={handleImageUpload}
                     className="hidden"
                   />
