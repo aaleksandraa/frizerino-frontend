@@ -154,18 +154,20 @@ export function AuthPage({ mode }: AuthPageProps) {
     }
   };
 
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
+
   const handleResendVerification = async () => {
     if (!emailNotVerified) return;
     
     setResendingEmail(true);
     setError('');
+    setVerificationEmailSent(false);
     
     try {
       await authAPI.resendVerificationEmail(emailNotVerified);
       setError('');
-      // Show success message
-      setEmailNotVerified(null);
-      alert('Verifikacijski email je ponovo poslan. Provjerite vaš inbox.');
+      setVerificationEmailSent(true);
+      // Don't clear emailNotVerified - keep the box visible with success message
     } catch (err: any) {
       if (err.response?.status === 429) {
         setError('Previše pokušaja. Molimo sačekajte par minuta prije ponovnog slanja.');
@@ -439,26 +441,58 @@ export function AuthPage({ mode }: AuthPageProps) {
 
             {/* Email not verified message */}
             {emailNotVerified && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-4 rounded-xl mb-6">
+              <div className={`border px-4 py-4 rounded-xl mb-6 ${
+                verificationEmailSent 
+                  ? 'bg-green-50 border-green-200 text-green-800' 
+                  : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}>
                 <div className="flex items-start gap-3">
-                  <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                  {verificationEmailSent ? (
+                    <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  )}
                   <div className="flex-1">
-                    <p className="font-medium mb-1">Email adresa nije potvrđena</p>
-                    <p className="text-sm mb-3">
-                      Molimo potvrdite vašu email adresu ({emailNotVerified}) prije prijave.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleResendVerification}
-                      disabled={resendingEmail}
-                      className="text-sm font-medium text-amber-700 hover:text-amber-900 underline disabled:opacity-50"
-                    >
-                      {resendingEmail ? 'Šaljem...' : 'Pošalji verifikacijski email ponovo'}
-                    </button>
-                    {error && (
-                      <p className="text-sm text-red-600 mt-2">{error}</p>
+                    {verificationEmailSent ? (
+                      <>
+                        <p className="font-medium mb-1">Email je poslan!</p>
+                        <p className="text-sm mb-3">
+                          Verifikacijski email je poslan na <strong>{emailNotVerified}</strong>. 
+                          Provjerite vaš inbox i spam folder.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmailNotVerified(null);
+                            setVerificationEmailSent(false);
+                          }}
+                          className="text-sm font-medium text-green-700 hover:text-green-900 underline"
+                        >
+                          Zatvori
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium mb-1">Email adresa nije potvrđena</p>
+                        <p className="text-sm mb-3">
+                          Molimo potvrdite vašu email adresu ({emailNotVerified}) prije prijave.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleResendVerification}
+                          disabled={resendingEmail}
+                          className="text-sm font-medium text-amber-700 hover:text-amber-900 underline disabled:opacity-50"
+                        >
+                          {resendingEmail ? 'Šaljem...' : 'Pošalji verifikacijski email ponovo'}
+                        </button>
+                        {error && (
+                          <p className="text-sm text-red-600 mt-2">{error}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

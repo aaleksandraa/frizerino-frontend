@@ -1,11 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Mail, CheckCircle, ArrowLeft, Scissors } from 'lucide-react';
+import { authAPI } from '../../services/api';
 
 export const RegistrationSuccessPage: React.FC = () => {
   const location = useLocation();
   const email = (location.state as any)?.email || '';
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+
+  const handleResendEmail = async () => {
+    if (!email) return;
+
+    setResending(true);
+    setResendError(null);
+    setResendSuccess(false);
+
+    try {
+      await authAPI.resendVerificationEmail(email);
+      setResendSuccess(true);
+      setTimeout(() => setResendSuccess(false), 5000);
+    } catch (err: any) {
+      if (err.response?.status === 429) {
+        setResendError('Previše pokušaja. Molimo sačekajte par minuta.');
+      } else {
+        setResendError(err.response?.data?.message || 'Greška pri slanju emaila.');
+      }
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <>
@@ -94,12 +120,41 @@ export const RegistrationSuccessPage: React.FC = () => {
               </div>
 
               {/* Warning */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                 <p className="text-sm text-amber-800">
                   <strong>Napomena:</strong> Ako ne vidite email u inbox-u, 
                   provjerite folder za neželjenu poštu (spam).
                 </p>
               </div>
+
+              {/* Resend Success */}
+              {resendSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-green-800">
+                    ✅ Email je ponovo poslan! Provjerite vaš inbox.
+                  </p>
+                </div>
+              )}
+
+              {/* Resend Error */}
+              {resendError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-red-800">
+                    ❌ {resendError}
+                  </p>
+                </div>
+              )}
+
+              {/* Resend Button */}
+              {email && (
+                <button
+                  onClick={handleResendEmail}
+                  disabled={resending || resendSuccess}
+                  className="w-full mb-4 text-sm text-gray-600 hover:text-gray-900 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resending ? 'Šaljem...' : 'Niste dobili email? Pošalji ponovo'}
+                </button>
+              )}
 
               {/* Action Button */}
               <Link
