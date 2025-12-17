@@ -54,10 +54,7 @@ export function AuthPage({ mode }: AuthPageProps) {
 
   const returnTo = (location.state as any)?.returnTo;
 
-  // Debug: Log error state changes
-  useEffect(() => {
-    console.log('🔴 Error state changed:', error);
-  }, [error]);
+
 
   // Fetch registration settings
   useEffect(() => {
@@ -260,7 +257,6 @@ export function AuthPage({ mode }: AuthPageProps) {
       }
     } catch (err: any) {
       console.error('Registration error:', err);
-      console.log('Error response:', err.response?.data);
       
       let errorMessage = 'Došlo je do greške prilikom registracije. Molimo pokušajte ponovo.';
       
@@ -271,21 +267,15 @@ export function AuthPage({ mode }: AuthPageProps) {
         const firstErrorKey = Object.keys(errors)[0];
         const firstError = errors[firstErrorKey];
         errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-        console.log('Validation error:', errorMessage);
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
-        console.log('Server error message:', errorMessage);
       }
-      
-      console.log('About to set error:', errorMessage);
       
       // Use flushSync to force synchronous state update
       flushSync(() => {
         setIsLoading(false);
         setError(errorMessage);
       });
-      
-      console.log('Error state set to:', errorMessage);
       
       // Scroll to top after state is set
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -428,11 +418,22 @@ export function AuthPage({ mode }: AuthPageProps) {
 
             {/* Error message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+              <div 
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2"
+                style={{ 
+                  backgroundColor: '#fee', 
+                  border: '3px solid #f00', 
+                  color: '#900',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  zIndex: 9999,
+                  position: 'relative'
+                }}
+              >
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>{error}</span>
+                <span>⚠️ {error}</span>
               </div>
             )}
 
