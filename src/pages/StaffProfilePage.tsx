@@ -15,6 +15,8 @@ import {
   PhotoIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { Lightbox } from '../components/Lightbox';
+import { ServiceGallerySlider } from '../components/ServiceGallerySlider';
 
 interface StaffProfile {
   id: number;
@@ -51,9 +53,17 @@ interface StaffProfile {
     id: number;
     name: string;
     description?: string;
-    price: number;
     duration: number;
+    price: number;
+    discount_price?: number;
     category: string;
+    images?: Array<{
+      id: number;
+      image_url: string;
+      title?: string;
+      description?: string;
+      is_featured: boolean;
+    }>;
   }>;
   portfolio?: Array<{
     id: number;
@@ -73,6 +83,42 @@ interface Review {
   comment: string;
   date: string;
 }
+
+// Service Gallery Component with Slider
+const ServiceGallery: React.FC<{ 
+  images?: Array<{
+    id: number;
+    image_url: string;
+    title?: string;
+    description?: string;
+    is_featured: boolean;
+    order: number;
+  }> 
+}> = ({ images }) => {
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+
+  if (!images || images.length === 0) return null;
+
+  return (
+    <>
+      <ServiceGallerySlider
+        images={images}
+        onImageClick={(index) => setSelectedImageIndex(index)}
+      />
+
+      {/* Lightbox */}
+      {selectedImageIndex !== null && (
+        <Lightbox
+          images={images}
+          currentIndex={selectedImageIndex}
+          onClose={() => setSelectedImageIndex(null)}
+          onNext={() => setSelectedImageIndex((selectedImageIndex + 1) % images.length)}
+          onPrev={() => setSelectedImageIndex((selectedImageIndex - 1 + images.length) % images.length)}
+        />
+      )}
+    </>
+  );
+};
 
 export const StaffProfilePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -410,22 +456,45 @@ export const StaffProfilePage: React.FC = () => {
                       {staff.services && staff.services.length > 0 && (
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 mb-4">Usluge</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-6">
                             {staff.services.map((service) => (
-                              <div key={service.id} className="border border-gray-200 rounded-xl p-4 hover:border-pink-300 transition-colors">
-                                <div className="flex justify-between items-start mb-2">
-                                  <h4 className="font-semibold text-gray-900">{service.name}</h4>
-                                  <span className="text-pink-600 font-bold">{service.price} KM</span>
+                              <div key={service.id} className="border border-gray-200 rounded-xl p-6 hover:border-pink-300 transition-colors">
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-lg text-gray-900">{service.name}</h4>
+                                    {service.description && (
+                                      <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right ml-4">
+                                    {service.discount_price ? (
+                                      <>
+                                        <span className="text-xl font-bold text-pink-600">
+                                          {service.discount_price} KM
+                                        </span>
+                                        <span className="text-sm text-gray-400 line-through ml-2 block">
+                                          {service.price} KM
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-xl font-bold text-pink-600">
+                                        {service.price} KM
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                {service.description && (
-                                  <p className="text-sm text-gray-600 mb-2">{service.description}</p>
-                                )}
-                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                  <ClockIcon className="h-4 w-4" />
-                                  <span>{service.duration} min</span>
+                                
+                                <div className="flex items-center gap-3 text-sm text-gray-500 mb-4">
+                                  <div className="flex items-center gap-1">
+                                    <ClockIcon className="h-4 w-4" />
+                                    <span>{service.duration} min</span>
+                                  </div>
                                   <span className="text-gray-300">•</span>
                                   <span>{service.category}</span>
                                 </div>
+
+                                {/* Service Gallery */}
+                                <ServiceGallery images={service.images} />
                               </div>
                             ))}
                           </div>

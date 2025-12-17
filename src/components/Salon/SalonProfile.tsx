@@ -65,6 +65,7 @@ type SalonFormData = {
   social_media: SocialMedia;
   auto_confirm: boolean;
   booking_slot_interval: number;
+  show_service_gallery: boolean;
 };
 
 export function SalonProfile() {
@@ -117,7 +118,8 @@ export function SalonProfile() {
       linkedin: ''
     },
     auto_confirm: false,
-    booking_slot_interval: 30
+    booking_slot_interval: 30,
+    show_service_gallery: true
   });
 
   const [images, setImages] = useState<any[]>([]);
@@ -168,7 +170,8 @@ export function SalonProfile() {
           amenities: salonData.amenities || [],
           social_media: salonData.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
           auto_confirm: salonData.auto_confirm || false,
-          booking_slot_interval: salonData.booking_slot_interval || 30
+          booking_slot_interval: salonData.booking_slot_interval || 30,
+          show_service_gallery: salonData.show_service_gallery !== false
         };
         setFormData(loadedData);
         setOriginalFormData(JSON.parse(JSON.stringify(loadedData)));
@@ -313,13 +316,91 @@ export function SalonProfile() {
         // Update existing salon
         const response = await salonAPI.updateSalon(salon.id, formData);
         setSalon(response.salon);
-        setOriginalFormData(JSON.parse(JSON.stringify(formData)));
+        
+        // Update formData with the response to ensure consistency
+        const updatedData: SalonFormData = {
+          name: response.salon.name,
+          description: response.salon.description,
+          address: response.salon.address,
+          city: response.salon.city,
+          city_slug: response.salon.city_slug || '',
+          postal_code: response.salon.postal_code || '',
+          country: response.salon.country || 'Bosna i Hercegovina',
+          phone: response.salon.phone,
+          email: response.salon.email,
+          website: response.salon.website || '',
+          target_audience: response.salon.target_audience || {
+            women: true,
+            men: true,
+            children: true
+          },
+          location: response.salon.location || { lat: 0, lng: 0 },
+          latitude: response.salon.latitude || null,
+          longitude: response.salon.longitude || null,
+          google_maps_url: response.salon.google_maps_url || '',
+          working_hours: response.salon.working_hours || {
+            monday: { open: '09:00', close: '17:00', is_open: true },
+            tuesday: { open: '09:00', close: '17:00', is_open: true },
+            wednesday: { open: '09:00', close: '17:00', is_open: true },
+            thursday: { open: '09:00', close: '17:00', is_open: true },
+            friday: { open: '09:00', close: '17:00', is_open: true },
+            saturday: { open: '09:00', close: '15:00', is_open: true },
+            sunday: { open: '10:00', close: '14:00', is_open: false }
+          },
+          amenities: response.salon.amenities || [],
+          social_media: response.salon.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
+          auto_confirm: response.salon.auto_confirm || false,
+          booking_slot_interval: response.salon.booking_slot_interval || 30,
+          show_service_gallery: response.salon.show_service_gallery !== false
+        };
+        
+        setFormData(updatedData);
+        setOriginalFormData(JSON.parse(JSON.stringify(updatedData)));
         setHasChanges(false);
       } else {
         // Create new salon
         const response = await salonAPI.createSalon(formData);
         setSalon(response.salon);
-        setOriginalFormData(JSON.parse(JSON.stringify(formData)));
+        
+        // Update formData with the response
+        const updatedData: SalonFormData = {
+          name: response.salon.name,
+          description: response.salon.description,
+          address: response.salon.address,
+          city: response.salon.city,
+          city_slug: response.salon.city_slug || '',
+          postal_code: response.salon.postal_code || '',
+          country: response.salon.country || 'Bosna i Hercegovina',
+          phone: response.salon.phone,
+          email: response.salon.email,
+          website: response.salon.website || '',
+          target_audience: response.salon.target_audience || {
+            women: true,
+            men: true,
+            children: true
+          },
+          location: response.salon.location || { lat: 0, lng: 0 },
+          latitude: response.salon.latitude || null,
+          longitude: response.salon.longitude || null,
+          google_maps_url: response.salon.google_maps_url || '',
+          working_hours: response.salon.working_hours || {
+            monday: { open: '09:00', close: '17:00', is_open: true },
+            tuesday: { open: '09:00', close: '17:00', is_open: true },
+            wednesday: { open: '09:00', close: '17:00', is_open: true },
+            thursday: { open: '09:00', close: '17:00', is_open: true },
+            friday: { open: '09:00', close: '17:00', is_open: true },
+            saturday: { open: '09:00', close: '15:00', is_open: true },
+            sunday: { open: '10:00', close: '14:00', is_open: false }
+          },
+          amenities: response.salon.amenities || [],
+          social_media: response.salon.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
+          auto_confirm: response.salon.auto_confirm || false,
+          booking_slot_interval: response.salon.booking_slot_interval || 30,
+          show_service_gallery: response.salon.show_service_gallery !== false
+        };
+        
+        setFormData(updatedData);
+        setOriginalFormData(JSON.parse(JSON.stringify(updatedData)));
         setHasChanges(false);
       }
     } catch (error) {
@@ -986,6 +1067,21 @@ export function SalonProfile() {
                   <span className="font-medium text-gray-900 block">Automatska potvrda termina</span>
                   <span className="text-sm text-gray-600">
                     Kad je uključeno, novi termini će automatski biti potvrđeni bez potrebe za ručnim odobravanjem.
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.show_service_gallery}
+                  onChange={(e) => handleInputChange('show_service_gallery', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900 block">Prikaži galeriju slika usluga</span>
+                  <span className="text-sm text-gray-600">
+                    Kad je uključeno, galerija slika usluga će biti prikazana na javnom profilu salona ispod svake usluge.
                   </span>
                 </div>
               </label>

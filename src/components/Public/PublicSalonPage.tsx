@@ -498,6 +498,7 @@ export const PublicSalonPage: React.FC = () => {
                 services={services} 
                 onBookService={handleBookService}
                 initialVisibleCount={3}
+                showGallery={salon?.show_service_gallery !== false}
               />
 
               {/* Staff Section */}

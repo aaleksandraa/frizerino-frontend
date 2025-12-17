@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Clock, DollarSign, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, DollarSign, Save, X, Image } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { serviceAPI, staffAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
+import { ServiceImageManager } from '../Dashboard/ServiceImageManager';
 
 export function SalonServices() {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export function SalonServices() {
   const [loading, setLoading] = useState(true);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [managingImagesFor, setManagingImagesFor] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -236,6 +238,13 @@ export function SalonServices() {
                       </div>
                       
                       <div className="flex gap-2 flex-shrink-0">
+                        <button 
+                          onClick={() => setManagingImagesFor(service)}
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Upravljaj slikama"
+                        >
+                          <Image className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => handleEdit(service)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -480,6 +489,39 @@ export function SalonServices() {
                   {editingService ? 'Sačuvaj izmjene' : 'Dodaj uslugu'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Management Modal */}
+      {managingImagesFor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Galerija slika - {managingImagesFor.name}
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Dodajte slike koje prikazuju rezultate ove usluge
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setManagingImagesFor(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <ServiceImageManager
+                serviceId={managingImagesFor.id}
+                images={managingImagesFor.images || []}
+              />
             </div>
           </div>
         </div>

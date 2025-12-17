@@ -2,11 +2,14 @@ import { useState, useMemo } from 'react';
 import { ClockIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { ScissorsIcon } from '@heroicons/react/24/solid';
 import { Service } from '../../types';
+import { ServiceGallerySlider } from '../ServiceGallerySlider';
+import { Lightbox } from '../Lightbox';
 
 interface ServicesByCategoryProps {
   services: Service[];
   onBookService: (service: Service) => void;
   initialVisibleCount?: number;
+  showGallery?: boolean; // Control whether to show service galleries
 }
 
 // Category display names and icons
@@ -41,9 +44,12 @@ const categoryEmojis: Record<string, string> = {
 export default function ServicesByCategory({
   services,
   onBookService,
-  initialVisibleCount = 3
+  initialVisibleCount = 3,
+  showGallery = true
 }: ServicesByCategoryProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [lightboxImages, setLightboxImages] = useState<any[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Group services by category
   const servicesByCategory = useMemo(() => {
@@ -122,41 +128,55 @@ export default function ServicesByCategory({
                 {visibleServices.map((service) => (
                   <div
                     key={service.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                    className="flex flex-col p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                   >
-                    <div className="flex-1 min-w-0 sm:pr-3">
-                      <h4 className="font-medium text-gray-900 text-sm md:text-base">
-                        {service.name}
-                      </h4>
-                      {service.description && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {service.description}
-                        </p>
-                      )}
-                    </div>
-                    {/* Mobile: duration, price, button in one row */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 mt-3 sm:mt-0 flex-shrink-0">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <ClockIcon className="w-3.5 h-3.5" />
-                        <span>{service.duration} min</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-gray-900 text-sm md:text-base">
-                          {service.discount_price || service.price} KM
-                        </div>
-                        {service.discount_price && (
-                          <div className="text-xs text-gray-400 line-through">
-                            {service.price} KM
-                          </div>
+                    {/* Service Info Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1 min-w-0 sm:pr-3">
+                        <h4 className="font-medium text-gray-900 text-sm md:text-base">
+                          {service.name}
+                        </h4>
+                        {service.description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {service.description}
+                          </p>
                         )}
                       </div>
-                      <button
-                        onClick={() => onBookService(service)}
-                        className="px-3 py-1.5 text-xs md:text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium whitespace-nowrap"
-                      >
-                        Rezerviši
-                      </button>
+                      {/* Mobile: duration, price, button in one row */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 mt-3 sm:mt-0 flex-shrink-0">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <ClockIcon className="w-3.5 h-3.5" />
+                          <span>{service.duration} min</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-gray-900 text-sm md:text-base">
+                            {service.discount_price || service.price} KM
+                          </div>
+                          {service.discount_price && (
+                            <div className="text-xs text-gray-400 line-through">
+                              {service.price} KM
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => onBookService(service)}
+                          className="px-3 py-1.5 text-xs md:text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium whitespace-nowrap"
+                        >
+                          Rezerviši
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Service Gallery */}
+                    {showGallery && service.images && service.images.length > 0 && (
+                      <ServiceGallerySlider
+                        images={service.images}
+                        onImageClick={(index) => {
+                          setLightboxImages(service.images || []);
+                          setLightboxIndex(index);
+                        }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -184,6 +204,19 @@ export default function ServicesByCategory({
           );
         })}
       </div>
+      {/* Lightbox for service images */}
+      {lightboxIndex !== null && lightboxImages.length > 0 && (
+        <Lightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={() => {
+            setLightboxIndex(null);
+            setLightboxImages([]);
+          }}
+          onNext={() => setLightboxIndex((lightboxIndex + 1) % lightboxImages.length)}
+          onPrev={() => setLightboxIndex((lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length)}
+        />
+      )}
     </div>
   );
 }

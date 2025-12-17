@@ -74,6 +74,7 @@ export interface Salon {
   };
   is_verified: boolean;
   auto_confirm?: boolean;
+  show_service_gallery?: boolean;
   status: 'pending' | 'approved' | 'suspended';
   salon_breaks?: Break[];
   salon_vacations?: Vacation[];
@@ -165,6 +166,14 @@ export interface Service {
   staff_ids: string[];
   staff?: Staff[];
   is_active: boolean;
+  images?: Array<{
+    id: number;
+    image_url: string;
+    title?: string;
+    description?: string;
+    is_featured: boolean;
+    order: number;
+  }>;
   created_at: string;
   updated_at: string;
 }
