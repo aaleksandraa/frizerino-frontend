@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Scissors, Mail, Lock, User, Phone, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +53,11 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
 
   const returnTo = (location.state as any)?.returnTo;
+
+  // Debug: Log error state changes
+  useEffect(() => {
+    console.log('🔴 Error state changed:', error);
+  }, [error]);
 
   // Fetch registration settings
   useEffect(() => {
@@ -177,31 +183,55 @@ export function AuthPage({ mode }: AuthPageProps) {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailNotVerified(null); // Clear email not verified state
 
     if (registerData.password !== registerData.confirmPassword) {
       setError('Lozinke se ne poklapaju');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    if (registerData.password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 karaktera');
+    if (registerData.password.length < 8) {
+      setError('Lozinka mora imati najmanje 8 karaktera');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!/[A-Z]/.test(registerData.password)) {
+      setError('Lozinka mora sadržavati najmanje jedno veliko slovo');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!/[a-z]/.test(registerData.password)) {
+      setError('Lozinka mora sadržavati najmanje jedno malo slovo');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!/[0-9]/.test(registerData.password)) {
+      setError('Lozinka mora sadržavati najmanje jedan broj');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     // GDPR validacija
     if (!acceptPrivacyPolicy) {
       setError('Morate prihvatiti pravila privatnosti i uslove korištenja');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     if (!acceptContactCommunication) {
       setError('Morate pristati na kontakt komunikaciju');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     // Za salone i frizere - dodatna validacija
     if ((registerData.role === 'salon' || registerData.role === 'frizer') && !acceptPublicDataDisplay) {
       setError('Morate pristati na javni prikaz vaših podataka');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -227,12 +257,40 @@ export function AuthPage({ mode }: AuthPageProps) {
           state: { email: registerData.email },
           replace: true 
         });
-      } else {
-        setError('Greška pri registraciji. Email možda već postoji.');
       }
-    } catch (err) {
-      setError('Došlo je do greške prilikom registracije');
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      console.log('Error response:', err.response?.data);
+      
+      let errorMessage = 'Došlo je do greške prilikom registracije. Molimo pokušajte ponovo.';
+      
+      // Prikaži greške sa servera
+      if (err.response?.data?.errors) {
+        // Prikaži prvu grešku iz validacije
+        const errors = err.response.data.errors;
+        const firstErrorKey = Object.keys(errors)[0];
+        const firstError = errors[firstErrorKey];
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        console.log('Validation error:', errorMessage);
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+        console.log('Server error message:', errorMessage);
+      }
+      
+      console.log('About to set error:', errorMessage);
+      
+      // Use flushSync to force synchronous state update
+      flushSync(() => {
+        setIsLoading(false);
+        setError(errorMessage);
+      });
+      
+      console.log('Error state set to:', errorMessage);
+      
+      // Scroll to top after state is set
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
+      // Ensure loading is always set to false
       setIsLoading(false);
     }
   };
@@ -369,7 +427,7 @@ export function AuthPage({ mode }: AuthPageProps) {
             </div>
 
             {/* Error message */}
-            {error && !emailNotVerified && (
+            {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -561,6 +619,9 @@ export function AuthPage({ mode }: AuthPageProps) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Lozinka
                   </label>
+                  <div className="text-xs text-gray-500 mb-2">
+                    Mora sadržavati: najmanje 8 karaktera, jedno veliko slovo, jedno malo slovo i jedan broj
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input

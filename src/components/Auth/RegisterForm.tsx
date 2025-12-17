@@ -65,8 +65,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
 
     if (!password) {
       errors.password = 'Lozinka je obavezna';
-    } else if (password.length < 6) {
-      errors.password = 'Lozinka mora imati najmanje 6 karaktera';
+    } else if (password.length < 8) {
+      errors.password = 'Lozinka mora imati najmanje 8 karaktera';
+    } else if (!/[A-Z]/.test(password)) {
+      errors.password = 'Lozinka mora sadržavati najmanje jedno veliko slovo';
+    } else if (!/[a-z]/.test(password)) {
+      errors.password = 'Lozinka mora sadržavati najmanje jedno malo slovo';
+    } else if (!/[0-9]/.test(password)) {
+      errors.password = 'Lozinka mora sadržavati najmanje jedan broj';
     }
 
     if (password !== confirmPassword) {
@@ -265,8 +271,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-            Lozinka * (najmanje 6 karaktera)
+            Lozinka *
           </label>
+          <div className="text-xs text-gray-500 mb-2">
+            Mora sadržavati: najmanje 8 karaktera, jedno veliko slovo, jedno malo slovo i jedan broj
+          </div>
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -374,7 +383,16 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={
+            loading || 
+            !formData.name.trim() || 
+            !formData.email.trim() || 
+            !password || 
+            !confirmPassword ||
+            !acceptPrivacyPolicy ||
+            !acceptContactCommunication ||
+            ((formData.role === 'salon' || formData.role === 'frizer') && !acceptPublicDataDisplay)
+          }
           className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Registracija...' : 'Registrujte se'}
