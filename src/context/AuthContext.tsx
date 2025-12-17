@@ -62,9 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // NE dohvatamo usera - korisnik mora prvo verificirati email
       // await fetchCurrentUser();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      return false;
+      // Re-throw error so component can display specific error message
+      throw error;
     } finally {
       setLoading(false);
     }

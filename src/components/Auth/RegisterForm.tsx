@@ -24,6 +24,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [acceptContactCommunication, setAcceptContactCommunication] = useState(false);
   const [acceptPublicDataDisplay, setAcceptPublicDataDisplay] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [allowFrizerRegistration, setAllowFrizerRegistration] = useState(false);
   const { register, loading } = useAuth();
@@ -47,46 +48,83 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
-    if (password !== confirmPassword) {
-      setError('Lozinke se ne poklapaju');
-      return;
+    // Frontend validacija
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Ime i prezime je obavezno';
     }
 
-    if (password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 karaktera');
-      return;
+    if (!formData.email.trim()) {
+      errors.email = 'Email adresa je obavezna';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Email adresa nije validna';
+    }
+
+    if (!password) {
+      errors.password = 'Lozinka je obavezna';
+    } else if (password.length < 6) {
+      errors.password = 'Lozinka mora imati najmanje 6 karaktera';
+    }
+
+    if (password !== confirmPassword) {
+      errors.confirmPassword = 'Lozinke se ne poklapaju';
     }
 
     if (!acceptPrivacyPolicy) {
-      setError('Morate prihvatiti pravila privatnosti i uslove korištenja');
-      return;
+      errors.privacy = 'Morate prihvatiti pravila privatnosti i uslove korištenja';
     }
 
     if (!acceptContactCommunication) {
-      setError('Morate pristati na kontakt komunikaciju');
-      return;
+      errors.communication = 'Morate pristati na kontakt komunikaciju';
     }
 
     // Za salone i frizere - dodatna validacija
     if ((formData.role === 'salon' || formData.role === 'frizer') && !acceptPublicDataDisplay) {
-      setError('Morate pristati na javni prikaz vaših podataka');
+      errors.publicDisplay = 'Morate pristati na javni prikaz vaših podataka';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError(Object.values(errors)[0]); // Prikaži prvu grešku
       return;
     }
 
-    const registrationData = {
-      ...formData,
-      accept_privacy_policy: acceptPrivacyPolicy,
-      accept_contact_communication: acceptContactCommunication,
-      accept_public_data_display: acceptPublicDataDisplay,
-    };
+    try {
+      const registrationData = {
+        ...formData,
+        accept_privacy_policy: acceptPrivacyPolicy,
+        accept_contact_communication: acceptContactCommunication,
+        accept_public_data_display: acceptPublicDataDisplay,
+      };
 
-    const success = await register(registrationData, password);
-    if (success) {
-      // Show verification message instead of navigating
-      setRegistrationSuccess(true);
-    } else {
-      setError('Greška pri registraciji. Email možda već postoji.');
+      const success = await register(registrationData, password);
+      if (success) {
+        // Show verification message instead of navigating
+        setRegistrationSuccess(true);
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      
+      // Prikaži greške sa servera
+      if (err.response?.data?.errors) {
+        const serverErrors: Record<string, string> = {};
+        Object.keys(err.response.data.errors).forEach(key => {
+          const errorArray = err.response.data.errors[key];
+          serverErrors[key] = Array.isArray(errorArray) ? errorArray[0] : errorArray;
+        });
+        setFieldErrors(serverErrors);
+        
+        // Prikaži prvu grešku kao glavni error message
+        const firstError = Object.values(err.response.data.errors)[0];
+        setError(Array.isArray(firstError) ? firstError[0] : firstError);
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Greška pri registraciji. Molimo pokušajte ponovo.');
+      }
     }
   };
 
@@ -149,7 +187,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-            Ime i prezime
+            Ime i prezime *
           </label>
           <input
             type="text"
@@ -158,14 +196,21 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             value={formData.name}
             onChange={handleInputChange}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+              fieldErrors.name 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             placeholder="Marko Petrović"
           />
+          {fieldErrors.name && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>
+          )}
         </div>
 
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-            Email adresa
+            Email adresa *
           </label>
           <input
             type="email"
@@ -174,9 +219,16 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             value={formData.email}
             onChange={handleInputChange}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+              fieldErrors.email 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             placeholder="marko@example.com"
           />
+          {fieldErrors.email && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+          )}
         </div>
 
         <div>
@@ -213,7 +265,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-            Lozinka
+            Lozinka * (najmanje 6 karaktera)
           </label>
           <div className="relative">
             <input
@@ -222,7 +274,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:border-transparent ${
+                fieldErrors.password 
+                  ? 'border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               placeholder="••••••••"
             />
             <button
@@ -233,11 +289,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+          {fieldErrors.password && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
+          )}
         </div>
 
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-            Potvrdite lozinku
+            Potvrdite lozinku *
           </label>
           <input
             type="password"
@@ -245,9 +304,16 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+              fieldErrors.confirmPassword 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             placeholder="••••••••"
           />
+          {fieldErrors.confirmPassword && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.confirmPassword}</p>
+          )}
         </div>
 
         {/* GDPR Consents */}
