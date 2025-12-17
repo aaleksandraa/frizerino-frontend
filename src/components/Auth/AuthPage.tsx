@@ -277,6 +277,9 @@ export function AuthPage({ mode }: AuthPageProps) {
         setError(errorMessage);
       });
       
+      // Debug: Show alert to confirm error is being set
+      alert('GREŠKA: ' + errorMessage);
+      
       // Scroll to top after state is set
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {

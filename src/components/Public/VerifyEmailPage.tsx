@@ -32,9 +32,11 @@ export const VerifyEmailPage: React.FC = () => {
         const parsedUrl = new URL(url);
         let pathWithQuery = parsedUrl.pathname + parsedUrl.search;
         
-        // Remove /api prefix since api instance already has baseURL with /api
-        if (pathWithQuery.startsWith('/api/')) {
-          pathWithQuery = pathWithQuery.substring(4); // Remove '/api'
+        // Remove /api/v1 prefix since api instance already has baseURL with /api/v1
+        if (pathWithQuery.startsWith('/api/v1/')) {
+          pathWithQuery = pathWithQuery.substring(8); // Remove '/api/v1/'
+        } else if (pathWithQuery.startsWith('/api/')) {
+          pathWithQuery = pathWithQuery.substring(5); // Remove '/api/'
         }
         
         // Call the API endpoint
