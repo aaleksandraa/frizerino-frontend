@@ -32,6 +32,11 @@
     buttonRadius: script.getAttribute('data-button-radius') || '8px',
     fontFamily: script.getAttribute('data-font') || 'system-ui, -apple-system, sans-serif',
     locale: script.getAttribute('data-locale') || 'bs',
+    bgOpacity: parseFloat(script.getAttribute('data-bg-opacity')) || 1,
+    bgColor: script.getAttribute('data-bg-color') || null,
+    textColor: script.getAttribute('data-text-color') || null,
+    borderColor: script.getAttribute('data-border-color') || null,
+    showShadow: script.getAttribute('data-shadow') !== 'false',
     apiUrl: 'https://api.frizerino.com/api/v1'
   };
 
@@ -56,41 +61,41 @@
   };
 
 
+  // Computed colors based on config
+  var bgDefault = config.theme === 'dark' ? '#1a1a1a' : '#ffffff';
+  var bgFinal = config.bgColor || bgDefault;
+  var textDefault = config.theme === 'dark' ? '#fff' : '#333';
+  var textFinal = config.textColor || textDefault;
+  var borderDefault = config.theme === 'dark' ? '#333' : '#e5e5e5';
+  var borderFinal = config.borderColor || borderDefault;
+
   // Styles
   var styles = `
     .frzn-widget {
       font-family: ${config.fontFamily};
       max-width: 500px;
       margin: 0 auto;
-      background: ${config.theme === 'dark' ? '#1a1a1a' : '#ffffff'};
+      background: ${config.bgOpacity < 1 ? hexToRgba(bgFinal, config.bgOpacity) : bgFinal};
       border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      ${config.showShadow ? 'box-shadow: 0 4px 24px rgba(0,0,0,0.12);' : ''}
       overflow: hidden;
     }
     .frzn-widget * { box-sizing: border-box; margin: 0; padding: 0; }
-    .frzn-header {
-      background: linear-gradient(135deg, ${config.primaryColor}, ${adjustColor(config.primaryColor, -20)});
-      color: white;
-      padding: 20px;
-      text-align: center;
-    }
-    .frzn-header h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 4px; }
-    .frzn-header p { font-size: 0.875rem; opacity: 0.9; }
     .frzn-body { padding: 20px; }
     .frzn-step { display: none; }
     .frzn-step.active { display: block; }
-    .frzn-step-title { font-size: 1rem; font-weight: 600; color: ${config.theme === 'dark' ? '#fff' : '#333'}; margin-bottom: 16px; }
+    .frzn-step-title { font-size: 1rem; font-weight: 600; color: ${textFinal}; margin-bottom: 16px; }
     .frzn-services, .frzn-staff, .frzn-times { display: flex; flex-direction: column; gap: 8px; }
     .frzn-service-item, .frzn-staff-item, .frzn-time-item {
       display: flex;
       align-items: center;
       padding: 12px 16px;
-      border: 2px solid ${config.theme === 'dark' ? '#333' : '#e5e5e5'};
+      border: 2px solid ${borderFinal};
       border-radius: ${config.buttonRadius};
       cursor: pointer;
       transition: all 0.2s;
-      background: ${config.theme === 'dark' ? '#2a2a2a' : '#fff'};
-      color: ${config.theme === 'dark' ? '#fff' : '#333'};
+      background: ${config.bgOpacity < 1 ? 'transparent' : (config.theme === 'dark' ? '#2a2a2a' : '#fff')};
+      color: ${textFinal};
     }
     .frzn-service-item:hover, .frzn-staff-item:hover, .frzn-time-item:hover {
       border-color: ${config.primaryColor};
@@ -102,7 +107,7 @@
     }
     .frzn-service-info { flex: 1; }
     .frzn-service-name { font-weight: 500; font-size: 0.95rem; }
-    .frzn-service-meta { font-size: 0.8rem; color: ${config.theme === 'dark' ? '#aaa' : '#666'}; margin-top: 2px; }
+    .frzn-service-meta { font-size: 0.8rem; color: ${config.textColor || (config.theme === 'dark' ? '#aaa' : '#666')}; opacity: 0.7; margin-top: 2px; }
     .frzn-service-price { font-weight: 600; color: ${config.primaryColor}; }
     .frzn-staff-avatar {
       width: 48px; height: 48px; border-radius: 50%; margin-right: 12px;
@@ -114,10 +119,10 @@
     .frzn-calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .frzn-calendar-nav { background: none; border: none; cursor: pointer; padding: 8px; color: ${config.primaryColor}; font-size: 1.2rem; }
     .frzn-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-    .frzn-calendar-day { padding: 8px 4px; font-size: 0.8rem; color: ${config.theme === 'dark' ? '#aaa' : '#666'}; }
+    .frzn-calendar-day { padding: 8px 4px; font-size: 0.8rem; color: ${textFinal}; opacity: 0.6; }
     .frzn-calendar-date {
       padding: 8px 4px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
-      color: ${config.theme === 'dark' ? '#fff' : '#333'}; transition: all 0.2s;
+      color: ${textFinal}; transition: all 0.2s;
     }
     .frzn-calendar-date:hover:not(.disabled) { background: ${hexToRgba(config.primaryColor, 0.1)}; }
     .frzn-calendar-date.selected { background: ${config.primaryColor}; color: white; }
@@ -127,13 +132,13 @@
     .frzn-time-item { justify-content: center; padding: 10px; font-size: 0.9rem; }
     .frzn-form { display: flex; flex-direction: column; gap: 12px; }
     .frzn-input {
-      width: 100%; padding: 12px 16px; border: 2px solid ${config.theme === 'dark' ? '#333' : '#e5e5e5'};
+      width: 100%; padding: 12px 16px; border: 2px solid ${borderFinal};
       border-radius: ${config.buttonRadius}; font-size: 0.95rem;
-      background: ${config.theme === 'dark' ? '#2a2a2a' : '#fff'};
-      color: ${config.theme === 'dark' ? '#fff' : '#333'};
+      background: ${config.bgOpacity < 1 ? 'rgba(255,255,255,0.1)' : (config.theme === 'dark' ? '#2a2a2a' : '#fff')};
+      color: ${textFinal};
     }
     .frzn-input:focus { outline: none; border-color: ${config.primaryColor}; }
-    .frzn-input::placeholder { color: ${config.theme === 'dark' ? '#666' : '#999'}; }
+    .frzn-input::placeholder { color: ${textFinal}; opacity: 0.5; }
     .frzn-btn {
       width: 100%; padding: 14px 24px; border: none; border-radius: ${config.buttonRadius};
       font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
@@ -157,8 +162,8 @@
     .frzn-success { text-align: center; padding: 40px; }
     .frzn-success-icon { width: 64px; height: 64px; background: #4CAF50; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
     .frzn-success-icon svg { width: 32px; height: 32px; color: white; }
-    .frzn-summary { background: ${config.theme === 'dark' ? '#2a2a2a' : '#f9f9f9'}; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .frzn-summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid ${config.theme === 'dark' ? '#333' : '#eee'}; }
+    .frzn-summary { background: ${config.bgOpacity < 1 ? 'rgba(0,0,0,0.05)' : (config.theme === 'dark' ? '#2a2a2a' : '#f9f9f9')}; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .frzn-summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid ${borderFinal}; color: ${textFinal}; }
     .frzn-summary-row:last-child { border-bottom: none; font-weight: 600; }
     .frzn-powered { text-align: center; padding: 12px; font-size: 0.75rem; color: ${config.theme === 'dark' ? '#666' : '#999'}; }
     .frzn-powered a { color: ${config.primaryColor}; text-decoration: none; }
@@ -193,8 +198,16 @@
       headers: headers,
       body: options.body ? JSON.stringify(options.body) : undefined
     }).then(function(res) {
-      if (!res.ok) throw new Error('API Error: ' + res.status);
-      return res.json();
+      return res.json().then(function(data) {
+        if (!res.ok) {
+          var error = new Error(data.error || 'API Error: ' + res.status);
+          error.code = data.code;
+          error.redirectToTime = data.redirect_to_time;
+          error.status = res.status;
+          throw error;
+        }
+        return data;
+      });
     });
   }
 
@@ -261,7 +274,6 @@
 
   function renderWidget() {
     return '<div class="frzn-widget">' +
-      renderHeader() +
       '<div class="frzn-body">' +
         renderStep1() +
         renderStep2() +
@@ -271,10 +283,6 @@
       '</div>' +
       '<div class="frzn-powered">Powered by <a href="https://frizerino.com" target="_blank">Frizerino</a></div>' +
     '</div>';
-  }
-
-  function renderHeader() {
-    return '<div class="frzn-header"><h2>' + state.salon.name + '</h2><p>' + (state.salon.city || '') + '</p></div>';
   }
 
   function renderStep1() {
@@ -590,9 +598,37 @@
           })
           .catch(function(err) {
             console.error('Booking error:', err);
-            alert('Greška pri rezervaciji. Molimo pokušajte ponovo.');
             btn.disabled = false;
             btn.textContent = config.buttonText;
+            
+            // Handle time slot taken error - redirect to time selection
+            if (err.code === 'TIME_SLOT_TAKEN' || err.redirectToTime) {
+              alert(err.message || 'Žao nam je, neko se u međuvremenu zakazao u to vrijeme. Molimo odaberite drugo vrijeme.');
+              // Reset time selection and reload available slots
+              state.selectedTime = null;
+              state.availableSlots = [];
+              state.step = 3; // Go back to date/time selection
+              state.loadingSlots = true;
+              render();
+              
+              // Reload available slots
+              var services = state.selectedServices.map(function(s) {
+                return { serviceId: s.id.toString(), duration: s.duration };
+              });
+              loadAvailableSlots(state.selectedStaff.id, state.selectedDate, services)
+                .then(function(data) {
+                  state.availableSlots = data.slots || [];
+                  state.loadingSlots = false;
+                  render();
+                })
+                .catch(function() {
+                  state.availableSlots = [];
+                  state.loadingSlots = false;
+                  render();
+                });
+            } else {
+              alert(err.message || 'Greška pri rezervaciji. Molimo pokušajte ponovo.');
+            }
           });
       });
     });
@@ -605,7 +641,7 @@
         '<div class="frzn-success">' +
           '<div class="frzn-success-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>' +
           '<h2 style="color:' + (config.theme === 'dark' ? '#fff' : '#333') + ';margin-bottom:8px;">Rezervacija uspješna!</h2>' +
-          '<p style="color:' + (config.theme === 'dark' ? '#aaa' : '#666') + ';">Dobićete potvrdu na telefon.</p>' +
+          '<p style="color:' + (config.theme === 'dark' ? '#aaa' : '#666') + ';">Dobićete potvrdu na Email.</p>' +
           '<button class="frzn-btn frzn-btn-primary" style="margin-top:20px;max-width:200px;" onclick="location.reload()">Nova rezervacija</button>' +
         '</div>' +
         '<div class="frzn-powered">Powered by <a href="https://frizerino.com" target="_blank">Frizerino</a></div>' +
@@ -613,7 +649,6 @@
     }
     
     return '<div class="frzn-widget">' +
-      renderHeader() +
       '<div class="frzn-body">' +
         renderStep1() +
         renderStep2() +
