@@ -558,7 +558,7 @@ export const StaffProfilePage: React.FC = () => {
                                     <span className="text-gray-300">•</span>
                                     <span>{service.category}</span>
                                   </div>
-                                  {staff.accepts_bookings && (
+                                  {staff.accepts_bookings && service.duration > 0 && (
                                     <button
                                       onClick={() => openBookingModal(service.id)}
                                       className="text-sm font-medium text-pink-600 hover:text-pink-700 transition-colors flex items-center gap-1"
@@ -566,6 +566,11 @@ export const StaffProfilePage: React.FC = () => {
                                       <CalendarDaysIcon className="h-4 w-4" />
                                       Rezerviši
                                     </button>
+                                  )}
+                                  {service.duration === 0 && (
+                                    <span className="text-xs text-gray-500 italic">
+                                      (dodatak)
+                                    </span>
                                   )}
                                 </div>
 

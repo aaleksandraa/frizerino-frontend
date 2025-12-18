@@ -207,6 +207,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   const updateService = (index: number, serviceId: string) => {
     const service = services.find(s => String(s.id) === String(serviceId));
+    
+    // Prevent selecting 0-duration service as first service
+    if (index === 0 && service && service.duration === 0) {
+      setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
+      return;
+    }
+    
+    setError(null);
     setSelectedServices(prev => prev.map((item, i) => 
       i === index ? { ...item, id: serviceId, service: service || null } : item
     ));
@@ -714,11 +722,20 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
                     >
                       <option value="">Izaberite uslugu</option>
-                      {services.map((service) => (
-                        <option key={service.id} value={service.id}>
-                          {service.name} - {service.discount_price || service.price} KM ({service.duration} min)
-                        </option>
-                      ))}
+                      {services
+                        .filter(service => {
+                          // For first service, exclude 0-duration services
+                          if (index === 0 && service.duration === 0) {
+                            return false;
+                          }
+                          return true;
+                        })
+                        .map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} - {service.discount_price || service.price} KM ({service.duration} min)
+                            {service.duration === 0 ? ' (dodatak)' : ''}
+                          </option>
+                        ))}
                     </select>
                     {selectedService.service?.description && (
                       <p className="mt-2 text-sm text-gray-500">{selectedService.service.description}</p>

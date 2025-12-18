@@ -111,16 +111,19 @@ export function AuthPage({ mode }: AuthPageProps) {
     return () => clearInterval(interval);
   }, [backgroundImages.length]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in - but DON'T auto-redirect on login page
+  // This prevents security issue where clicking email verification link while logged in as admin
+  // would redirect to admin dashboard instead of showing login form
   useEffect(() => {
-    if (user) {
+    if (user && mode === 'register') {
+      // Only auto-redirect on register page, not login page
       if (returnTo) {
         navigate(returnTo, { replace: true });
       } else {
         navigate(user.role === 'klijent' ? '/' : '/dashboard', { replace: true });
       }
     }
-  }, [user, navigate, returnTo]);
+  }, [user, navigate, returnTo, mode]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -499,8 +502,40 @@ export function AuthPage({ mode }: AuthPageProps) {
               </div>
             )}
 
+            {/* Already logged in warning */}
+            {mode === 'login' && user && (
+              <div className="bg-amber-50 border-2 border-amber-400 text-amber-900 px-4 py-4 rounded-xl mb-6">
+                <div className="flex items-start gap-3">
+                  <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="font-bold mb-2">⚠️ Već ste prijavljeni</p>
+                    <p className="text-sm mb-3">
+                      Trenutno ste prijavljeni kao <strong>{user.name}</strong> ({user.role}).
+                      {' '}Da biste se prijavili kao drugi korisnik, morate se prvo odjaviti.
+                    </p>
+                    <div className="flex gap-3">
+                      <Link
+                        to="/dashboard"
+                        className="text-sm font-medium px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        Idi na Dashboard
+                      </Link>
+                      <Link
+                        to="/"
+                        className="text-sm font-medium px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        Početna
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Login Form */}
-            {mode === 'login' && !emailNotVerified && (
+            {mode === 'login' && !emailNotVerified && !user && (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

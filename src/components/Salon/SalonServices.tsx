@@ -371,6 +371,7 @@ export function SalonServices() {
                     onChange={(e) => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
+                    <option value={0}>0 minuta (dodatak - ne može se samostalno zakazati)</option>
                     <option value={15}>15 minuta</option>
                     <option value={30}>30 minuta</option>
                     <option value={45}>45 minuta</option>
@@ -381,6 +382,14 @@ export function SalonServices() {
                     <option value={180}>3 sata</option>
                     <option value={240}>4 sata</option>
                   </select>
+                  {formData.duration === 0 && (
+                    <p className="mt-2 text-sm text-amber-600 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Ova usluga se ne može samostalno zakazati. Koristi se samo kao dodatak drugim uslugama (npr. pranje kose).
+                    </p>
+                  )}
                 </div>
                 
                 <div>
