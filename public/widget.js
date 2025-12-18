@@ -203,13 +203,15 @@
   }
 
   function loadAvailableSlots(staffId, date, services) {
-    var params = new URLSearchParams({
-      key: config.apiKey,
-      staff_id: staffId,
-      date: date,
-      services: JSON.stringify(services)
+    return apiRequest('/widget/slots/available', {
+      method: 'POST',
+      body: {
+        key: config.apiKey,
+        staff_id: staffId,
+        date: date,
+        services: services
+      }
     });
-    return apiRequest('/widget/slots/available?' + params.toString());
   }
 
   function createBooking(data) {
