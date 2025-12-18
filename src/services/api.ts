@@ -291,7 +291,23 @@ export const staffAPI = {
   },
 
   // Update own settings (for frizeri)
-  updateOwnSettings: async (data: { auto_confirm?: boolean }) => {
+  updateOwnSettings: async (data: {
+    auto_confirm?: boolean;
+    bio?: string;
+    bio_long?: string;
+    title?: string;
+    years_experience?: number | '';
+    languages?: string[];
+    specialties?: string[];
+    education?: Array<{ school: string; degree: string; year: string }>;
+    achievements?: Array<{ title: string; description: string; year: string }>;
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    accepts_bookings?: boolean;
+    booking_note?: string;
+    is_public?: boolean;
+  }) => {
     const response = await api.put('/staff/me/settings', data);
     return response.data;
   },

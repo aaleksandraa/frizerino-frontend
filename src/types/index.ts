@@ -18,10 +18,25 @@ export interface User {
   staff_profile?: {
     id: string;
     name: string;
+    slug?: string;
     role: string;
     salon_id: string;
     auto_confirm: boolean;
     avatar_url?: string;
+    bio?: string;
+    bio_long?: string;
+    title?: string;
+    years_experience?: number;
+    languages?: string[];
+    specialties?: string[];
+    education?: Array<{ school: string; degree: string; year: string }>;
+    achievements?: Array<{ title: string; description: string; year: string }>;
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    accepts_bookings?: boolean;
+    booking_note?: string;
+    is_public?: boolean;
   };
   created_at: string;
   updated_at: string;

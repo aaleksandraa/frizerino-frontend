@@ -90,8 +90,8 @@ export function SalonStaff() {
       name: staffMember.name,
       role: staffMember.role,
       bio: staffMember.bio || '',
-      email: '',
-      phone: '',
+      email: staffMember.user?.email || '',
+      phone: staffMember.user?.phone || '',
       password: '',
       specialties: [...(staffMember.specialties || [])],
       working_hours: { ...staffMember.working_hours },
@@ -115,18 +115,40 @@ export function SalonStaff() {
       newErrors.role = 'Tip zaposlenog je obavezan';
     }
 
-    // Email validation (only for new staff)
+    // Email validation
     if (!editingStaff) {
+      // For new staff, email is required
       if (!formData.email.trim()) {
         newErrors.email = 'Email je obavezan';
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Email adresa nije validna';
       }
+    } else {
+      // For editing, email is optional but must be valid if provided
+      if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Email adresa nije validna';
+      }
+    }
 
-      // Password validation (only for new staff)
+    // Password validation
+    if (!editingStaff) {
+      // For new staff, password is required
       if (!formData.password) {
         newErrors.password = 'Lozinka je obavezna';
       } else {
+        if (formData.password.length < 8) {
+          newErrors.password = 'Lozinka mora imati najmanje 8 karaktera';
+        } else if (!/[A-Z]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedno veliko slovo';
+        } else if (!/[a-z]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedno malo slovo';
+        } else if (!/[0-9]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedan broj';
+        }
+      }
+    } else {
+      // For editing, password is optional but must be valid if provided
+      if (formData.password && formData.password.trim()) {
         if (formData.password.length < 8) {
           newErrors.password = 'Lozinka mora imati najmanje 8 karaktera';
         } else if (!/[A-Z]/.test(formData.password)) {
@@ -460,48 +482,55 @@ export function SalonStaff() {
                   )}
                 </div>
 
-                {!editingStaff && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                          errors.email ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="marko@salon.ba"
-                      />
-                      {errors.email && (
-                        <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Lozinka *
-                      </label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                          errors.password ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="••••••••"
-                      />
-                      {errors.password && (
-                        <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        Mora sadržavati: najmanje 8 karaktera, jedno veliko slovo, jedno malo slovo i jedan broj
-                      </p>
-                    </div>
-                  </>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email {!editingStaff && '*'}
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="marko@salon.ba"
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
+                  {editingStaff && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Ostavite prazno ako ne želite promijeniti email
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Lozinka {!editingStaff && '*'}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="••••••••"
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  )}
+                  {editingStaff ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Ostavite prazno ako ne želite promijeniti lozinku
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Mora sadržavati: najmanje 8 karaktera, jedno veliko slovo, jedno malo slovo i jedan broj
+                    </p>
+                  )}
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Save, User, Lock, Bell, Calendar, Eye, EyeOff, CheckCircle, Camera } from 'lucide-react';
+import { Save, User, Lock, Bell, Calendar, Eye, EyeOff, CheckCircle, Camera, Plus, X, Briefcase, Award, Globe, Star, Instagram, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI, staffAPI } from '../../services/api';
 
@@ -28,6 +28,43 @@ export function FrizerSettings() {
     date_of_birth: user?.date_of_birth || '',
     gender: user?.gender || '',
   });
+
+  // Staff profile form
+  const [staffProfileData, setStaffProfileData] = useState<{
+    bio: string;
+    bio_long: string;
+    title: string;
+    years_experience: number | '';
+    languages: string[];
+    specialties: string[];
+    education: Array<{ school: string; degree: string; year: string }>;
+    achievements: Array<{ title: string; description: string; year: string }>;
+    instagram: string;
+    facebook: string;
+    tiktok: string;
+    accepts_bookings: boolean;
+    booking_note: string;
+    is_public: boolean;
+  }>({
+    bio: user?.staff_profile?.bio || '',
+    bio_long: user?.staff_profile?.bio_long || '',
+    title: user?.staff_profile?.title || '',
+    years_experience: user?.staff_profile?.years_experience || '',
+    languages: user?.staff_profile?.languages || [],
+    specialties: user?.staff_profile?.specialties || [],
+    education: user?.staff_profile?.education || [],
+    achievements: user?.staff_profile?.achievements || [],
+    instagram: user?.staff_profile?.instagram || '',
+    facebook: user?.staff_profile?.facebook || '',
+    tiktok: user?.staff_profile?.tiktok || '',
+    accepts_bookings: user?.staff_profile?.accepts_bookings ?? true,
+    booking_note: user?.staff_profile?.booking_note || '',
+    is_public: user?.staff_profile?.is_public ?? true,
+  });
+
+  // Temporary inputs for adding items
+  const [newLanguage, setNewLanguage] = useState('');
+  const [newSpecialty, setNewSpecialty] = useState('');
   
   // Settings form
   const [autoConfirm, setAutoConfirm] = useState(user?.staff_profile?.auto_confirm || false);
@@ -58,8 +95,26 @@ export function FrizerSettings() {
     }
     if (user?.staff_profile) {
       setAutoConfirm(user.staff_profile.auto_confirm || false);
+      
+      // Sync staff profile data
+      setStaffProfileData({
+        bio: user.staff_profile.bio || '',
+        bio_long: user.staff_profile.bio_long || '',
+        title: user.staff_profile.title || '',
+        years_experience: user.staff_profile.years_experience || '',
+        languages: user.staff_profile.languages || [],
+        specialties: user.staff_profile.specialties || [],
+        education: user.staff_profile.education || [],
+        achievements: user.staff_profile.achievements || [],
+        instagram: user.staff_profile.instagram || '',
+        facebook: user.staff_profile.facebook || '',
+        tiktok: user.staff_profile.tiktok || '',
+        accepts_bookings: user.staff_profile.accepts_bookings ?? true,
+        booking_note: user.staff_profile.booking_note || '',
+        is_public: user.staff_profile.is_public ?? true,
+      });
+      
       // Sync avatar URL when user data changes - only update if there's a new value
-      // Don't reset to null if avatar_url is missing (could be a temporary state)
       const newAvatarUrl = user.staff_profile.avatar_url;
       if (newAvatarUrl) {
         setAvatarUrl(newAvatarUrl);
@@ -187,6 +242,22 @@ export function FrizerSettings() {
     }
   };
 
+  const handleStaffProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    
+    try {
+      await staffAPI.updateOwnSettings(staffProfileData);
+      await refreshUser();
+      setMessage({ type: 'success', text: 'Profesionalni profil je uspješno ažuriran!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error?.response?.data?.message || 'Greška prilikom ažuriranja profila.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -214,17 +285,114 @@ export function FrizerSettings() {
     }
   };
 
+  // Helper functions for arrays
+  const addLanguage = () => {
+    if (newLanguage.trim() && !staffProfileData.languages.includes(newLanguage.trim())) {
+      setStaffProfileData({
+        ...staffProfileData,
+        languages: [...staffProfileData.languages, newLanguage.trim()]
+      });
+      setNewLanguage('');
+    }
+  };
+
+  const removeLanguage = (language: string) => {
+    setStaffProfileData({
+      ...staffProfileData,
+      languages: staffProfileData.languages.filter(l => l !== language)
+    });
+  };
+
+  const addSpecialty = () => {
+    if (newSpecialty.trim() && !staffProfileData.specialties.includes(newSpecialty.trim())) {
+      setStaffProfileData({
+        ...staffProfileData,
+        specialties: [...staffProfileData.specialties, newSpecialty.trim()]
+      });
+      setNewSpecialty('');
+    }
+  };
+
+  const removeSpecialty = (specialty: string) => {
+    setStaffProfileData({
+      ...staffProfileData,
+      specialties: staffProfileData.specialties.filter(s => s !== specialty)
+    });
+  };
+
+  const addEducation = () => {
+    setStaffProfileData({
+      ...staffProfileData,
+      education: [...staffProfileData.education, { school: '', degree: '', year: '' }]
+    });
+  };
+
+  const updateEducation = (index: number, field: string, value: string) => {
+    const updated = [...staffProfileData.education];
+    updated[index] = { ...updated[index], [field]: value };
+    setStaffProfileData({ ...staffProfileData, education: updated });
+  };
+
+  const removeEducation = (index: number) => {
+    setStaffProfileData({
+      ...staffProfileData,
+      education: staffProfileData.education.filter((_, i) => i !== index)
+    });
+  };
+
+  const addAchievement = () => {
+    setStaffProfileData({
+      ...staffProfileData,
+      achievements: [...staffProfileData.achievements, { title: '', description: '', year: '' }]
+    });
+  };
+
+  const updateAchievement = (index: number, field: string, value: string) => {
+    const updated = [...staffProfileData.achievements];
+    updated[index] = { ...updated[index], [field]: value };
+    setStaffProfileData({ ...staffProfileData, achievements: updated });
+  };
+
+  const removeAchievement = (index: number) => {
+    setStaffProfileData({
+      ...staffProfileData,
+      achievements: staffProfileData.achievements.filter((_, i) => i !== index)
+    });
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
+    { id: 'professional', label: 'Profesionalni profil', icon: User },
     { id: 'appointments', label: 'Termini', icon: Calendar },
     { id: 'security', label: 'Sigurnost', icon: Lock },
     { id: 'notifications', label: 'Obavještenja', icon: Bell },
   ];
 
+  const handleViewPublicProfile = () => {
+    if (user?.staff_profile?.slug) {
+      // Open in new tab
+      window.open(`/profil/${user.staff_profile.slug}`, '_blank');
+    } else {
+      setMessage({ 
+        type: 'error', 
+        text: 'Vaš profil još nema javni URL. Kontaktirajte administratora.' 
+      });
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Podešavanja</h1>
+        {user?.staff_profile?.slug && (
+          <button
+            onClick={handleViewPublicProfile}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-md hover:shadow-lg"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Pogledaj moj javni profil
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -391,6 +559,368 @@ export function FrizerSettings() {
                 >
                   <Save className="w-4 h-4" />
                   {loading ? 'Čuvanje...' : 'Sačuvaj promjene'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {activeTab === 'professional' && (
+            <form onSubmit={handleStaffProfileSubmit} className="space-y-8">
+              {/* Basic Professional Info */}
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-purple-600" />
+                  Osnovne informacije
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Profesionalni naslov</label>
+                    <input
+                      type="text"
+                      value={staffProfileData.title}
+                      onChange={(e) => setStaffProfileData({ ...staffProfileData, title: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="npr. Master Stilista"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Godine iskustva</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={staffProfileData.years_experience}
+                      onChange={(e) => setStaffProfileData({ ...staffProfileData, years_experience: e.target.value ? parseInt(e.target.value) : '' })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="npr. 5"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kratak opis (bio)</label>
+                  <textarea
+                    value={staffProfileData.bio}
+                    onChange={(e) => setStaffProfileData({ ...staffProfileData, bio: e.target.value })}
+                    rows={3}
+                    maxLength={500}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Kratko opišite sebe i svoj rad (max 500 karaktera)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{staffProfileData.bio.length}/500 karaktera</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Detaljniji opis</label>
+                  <textarea
+                    value={staffProfileData.bio_long}
+                    onChange={(e) => setStaffProfileData({ ...staffProfileData, bio_long: e.target.value })}
+                    rows={6}
+                    maxLength={2000}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Detaljnije opišite svoje iskustvo, pristup radu, filozofiju... (max 2000 karaktera)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{staffProfileData.bio_long.length}/2000 karaktera</p>
+                </div>
+              </div>
+
+              {/* Languages */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-purple-600" />
+                  Jezici
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newLanguage}
+                    onChange={(e) => setNewLanguage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguage())}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Dodaj jezik (npr. Bosanski, Engleski)"
+                  />
+                  <button
+                    type="button"
+                    onClick={addLanguage}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {staffProfileData.languages.map((language, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full"
+                    >
+                      {language}
+                      <button
+                        type="button"
+                        onClick={() => removeLanguage(language)}
+                        className="text-purple-600 hover:text-purple-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Specialties */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-purple-600" />
+                  Specijalnosti
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSpecialty}
+                    onChange={(e) => setNewSpecialty(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSpecialty())}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Dodaj specijalnost (npr. Balayage, Ombre)"
+                  />
+                  <button
+                    type="button"
+                    onClick={addSpecialty}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {staffProfileData.specialties.map((specialty, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-pink-100 text-pink-800 text-sm rounded-full"
+                    >
+                      {specialty}
+                      <button
+                        type="button"
+                        onClick={() => removeSpecialty(specialty)}
+                        className="text-pink-600 hover:text-pink-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Education */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-purple-600" />
+                    Obrazovanje i certifikati
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={addEducation}
+                    className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Dodaj
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {staffProfileData.education.map((edu, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-medium text-gray-900">Obrazovanje #{index + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeEducation(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          value={edu.school}
+                          onChange={(e) => updateEducation(index, 'school', e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                          placeholder="Škola/Institucija"
+                        />
+                        <input
+                          type="text"
+                          value={edu.degree}
+                          onChange={(e) => updateEducation(index, 'degree', e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                          placeholder="Diploma/Certifikat"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={edu.year}
+                        onChange={(e) => updateEducation(index, 'year', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        placeholder="Godina (npr. 2020 ili 2018-2020)"
+                      />
+                    </div>
+                  ))}
+                  {staffProfileData.education.length === 0 && (
+                    <p className="text-gray-500 text-sm text-center py-4">Nema dodanih obrazovanja. Kliknite "Dodaj" da dodate.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Achievements */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-purple-600" />
+                    Postignuća i nagrade
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={addAchievement}
+                    className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Dodaj
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {staffProfileData.achievements.map((achievement, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-medium text-gray-900">Postignuće #{index + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeAchievement(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={achievement.title}
+                        onChange={(e) => updateAchievement(index, 'title', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        placeholder="Naslov (npr. Prvo mjesto na takmičenju)"
+                      />
+                      <textarea
+                        value={achievement.description}
+                        onChange={(e) => updateAchievement(index, 'description', e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        placeholder="Opis postignuća"
+                      />
+                      <input
+                        type="text"
+                        value={achievement.year}
+                        onChange={(e) => updateAchievement(index, 'year', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        placeholder="Godina"
+                      />
+                    </div>
+                  ))}
+                  {staffProfileData.achievements.length === 0 && (
+                    <p className="text-gray-500 text-sm text-center py-4">Nema dodanih postignuća. Kliknite "Dodaj" da dodate.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Social Media */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Instagram className="w-5 h-5 text-purple-600" />
+                  Društvene mreže
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
+                    <input
+                      type="url"
+                      value={staffProfileData.instagram}
+                      onChange={(e) => setStaffProfileData({ ...staffProfileData, instagram: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://instagram.com/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Facebook</label>
+                    <input
+                      type="url"
+                      value={staffProfileData.facebook}
+                      onChange={(e) => setStaffProfileData({ ...staffProfileData, facebook: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://facebook.com/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">TikTok</label>
+                    <input
+                      type="url"
+                      value={staffProfileData.tiktok}
+                      onChange={(e) => setStaffProfileData({ ...staffProfileData, tiktok: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="https://tiktok.com/@..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Settings */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-purple-600" />
+                  Podešavanja rezervacija
+                </h3>
+                
+                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <span className="font-medium text-gray-900 block">Prihvatam rezervacije</span>
+                    <span className="text-sm text-gray-600">Klijenti mogu da rezervišu termine kod mene</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={staffProfileData.accepts_bookings}
+                    onChange={(e) => setStaffProfileData({ ...staffProfileData, accepts_bookings: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                </label>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Napomena za rezervacije</label>
+                  <textarea
+                    value={staffProfileData.booking_note}
+                    onChange={(e) => setStaffProfileData({ ...staffProfileData, booking_note: e.target.value })}
+                    rows={2}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Dodatne informacije za klijente (npr. 'Molim vas da dođete 5 minuta ranije')"
+                  />
+                </div>
+
+                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <span className="font-medium text-gray-900 block">Javni profil</span>
+                    <span className="text-sm text-gray-600">Prikaži moj profil u javnim pretragama</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={staffProfileData.is_public}
+                    onChange={(e) => setStaffProfileData({ ...staffProfileData, is_public: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {loading ? 'Čuvanje...' : 'Sačuvaj profesionalni profil'}
                 </button>
               </div>
             </form>

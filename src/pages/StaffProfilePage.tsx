@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MainNavbar } from '../components/Layout/MainNavbar';
 import { PublicFooter } from '../components/Public/PublicFooter';
+import { GuestBookingModal } from '../components/Public/GuestBookingModal';
 import { 
   StarIcon, 
   MapPinIcon, 
@@ -40,6 +41,32 @@ interface StaffProfile {
   review_count: number;
   accepts_bookings: boolean;
   booking_note?: string;
+  working_hours?: {
+    [key: string]: { start: string; end: string; is_working: boolean };
+  };
+  breaks?: Array<{
+    id: number;
+    title: string;
+    type: 'daily' | 'weekly' | 'specific_date' | 'date_range';
+    start_time: string;
+    end_time: string;
+    days?: string[];
+    date?: string;
+    start_date?: string;
+    end_date?: string;
+    is_active: boolean;
+    created_at: string;
+  }>;
+  vacations?: Array<{
+    id: number;
+    title: string;
+    start_date: string;
+    end_date: string;
+    type: string;
+    notes?: string;
+    is_active: boolean;
+    created_at: string;
+  }>;
   salon: {
     id: number;
     name: string;
@@ -48,6 +75,32 @@ interface StaffProfile {
     city: string;
     phone: string;
     image_url?: string;
+    working_hours?: {
+      [key: string]: { open: string; close: string; is_open: boolean };
+    };
+    salon_breaks?: Array<{
+      id: number;
+      title: string;
+      type: 'daily' | 'weekly' | 'specific_date' | 'date_range';
+      start_time: string;
+      end_time: string;
+      days?: string[];
+      date?: string;
+      start_date?: string;
+      end_date?: string;
+      is_active: boolean;
+      created_at: string;
+    }>;
+    salon_vacations?: Array<{
+      id: number;
+      title: string;
+      start_date: string;
+      end_date: string;
+      type: string;
+      notes?: string;
+      is_active: boolean;
+      created_at: string;
+    }>;
   };
   services: Array<{
     id: number;
@@ -92,28 +145,34 @@ const ServiceGallery: React.FC<{
     title?: string;
     description?: string;
     is_featured: boolean;
-    order: number;
+    order?: number;
   }> 
 }> = ({ images }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   if (!images || images.length === 0) return null;
 
+  // Add default order if missing
+  const imagesWithOrder = images.map((img, index) => ({
+    ...img,
+    order: img.order ?? index
+  }));
+
   return (
     <>
       <ServiceGallerySlider
-        images={images}
+        images={imagesWithOrder}
         onImageClick={(index) => setSelectedImageIndex(index)}
       />
 
       {/* Lightbox */}
       {selectedImageIndex !== null && (
         <Lightbox
-          images={images}
+          images={imagesWithOrder}
           currentIndex={selectedImageIndex}
           onClose={() => setSelectedImageIndex(null)}
-          onNext={() => setSelectedImageIndex((selectedImageIndex + 1) % images.length)}
-          onPrev={() => setSelectedImageIndex((selectedImageIndex - 1 + images.length) % images.length)}
+          onNext={() => setSelectedImageIndex((selectedImageIndex + 1) % imagesWithOrder.length)}
+          onPrev={() => setSelectedImageIndex((selectedImageIndex - 1 + imagesWithOrder.length) % imagesWithOrder.length)}
         />
       )}
     </>
@@ -128,6 +187,8 @@ export const StaffProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'about' | 'portfolio' | 'reviews'>('about');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | undefined>();
 
   useEffect(() => {
     const fetchStaffProfile = async () => {
@@ -162,10 +223,14 @@ export const StaffProfilePage: React.FC = () => {
     }
   }, [slug, navigate]);
 
-  const handleBooking = () => {
-    if (staff) {
-      navigate(`/salon/${staff.salon.slug}?staff=${staff.id}`);
-    }
+  const openBookingModal = (serviceId?: number) => {
+    setSelectedServiceId(serviceId);
+    setShowBookingModal(true);
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    setSelectedServiceId(undefined);
   };
 
   if (loading) {
@@ -192,11 +257,11 @@ export const StaffProfilePage: React.FC = () => {
 
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 sm:py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Profile Image & Quick Info */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-24">
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden lg:sticky lg:top-24">
                 {profileImage ? (
                   <img
                     src={profileImage}
@@ -253,7 +318,7 @@ export const StaffProfilePage: React.FC = () => {
                   {/* Booking Button */}
                   {staff.accepts_bookings && (
                     <button
-                      onClick={handleBooking}
+                      onClick={() => openBookingModal()}
                       className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
                     >
                       <CalendarDaysIcon className="h-5 w-5 inline mr-2" />
@@ -484,13 +549,24 @@ export const StaffProfilePage: React.FC = () => {
                                   </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-3 text-sm text-gray-500 mb-4">
-                                  <div className="flex items-center gap-1">
-                                    <ClockIcon className="h-4 w-4" />
-                                    <span>{service.duration} min</span>
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <ClockIcon className="h-4 w-4" />
+                                      <span>{service.duration} min</span>
+                                    </div>
+                                    <span className="text-gray-300">•</span>
+                                    <span>{service.category}</span>
                                   </div>
-                                  <span className="text-gray-300">•</span>
-                                  <span>{service.category}</span>
+                                  {staff.accepts_bookings && (
+                                    <button
+                                      onClick={() => openBookingModal(service.id)}
+                                      className="text-sm font-medium text-pink-600 hover:text-pink-700 transition-colors flex items-center gap-1"
+                                    >
+                                      <CalendarDaysIcon className="h-4 w-4" />
+                                      Rezerviši
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* Service Gallery */}
@@ -600,6 +676,89 @@ export const StaffProfilePage: React.FC = () => {
             className="max-w-full max-h-full object-contain"
           />
         </div>
+      )}
+
+      {/* Guest Booking Modal */}
+      {showBookingModal && staff && (
+        <GuestBookingModal
+          isOpen={showBookingModal}
+          onClose={closeBookingModal}
+          salon={{
+            id: staff.salon.id,
+            name: staff.salon.name,
+            slug: staff.salon.slug,
+            working_hours: staff.salon.working_hours,
+            salon_breaks: (staff.salon.salon_breaks || []).map(b => ({ ...b, id: b.id.toString() })),
+            salon_vacations: (staff.salon.salon_vacations || []).map(v => ({ ...v, id: v.id.toString(), type: v.type as 'vacation' | 'sick_leave' | 'personal' | 'other' })),
+          }}
+          services={staff.services.map(service => ({
+            ...service,
+            id: service.id.toString(),
+            description: service.description || '',
+            salon_id: staff.salon.id.toString(),
+            staff_ids: [staff.id.toString()],
+            is_active: true,
+            created_at: '',
+            updated_at: '',
+            images: service.images?.map((img, idx) => ({
+              ...img,
+              order: idx
+            })),
+          }))}
+          staff={[{
+            id: staff.id.toString(),
+            name: staff.name,
+            role: staff.role,
+            avatar: staff.avatar,
+            avatar_url: staff.profile_image || staff.avatar,
+            bio: staff.bio,
+            specialties: staff.specialties || [],
+            working_hours: staff.working_hours || {},
+            breaks: (staff.breaks || []).map(b => ({ ...b, id: b.id.toString() })),
+            vacations: (staff.vacations || []).map(v => ({ ...v, id: v.id.toString(), type: v.type as 'vacation' | 'sick_leave' | 'personal' | 'other' })),
+            rating: staff.rating,
+            review_count: staff.review_count,
+            salon_id: staff.salon.id.toString(),
+            is_active: true,
+            created_at: '',
+            updated_at: '',
+          }]}
+          preselectedStaff={{
+            id: staff.id.toString(),
+            name: staff.name,
+            role: staff.role,
+            avatar: staff.avatar,
+            avatar_url: staff.profile_image || staff.avatar,
+            bio: staff.bio,
+            specialties: staff.specialties || [],
+            working_hours: {},
+            breaks: [],
+            vacations: [],
+            rating: staff.rating,
+            review_count: staff.review_count,
+            salon_id: staff.salon.id.toString(),
+            is_active: true,
+            created_at: '',
+            updated_at: '',
+          }}
+          preselectedService={selectedServiceId ? (() => {
+            const service = staff.services.find(s => s.id === selectedServiceId);
+            return service ? {
+              ...service,
+              id: selectedServiceId.toString(),
+              description: service.description || '',
+              salon_id: staff.salon.id.toString(),
+              staff_ids: [staff.id.toString()],
+              is_active: true,
+              created_at: '',
+              updated_at: '',
+              images: service.images?.map((img, idx) => ({
+                ...img,
+                order: idx
+              })),
+            } : undefined;
+          })() : undefined}
+        />
       )}
 
       <PublicFooter />
