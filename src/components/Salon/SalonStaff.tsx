@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Clock, Star, User, Save, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, Star, User, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { staffAPI, serviceAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
@@ -33,6 +33,8 @@ export function SalonStaff() {
   });
 
   const [newSpecialty, setNewSpecialty] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -79,6 +81,7 @@ export function SalonStaff() {
       service_ids: []
     });
     setNewSpecialty('');
+    setErrors({});
   };
 
   const handleEdit = (staffMember: any) => {
@@ -97,8 +100,71 @@ export function SalonStaff() {
     setShowAddModal(true);
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Ime i prezime je obavezno';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Ime mora imati najmanje 3 karaktera';
+    }
+
+    // Role validation
+    if (!formData.role) {
+      newErrors.role = 'Tip zaposlenog je obavezan';
+    }
+
+    // Email validation (only for new staff)
+    if (!editingStaff) {
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email je obavezan';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Email adresa nije validna';
+      }
+
+      // Password validation (only for new staff)
+      if (!formData.password) {
+        newErrors.password = 'Lozinka je obavezna';
+      } else {
+        if (formData.password.length < 8) {
+          newErrors.password = 'Lozinka mora imati najmanje 8 karaktera';
+        } else if (!/[A-Z]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedno veliko slovo';
+        } else if (!/[a-z]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedno malo slovo';
+        } else if (!/[0-9]/.test(formData.password)) {
+          newErrors.password = 'Lozinka mora sadržavati najmanje jedan broj';
+        }
+      }
+    }
+
+    // Phone validation (optional but must be valid if provided)
+    if (formData.phone && formData.phone.trim()) {
+      const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+      if (!phoneRegex.test(formData.phone)) {
+        newErrors.phone = 'Broj telefona nije validan';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
     if (!user?.salon) return;
+
+    // Clear previous errors
+    setErrors({});
+
+    // Validate form
+    if (!validateForm()) {
+      // Scroll to first error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setSaving(true);
 
     try {
       if (editingStaff) {
@@ -114,8 +180,26 @@ export function SalonStaff() {
       setShowAddModal(false);
       setEditingStaff(null);
       resetForm();
-    } catch (error) {
+      setErrors({});
+    } catch (error: any) {
       console.error('Error saving staff:', error);
+      
+      // Handle server validation errors
+      if (error.response?.data?.errors) {
+        const serverErrors: Record<string, string> = {};
+        Object.keys(error.response.data.errors).forEach(key => {
+          const errorArray = error.response.data.errors[key];
+          serverErrors[key] = Array.isArray(errorArray) ? errorArray[0] : errorArray;
+        });
+        setErrors(serverErrors);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (error.response?.data?.message) {
+        setErrors({ general: error.response.data.message });
+      } else {
+        setErrors({ general: 'Greška prilikom čuvanja zaposlenog' });
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -154,7 +238,7 @@ export function SalonStaff() {
       working_hours: {
         ...prev.working_hours,
         [day]: {
-          ...prev.working_hours[day],
+          ...(prev.working_hours as any)[day],
           [field]: value
         }
       }
@@ -329,6 +413,13 @@ export function SalonStaff() {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* General error message */}
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+                  {errors.general}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -338,9 +429,14 @@ export function SalonStaff() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Marko Petrović"
                   />
+                  {errors.name && (
+                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -350,41 +446,59 @@ export function SalonStaff() {
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.role ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Izaberite tip</option>
                     {Object.entries(StaffRoleLabels).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
+                  {errors.role && (
+                    <p className="mt-1 text-sm text-red-600">{errors.role}</p>
+                  )}
                 </div>
 
                 {!editingStaff && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email (opcionalno)
+                        Email *
                       </label>
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          errors.email ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="marko@salon.ba"
                       />
+                      {errors.email && (
+                        <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                      )}
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Lozinka (ako kreirate nalog)
+                        Lozinka *
                       </label>
                       <input
                         type="password"
                         value={formData.password}
                         onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          errors.password ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="••••••••"
                       />
+                      {errors.password && (
+                        <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        Mora sadržavati: najmanje 8 karaktera, jedno veliko slovo, jedno malo slovo i jedan broj
+                      </p>
                     </div>
                   </>
                 )}
@@ -397,9 +511,14 @@ export function SalonStaff() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="+387 60 123 456"
                   />
+                  {errors.phone && (
+                    <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                  )}
                 </div>
               </div>
 
@@ -490,6 +609,7 @@ export function SalonStaff() {
                 <div className="space-y-4">
                   {['Ponedeljak', 'Utorak', 'Sreda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'].map((dayName, index) => {
                     const dayKey = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][index];
+                    const daySchedule = (formData.working_hours as any)[dayKey];
                     return (
                       <div key={dayKey} className="flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="w-24">
@@ -498,23 +618,23 @@ export function SalonStaff() {
                         <div className="flex items-center gap-3">
                           <input
                             type="checkbox"
-                            checked={formData.working_hours[dayKey].is_working}
+                            checked={daySchedule.is_working}
                             onChange={(e) => handleWorkingHoursChange(dayKey, 'is_working', e.target.checked)}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm text-gray-600">Radi</span>
-                          {formData.working_hours[dayKey].is_working && (
+                          {daySchedule.is_working && (
                             <>
                               <input
                                 type="time"
-                                value={formData.working_hours[dayKey].start}
+                                value={daySchedule.start}
                                 onChange={(e) => handleWorkingHoursChange(dayKey, 'start', e.target.value)}
                                 className="px-2 py-1 border border-gray-300 rounded text-sm"
                               />
                               <span className="text-gray-400">-</span>
                               <input
                                 type="time"
-                                value={formData.working_hours[dayKey].end}
+                                value={daySchedule.end}
                                 onChange={(e) => handleWorkingHoursChange(dayKey, 'end', e.target.value)}
                                 className="px-2 py-1 border border-gray-300 rounded text-sm"
                               />
@@ -536,16 +656,27 @@ export function SalonStaff() {
                     setEditingStaff(null);
                     resetForm();
                   }}
-                  className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={saving}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Otkaži
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2"
+                  disabled={saving}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Save className="w-4 h-4" />
-                  {editingStaff ? 'Sačuvaj izmene' : 'Dodaj zaposlenog'}
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Čuvanje...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      {editingStaff ? 'Sačuvaj izmene' : 'Dodaj zaposlenog'}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
