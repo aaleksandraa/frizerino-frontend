@@ -35,10 +35,16 @@ interface Widget {
 }
 
 interface EmbedCode {
-  iframe: string;
   javascript: string;
+  javascript_dark?: string;
+  javascript_custom?: string;
   api_key: string;
   widget_url: string;
+  salon_slug?: string;
+  customization?: {
+    primary_color: string;
+    available_options: Record<string, string>;
+  };
 }
 
 interface Analytics {
@@ -360,16 +366,6 @@ export const AdminWidgetManagement: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Embed Code</h3>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setActiveTab('iframe')}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeTab === 'iframe'
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Iframe
-                    </button>
-                    <button
                       onClick={() => setActiveTab('javascript')}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         activeTab === 'javascript'
@@ -377,7 +373,17 @@ export const AdminWidgetManagement: React.FC = () => {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      JavaScript
+                      Light Theme
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('iframe')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeTab === 'iframe'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Dark Theme
                     </button>
                   </div>
                 </div>
@@ -385,10 +391,10 @@ export const AdminWidgetManagement: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-gray-900">
-                      {activeTab === 'iframe' ? 'Iframe Embed Code' : 'JavaScript SDK'}
+                      {activeTab === 'javascript' ? '☀️ Light Theme Widget' : '🌙 Dark Theme Widget'}
                     </h4>
                     <button
-                      onClick={() => copyToClipboard(activeTab === 'iframe' ? embedCode.iframe : embedCode.javascript)}
+                      onClick={() => copyToClipboard(activeTab === 'javascript' ? embedCode.javascript : (embedCode.javascript_dark || embedCode.javascript))}
                       className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700 font-medium"
                     >
                       <ClipboardIcon className="w-4 h-4" />
@@ -396,8 +402,39 @@ export const AdminWidgetManagement: React.FC = () => {
                     </button>
                   </div>
                   <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-xs leading-relaxed">
-                    {activeTab === 'iframe' ? embedCode.iframe : embedCode.javascript}
+                    {activeTab === 'javascript' ? embedCode.javascript : (embedCode.javascript_dark || embedCode.javascript)}
                   </pre>
+                </div>
+
+                {/* Customization Options */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-purple-900 mb-3">🎨 Opcije za Customizaciju</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-primary-color</code>
+                      <p className="text-gray-600 mt-1">Glavna boja (hex, npr. #FF6B35)</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-theme</code>
+                      <p className="text-gray-600 mt-1">"light" ili "dark"</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-button-text</code>
+                      <p className="text-gray-600 mt-1">Tekst na dugmetu</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-button-radius</code>
+                      <p className="text-gray-600 mt-1">Zaobljenost dugmeta (npr. 8px, 24px)</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-font</code>
+                      <p className="text-gray-600 mt-1">Font family</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-purple-100">
+                      <code className="text-purple-700 font-mono">data-container</code>
+                      <p className="text-gray-600 mt-1">Custom container ID</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -409,6 +446,7 @@ export const AdminWidgetManagement: React.FC = () => {
                     <li>Kopirajte kod iznad</li>
                     <li>Zalijepite ga na svoj website (HTML fajl)</li>
                     <li>Widget će automatski raditi i prikazivati booking formu</li>
+                    <li>Prilagodite boje i stil po želji koristeći data-* atribute</li>
                     <li>Sve rezervacije će biti vidljive u Frizerino sistemu</li>
                   </ol>
                 </div>
