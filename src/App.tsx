@@ -129,9 +129,6 @@ function AuthWrapper() {
       <Route path="/salon/:slug" element={<PublicSalonPage />} />
       <Route path="/profil/:slug" element={<StaffProfilePage />} />
       
-      {/* Widget Booking - Embedded iframe route */}
-      <Route path="/widget/:salonSlug" element={<WidgetBooking />} />
-      
       {/* Help Pages */}
       <Route path="/pomoc/kako-registrovati-salon" element={<HowToRegisterSalonPage />} />
       <Route path="/pomoc/kako-zakazati-termin" element={<HowToBookPage />} />
@@ -182,7 +179,13 @@ function App() {
       <AppearanceProvider>
         <GoogleAnalytics />
         <ScrollToTop />
-        <AuthWrapper />
+        <Routes>
+          {/* Widget Route - MUST be outside AuthWrapper to avoid auth checks */}
+          <Route path="/widget/:salonSlug" element={<WidgetBooking />} />
+          
+          {/* All other routes go through AuthWrapper */}
+          <Route path="/*" element={<AuthWrapper />} />
+        </Routes>
       </AppearanceProvider>
     </AuthProvider>
   );
