@@ -551,11 +551,15 @@ export const StaffProfilePage: React.FC = () => {
                                 
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-3 text-sm text-gray-500">
-                                    <div className="flex items-center gap-1">
-                                      <ClockIcon className="h-4 w-4" />
-                                      <span>{service.duration} min</span>
-                                    </div>
-                                    <span className="text-gray-300">•</span>
+                                    {service.duration > 0 && (
+                                      <>
+                                        <div className="flex items-center gap-1">
+                                          <ClockIcon className="h-4 w-4" />
+                                          <span>{service.duration} min</span>
+                                        </div>
+                                        <span className="text-gray-300">•</span>
+                                      </>
+                                    )}
                                     <span>{service.category}</span>
                                   </div>
                                   {staff.accepts_bookings && service.duration > 0 && (
@@ -566,11 +570,6 @@ export const StaffProfilePage: React.FC = () => {
                                       <CalendarDaysIcon className="h-4 w-4" />
                                       Rezerviši
                                     </button>
-                                  )}
-                                  {service.duration === 0 && (
-                                    <span className="text-xs text-gray-500 italic">
-                                      (dodatak)
-                                    </span>
                                   )}
                                 </div>
 

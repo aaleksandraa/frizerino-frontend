@@ -349,6 +349,11 @@ export const serviceAPI = {
   deleteService: async (salonId: string, serviceId: string) => {
     const response = await api.delete(`/salons/${salonId}/services/${serviceId}`);
     return response.data;
+  },
+  
+  reorderServices: async (salonId: string, data: { services: { id: number; display_order: number }[]; category_order?: string[] }) => {
+    const response = await api.post(`/salons/${salonId}/services/reorder`, data);
+    return response.data;
   }
 };
 

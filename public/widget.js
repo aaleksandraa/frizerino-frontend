@@ -310,12 +310,12 @@
   // Helper to render a single service item
   function renderServiceItem(s) {
     var selected = state.selectedServices.some(function(ss) { return ss.id === s.id; });
-    // Skip 0-duration services as first selection (addons)
-    if (s.duration === 0 && state.selectedServices.length === 0) return '';
+    // Show all services including 0-duration (addons)
+    var durationHtml = s.duration > 0 ? '<div class="frzn-service-meta">' + s.duration + ' min</div>' : '';
     return '<div class="frzn-service-item' + (selected ? ' selected' : '') + '" data-service-id="' + s.id + '">' +
       '<div class="frzn-service-info">' +
-        '<div class="frzn-service-name">' + s.name + (s.duration === 0 ? ' <small>(dodatak)</small>' : '') + '</div>' +
-        '<div class="frzn-service-meta">' + s.duration + ' min</div>' +
+        '<div class="frzn-service-name">' + s.name + '</div>' +
+        durationHtml +
       '</div>' +
       '<div class="frzn-service-price">' + (s.discount_price || s.price) + ' KM</div>' +
     '</div>';
@@ -335,8 +335,22 @@
         categories[cat].push(s);
       });
 
-      // Render by category
-      Object.keys(categories).forEach(function(catName) {
+      // Get category order from salon settings
+      var categoryOrder = (state.salon && state.salon.category_order) || [];
+      var categoryNames = Object.keys(categories);
+      
+      // Sort categories: first by custom order, then alphabetically for unordered
+      categoryNames.sort(function(a, b) {
+        var indexA = categoryOrder.indexOf(a);
+        var indexB = categoryOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+
+      // Render by category in sorted order
+      categoryNames.forEach(function(catName) {
         var catServices = categories[catName];
         var catServicesHtml = catServices.map(renderServiceItem).filter(Boolean).join('');
         if (catServicesHtml) {
@@ -347,7 +361,7 @@
         }
       });
     } else {
-      // Simple list (default)
+      // Simple list (default) - services already sorted by display_order from backend
       servicesHtml = '<div class="frzn-services">' + 
         state.services.map(renderServiceItem).filter(Boolean).join('') + 
       '</div>';

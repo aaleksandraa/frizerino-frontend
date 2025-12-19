@@ -90,6 +90,7 @@ export interface Salon {
   is_verified: boolean;
   auto_confirm?: boolean;
   show_service_gallery?: boolean;
+  category_order?: string[];
   status: 'pending' | 'approved' | 'suspended';
   salon_breaks?: Break[];
   salon_vacations?: Vacation[];
@@ -177,6 +178,7 @@ export interface Service {
   price: number;
   discount_price?: number | null;
   category: string;
+  display_order?: number;
   salon_id: string;
   staff_ids: string[];
   staff?: Staff[];

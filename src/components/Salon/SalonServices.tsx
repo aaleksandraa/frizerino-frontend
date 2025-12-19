@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Clock, DollarSign, Save, X, Image } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, DollarSign, Save, X, Image, GripVertical, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { serviceAPI, staffAPI } from '../../services/api';
+import { serviceAPI, staffAPI, salonAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
 import { ServiceImageManager } from '../Dashboard/ServiceImageManager';
 
@@ -15,6 +15,12 @@ export function SalonServices() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [managingImagesFor, setManagingImagesFor] = useState<any>(null);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  const [isReordering, setIsReordering] = useState(false);
+  const [hasOrderChanges, setHasOrderChanges] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [draggedService, setDraggedService] = useState<any>(null);
+  const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -38,21 +44,30 @@ export function SalonServices() {
     
     try {
       setLoading(true);
-      const [servicesData, staffData] = await Promise.all([
+      const [servicesData, staffData, salonData] = await Promise.all([
         serviceAPI.getServices(user.salon.id),
-        staffAPI.getStaff(user.salon.id)
+        staffAPI.getStaff(user.salon.id),
+        salonAPI.getSalon(user.salon.id)
       ]);
       
       // Handle paginated or array response
       const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.data || []);
       const staffArray = Array.isArray(staffData) ? staffData : (staffData?.data || []);
       
+      // Sort services by display_order
+      servicesArray.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+      
       setServices(servicesArray);
       setStaff(staffArray);
       
+      // Load category order from salon
+      if (salonData?.category_order) {
+        setCategoryOrder(salonData.category_order);
+      }
+      
       // Extract custom categories
-      const categories = [...new Set(servicesArray.map((s: any) => s.category))];
-      const custom = categories.filter(cat => !defaultCategories.includes(cat));
+      const categories = [...new Set(servicesArray.map((s: any) => s.category))] as string[];
+      const custom = categories.filter((cat: string) => !defaultCategories.includes(cat));
       setCustomCategories(custom);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -152,7 +167,89 @@ export function SalonServices() {
     return services.filter(service => service.category === category);
   };
 
-  const allCategories = [...defaultCategories, ...customCategories];
+  // Sort categories by custom order, then default order
+  const allCategories = [...defaultCategories, ...customCategories].sort((a, b) => {
+    const indexA = categoryOrder.indexOf(a);
+    const indexB = categoryOrder.indexOf(b);
+    if (indexA === -1 && indexB === -1) return 0;
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
+  // Drag handlers for services
+  const handleServiceDragStart = (e: React.DragEvent, service: any) => {
+    setDraggedService(service);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleServiceDragOver = (e: React.DragEvent, targetService: any) => {
+    e.preventDefault();
+    if (!draggedService || draggedService.id === targetService.id) return;
+    if (draggedService.category !== targetService.category) return;
+    
+    const newServices = [...services];
+    const draggedIndex = newServices.findIndex(s => s.id === draggedService.id);
+    const targetIndex = newServices.findIndex(s => s.id === targetService.id);
+    
+    newServices.splice(draggedIndex, 1);
+    newServices.splice(targetIndex, 0, draggedService);
+    
+    // Update display_order
+    newServices.forEach((s, i) => s.display_order = i);
+    
+    setServices(newServices);
+    setHasOrderChanges(true);
+  };
+
+  const handleServiceDragEnd = () => {
+    setDraggedService(null);
+  };
+
+  // Drag handlers for categories
+  const handleCategoryDragStart = (e: React.DragEvent, category: string) => {
+    setDraggedCategory(category);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCategoryDragOver = (e: React.DragEvent, targetCategory: string) => {
+    e.preventDefault();
+    if (!draggedCategory || draggedCategory === targetCategory) return;
+    
+    const currentOrder = [...allCategories];
+    const draggedIndex = currentOrder.indexOf(draggedCategory);
+    const targetIndex = currentOrder.indexOf(targetCategory);
+    
+    currentOrder.splice(draggedIndex, 1);
+    currentOrder.splice(targetIndex, 0, draggedCategory);
+    
+    setCategoryOrder(currentOrder);
+    setHasOrderChanges(true);
+  };
+
+  const handleCategoryDragEnd = () => {
+    setDraggedCategory(null);
+  };
+
+  // Save order changes
+  const saveOrderChanges = async () => {
+    if (!user?.salon) return;
+    
+    try {
+      setSavingOrder(true);
+      await serviceAPI.reorderServices(user.salon.id, {
+        services: services.map((s, i) => ({ id: s.id, display_order: i })),
+        category_order: categoryOrder.length > 0 ? categoryOrder : allCategories
+      });
+      setHasOrderChanges(false);
+      setIsReordering(false);
+    } catch (error) {
+      console.error('Error saving order:', error);
+      alert('Greška pri spremanju redoslijeda');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -169,18 +266,66 @@ export function SalonServices() {
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Upravljanje uslugama</h1>
-        <button 
-          onClick={() => {
-            resetForm();
-            setEditingService(null);
-            setShowAddModal(true);
-          }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
-        >
-          <Plus className="w-5 h-5" />
-          Dodaj uslugu
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {isReordering ? (
+            <>
+              <button 
+                onClick={() => {
+                  setIsReordering(false);
+                  setHasOrderChanges(false);
+                  loadData(); // Reset to original order
+                }}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-all flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Otkaži
+              </button>
+              <button 
+                onClick={saveOrderChanges}
+                disabled={!hasOrderChanges || savingOrder}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {savingOrder ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Sačuvaj redoslijed
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setIsReordering(true)}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-all flex items-center gap-2"
+              >
+                <GripVertical className="w-4 h-4" />
+                Promijeni redoslijed
+              </button>
+              <button 
+                onClick={() => {
+                  resetForm();
+                  setEditingService(null);
+                  setShowAddModal(true);
+                }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Dodaj uslugu
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      
+      {isReordering && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-blue-800 text-sm">
+            <strong>Način uređivanja:</strong> Povucite kategorije ili usluge da promijenite njihov redoslijed. 
+            Ovaj redoslijed će se prikazivati na profilu salona i widgetu.
+          </p>
+        </div>
+      )}
 
       {/* Services by Category */}
       <div className="space-y-6">
@@ -190,24 +335,49 @@ export function SalonServices() {
           if (categoryServices.length === 0) return null;
           
           return (
-            <div key={category} className="bg-white rounded-xl shadow-sm border">
-              <div className="p-4 sm:p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">{category}</h3>
-                <p className="text-sm text-gray-600">{categoryServices.length} usluga</p>
+            <div 
+              key={category} 
+              className={`bg-white rounded-xl shadow-sm border ${isReordering ? 'cursor-move' : ''} ${draggedCategory === category ? 'opacity-50' : ''}`}
+              draggable={isReordering}
+              onDragStart={(e) => isReordering && handleCategoryDragStart(e, category)}
+              onDragOver={(e) => isReordering && handleCategoryDragOver(e, category)}
+              onDragEnd={handleCategoryDragEnd}
+            >
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center gap-3">
+                {isReordering && (
+                  <GripVertical className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{category}</h3>
+                  <p className="text-sm text-gray-600">{categoryServices.length} usluga</p>
+                </div>
               </div>
               
               <div className="divide-y divide-gray-200">
                 {categoryServices.map(service => (
-                  <div key={service.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                  <div 
+                    key={service.id} 
+                    className={`p-4 sm:p-6 hover:bg-gray-50 transition-colors ${isReordering ? 'cursor-move' : ''} ${draggedService?.id === service.id ? 'opacity-50 bg-blue-50' : ''}`}
+                    draggable={isReordering}
+                    onDragStart={(e) => { e.stopPropagation(); isReordering && handleServiceDragStart(e, service); }}
+                    onDragOver={(e) => { e.stopPropagation(); isReordering && handleServiceDragOver(e, service); }}
+                    onDragEnd={handleServiceDragEnd}
+                  >
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-start gap-3">
+                        {isReordering && (
+                          <GripVertical className="w-5 h-5 text-gray-400 flex-shrink-0 mt-1" />
+                        )}
+                        <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
                           <h4 className="text-lg font-semibold text-gray-900 truncate">{service.name}</h4>
                           <div className="flex items-center gap-4 text-sm text-gray-600 flex-shrink-0">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>{service.duration} min</span>
-                            </div>
+                            {service.duration > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{service.duration} min</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-1">
                               <DollarSign className="w-4 h-4" />
                               {service.discount_price ? (
@@ -220,7 +390,8 @@ export function SalonServices() {
                               )}
                             </div>
                           </div>
-                        </div>                        <p className="text-gray-600 mb-3 text-sm sm:text-base">{service.description}</p>
+                        </div>
+                        <p className="text-gray-600 mb-3 text-sm sm:text-base">{service.description}</p>
                         
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                           <span className="text-sm font-medium text-gray-700">Izvršioci:</span>
@@ -235,8 +406,10 @@ export function SalonServices() {
                             ))}
                           </div>
                         </div>
+                        </div>
                       </div>
                       
+                      {!isReordering && (
                       <div className="flex gap-2 flex-shrink-0">
                         <button 
                           onClick={() => setManagingImagesFor(service)}
@@ -258,6 +431,7 @@ export function SalonServices() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      )}
                     </div>
                   </div>
                 ))}

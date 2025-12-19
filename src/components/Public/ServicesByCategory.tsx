@@ -10,6 +10,7 @@ interface ServicesByCategoryProps {
   onBookService: (service: Service) => void;
   initialVisibleCount?: number;
   showGallery?: boolean; // Control whether to show service galleries
+  categoryOrder?: string[]; // Custom category order from salon settings
 }
 
 // Category display names and icons
@@ -45,7 +46,8 @@ export default function ServicesByCategory({
   services,
   onBookService,
   initialVisibleCount = 3,
-  showGallery = true
+  showGallery = true,
+  categoryOrder = []
 }: ServicesByCategoryProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [lightboxImages, setLightboxImages] = useState<any[]>([]);
@@ -63,13 +65,18 @@ export default function ServicesByCategory({
       grouped[category].push(service);
     });
 
-    // Sort categories by number of services (descending)
-    const sortedCategories = Object.entries(grouped).sort(
-      ([, a], [, b]) => b.length - a.length
-    );
+    // Sort categories by custom order, then alphabetically
+    const sortedCategories = Object.entries(grouped).sort(([catA], [catB]) => {
+      const indexA = categoryOrder.indexOf(catA);
+      const indexB = categoryOrder.indexOf(catB);
+      if (indexA === -1 && indexB === -1) return catA.localeCompare(catB);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
 
     return sortedCategories;
-  }, [services]);
+  }, [services, categoryOrder]);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -144,10 +151,12 @@ export default function ServicesByCategory({
                       </div>
                       {/* Mobile: duration, price, button in one row */}
                       <div className="flex items-center justify-between sm:justify-end gap-3 mt-3 sm:mt-0 flex-shrink-0">
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <ClockIcon className="w-3.5 h-3.5" />
-                          <span>{service.duration} min</span>
-                        </div>
+                        {service.duration > 0 && (
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <ClockIcon className="w-3.5 h-3.5" />
+                            <span>{service.duration} min</span>
+                          </div>
+                        )}
                         <div className="text-right">
                           <div className="font-semibold text-gray-900 text-sm md:text-base">
                             {service.discount_price || service.price} KM
