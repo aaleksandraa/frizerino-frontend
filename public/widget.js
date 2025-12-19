@@ -184,9 +184,11 @@
   }
 
 
-  // API functions
-  function apiRequest(endpoint, options) {
+  // API functions with retry logic
+  function apiRequest(endpoint, options, retryCount) {
     options = options || {};
+    retryCount = retryCount || 0;
+    var maxRetries = 3;
     var url = config.apiUrl + endpoint;
     var headers = {
       'Content-Type': 'application/json',
@@ -208,6 +210,17 @@
         }
         return data;
       });
+    }).catch(function(err) {
+      // Retry on 401 or network errors (might be timing issue)
+      if (retryCount < maxRetries && (err.status === 401 || !err.status)) {
+        var delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+        return new Promise(function(resolve) {
+          setTimeout(resolve, delay);
+        }).then(function() {
+          return apiRequest(endpoint, options, retryCount + 1);
+        });
+      }
+      throw err;
     });
   }
 
@@ -674,28 +687,37 @@
     '</div>';
   }
 
-  // Initialize
+  // Initialize with retry and silent error handling
   function init() {
-    loadSalonData()
-      .then(function(data) {
-        state.salon = data.salon;
-        state.services = data.services || [];
-        state.staff = data.staff || [];
-        state.loading = false;
-        render();
-      })
-      .catch(function(err) {
-        console.error('Frizerino Widget Error:', err);
-        state.loading = false;
-        state.error = 'Greška pri učitavanju. Provjerite API ključ.';
-        render();
-      });
+    // Small delay to ensure DOM is fully ready and avoid race conditions
+    setTimeout(function() {
+      loadSalonData()
+        .then(function(data) {
+          state.salon = data.salon;
+          state.services = data.services || [];
+          state.staff = data.staff || [];
+          state.loading = false;
+          state.error = null;
+          render();
+        })
+        .catch(function(err) {
+          // Only log to console, don't show error to user on first load
+          // The retry mechanism should have already tried 3 times
+          if (window.console && console.warn) {
+            console.warn('Frizerino Widget: Load failed after retries', err.message);
+          }
+          state.loading = false;
+          state.error = 'Widget trenutno nije dostupan. Molimo osvježite stranicu.';
+          render();
+        });
+    }, 100);
   }
 
-  // Start
+  // Start - ensure script is fully loaded
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    init();
+    // Additional small delay for external scripts
+    setTimeout(init, 50);
   }
 })();
