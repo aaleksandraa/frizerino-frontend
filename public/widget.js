@@ -332,14 +332,27 @@
   }
 
 
+  // Helper to check if a day is working day based on salon working_hours
+  function isDayWorking(date) {
+    if (!state.salon || !state.salon.working_hours) return true;
+    var dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    var dayName = dayNames[date.getDay()];
+    var dayHours = state.salon.working_hours[dayName];
+    return dayHours && dayHours.is_open;
+  }
+
   function renderStep3() {
     var today = new Date();
     var currentMonth = state.calendarMonth || today.getMonth();
     var currentYear = state.calendarYear || today.getFullYear();
     var monthNames = ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'];
-    var dayNames = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub'];
+    // Start week from Monday (European format)
+    var dayNames = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
     
-    var firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    // Get first day of month (0=Sunday, 1=Monday, etc.)
+    var firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+    // Convert to Monday-based (Monday=0, Sunday=6)
+    var firstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
     var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     
     var calendarHtml = '<div class="frzn-calendar">' +
@@ -360,11 +373,12 @@
       var isToday = date.toDateString() === today.toDateString();
       var isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       var isSelected = state.selectedDate === dateStr;
+      var isNonWorking = !isDayWorking(date);
       
       var classes = 'frzn-calendar-date';
       if (isToday) classes += ' today';
-      if (isPast) classes += ' disabled';
-      if (isSelected) classes += ' selected';
+      if (isPast || isNonWorking) classes += ' disabled';
+      if (isSelected && !isNonWorking) classes += ' selected';
       
       calendarHtml += '<div class="' + classes + '" data-date="' + dateStr + '">' + day + '</div>';
     }
