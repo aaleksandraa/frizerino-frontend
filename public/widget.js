@@ -15,6 +15,12 @@
 (function() {
   'use strict';
 
+  // Prevent multiple initializations
+  if (window.__FRIZERINO_WIDGET_LOADED__) {
+    return;
+  }
+  window.__FRIZERINO_WIDGET_LOADED__ = true;
+
   // Get script element and config
   var script = document.currentScript || document.querySelector('script[data-salon]');
   if (!script) {
@@ -687,37 +693,51 @@
     '</div>';
   }
 
+  // Track initialization state
+  var isInitialized = false;
+  var isLoading = false;
+
   // Initialize with retry and silent error handling
   function init() {
-    // Small delay to ensure DOM is fully ready and avoid race conditions
-    setTimeout(function() {
-      loadSalonData()
-        .then(function(data) {
+    // Prevent multiple init calls
+    if (isInitialized || isLoading) {
+      return;
+    }
+    isLoading = true;
+
+    loadSalonData()
+      .then(function(data) {
+        // Only update if not already initialized (prevent race conditions)
+        if (!isInitialized) {
+          isInitialized = true;
           state.salon = data.salon;
           state.services = data.services || [];
           state.staff = data.staff || [];
           state.loading = false;
           state.error = null;
           render();
-        })
-        .catch(function(err) {
-          // Only log to console, don't show error to user on first load
-          // The retry mechanism should have already tried 3 times
+        }
+      })
+      .catch(function(err) {
+        // Only show error if not already initialized
+        if (!isInitialized) {
           if (window.console && console.warn) {
-            console.warn('Frizerino Widget: Load failed after retries', err.message);
+            console.warn('Frizerino Widget: Load failed', err.message);
           }
           state.loading = false;
           state.error = 'Widget trenutno nije dostupan. Molimo osvježite stranicu.';
           render();
-        });
-    }, 100);
+        }
+      })
+      .finally(function() {
+        isLoading = false;
+      });
   }
 
-  // Start - ensure script is fully loaded
+  // Start when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    // Additional small delay for external scripts
-    setTimeout(init, 50);
+    init();
   }
 })();
