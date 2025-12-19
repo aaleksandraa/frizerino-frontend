@@ -56,6 +56,7 @@
     salon: null,
     services: [],
     staff: [],
+    settings: {},
     selectedServices: [],
     selectedStaff: null,
     selectedDate: null,
@@ -115,6 +116,8 @@
     .frzn-service-name { font-weight: 500; font-size: 0.95rem; }
     .frzn-service-meta { font-size: 0.8rem; color: ${config.textColor || (config.theme === 'dark' ? '#aaa' : '#666')}; opacity: 0.7; margin-top: 2px; }
     .frzn-service-price { font-weight: 600; color: ${config.primaryColor}; }
+    .frzn-category { margin-bottom: 16px; }
+    .frzn-category-title { font-weight: 600; font-size: 0.9rem; color: ${config.primaryColor}; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid ${hexToRgba(config.primaryColor, 0.2)}; }
     .frzn-staff-avatar {
       width: 48px; height: 48px; border-radius: 50%; margin-right: 12px;
       background: ${config.primaryColor}; display: flex; align-items: center; justify-content: center;
@@ -304,23 +307,55 @@
     '</div>';
   }
 
+  // Helper to render a single service item
+  function renderServiceItem(s) {
+    var selected = state.selectedServices.some(function(ss) { return ss.id === s.id; });
+    // Skip 0-duration services as first selection (addons)
+    if (s.duration === 0 && state.selectedServices.length === 0) return '';
+    return '<div class="frzn-service-item' + (selected ? ' selected' : '') + '" data-service-id="' + s.id + '">' +
+      '<div class="frzn-service-info">' +
+        '<div class="frzn-service-name">' + s.name + (s.duration === 0 ? ' <small>(dodatak)</small>' : '') + '</div>' +
+        '<div class="frzn-service-meta">' + s.duration + ' min</div>' +
+      '</div>' +
+      '<div class="frzn-service-price">' + (s.discount_price || s.price) + ' KM</div>' +
+    '</div>';
+  }
+
   function renderStep1() {
-    var servicesHtml = state.services.map(function(s) {
-      var selected = state.selectedServices.some(function(ss) { return ss.id === s.id; });
-      // Skip 0-duration services as first selection
-      if (s.duration === 0 && state.selectedServices.length === 0) return '';
-      return '<div class="frzn-service-item' + (selected ? ' selected' : '') + '" data-service-id="' + s.id + '">' +
-        '<div class="frzn-service-info">' +
-          '<div class="frzn-service-name">' + s.name + (s.duration === 0 ? ' <small>(dodatak)</small>' : '') + '</div>' +
-          '<div class="frzn-service-meta">' + s.duration + ' min</div>' +
-        '</div>' +
-        '<div class="frzn-service-price">' + (s.discount_price || s.price) + ' KM</div>' +
+    var servicesHtml = '';
+    var settings = state.settings || {};
+    var displayMode = settings.service_display || 'list'; // 'list' or 'categories'
+
+    if (displayMode === 'categories') {
+      // Group services by category
+      var categories = {};
+      state.services.forEach(function(s) {
+        var cat = s.category || 'Ostalo';
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(s);
+      });
+
+      // Render by category
+      Object.keys(categories).forEach(function(catName) {
+        var catServices = categories[catName];
+        var catServicesHtml = catServices.map(renderServiceItem).filter(Boolean).join('');
+        if (catServicesHtml) {
+          servicesHtml += '<div class="frzn-category">' +
+            '<div class="frzn-category-title">' + catName + '</div>' +
+            '<div class="frzn-services">' + catServicesHtml + '</div>' +
+          '</div>';
+        }
+      });
+    } else {
+      // Simple list (default)
+      servicesHtml = '<div class="frzn-services">' + 
+        state.services.map(renderServiceItem).filter(Boolean).join('') + 
       '</div>';
-    }).join('');
+    }
 
     return '<div class="frzn-step' + (state.step === 1 ? ' active' : '') + '" data-step="1">' +
       '<div class="frzn-step-title">Odaberite uslugu</div>' +
-      '<div class="frzn-services">' + servicesHtml + '</div>' +
+      servicesHtml +
       '<div class="frzn-footer">' +
         '<button class="frzn-btn frzn-btn-primary" data-action="next" ' + (state.selectedServices.length === 0 ? 'disabled' : '') + '>Dalje</button>' +
       '</div>' +
@@ -713,6 +748,7 @@
           state.salon = data.salon;
           state.services = data.services || [];
           state.staff = data.staff || [];
+          state.settings = data.settings || {};
           state.loading = false;
           state.error = null;
           render();

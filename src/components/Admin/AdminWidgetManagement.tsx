@@ -86,6 +86,7 @@ export const AdminWidgetManagement: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
   const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
   const [newDomain, setNewDomain] = useState('');
+  const [serviceDisplay, setServiceDisplay] = useState<'list' | 'categories'>('list');
 
   useEffect(() => {
     loadSalons();
@@ -118,6 +119,7 @@ export const AdminWidgetManagement: React.FC = () => {
       if (response.data.widget) {
         setIsActive(response.data.widget.is_active);
         setAllowedDomains(response.data.widget.allowed_domains || []);
+        setServiceDisplay(response.data.widget.settings?.service_display || 'list');
       }
     } catch (error: any) {
       if (error?.response?.status !== 404) {
@@ -164,6 +166,9 @@ export const AdminWidgetManagement: React.FC = () => {
       await api.put(`/admin/widget/${selectedSalon.id}/settings`, {
         is_active: isActive,
         allowed_domains: allowedDomains,
+        settings: {
+          service_display: serviceDisplay,
+        },
       });
       
       setToast({ 
@@ -485,6 +490,38 @@ export const AdminWidgetManagement: React.FC = () => {
                       }`}
                     />
                   </button>
+                </div>
+
+                {/* Service Display Mode */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-gray-900 mb-2">Prikaz Usluga</p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Odaberite kako će se usluge prikazivati na widget-u
+                  </p>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="serviceDisplay"
+                        value="list"
+                        checked={serviceDisplay === 'list'}
+                        onChange={() => setServiceDisplay('list')}
+                        className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-700">Lista</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="serviceDisplay"
+                        value="categories"
+                        checked={serviceDisplay === 'categories'}
+                        onChange={() => setServiceDisplay('categories')}
+                        className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-700">Po kategorijama</span>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Allowed Domains */}
