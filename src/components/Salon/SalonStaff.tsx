@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Star, User, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Star, User, Save, X, GripVertical, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { staffAPI, serviceAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
@@ -11,6 +11,10 @@ export function SalonStaff() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isReordering, setIsReordering] = useState(false);
+  const [hasOrderChanges, setHasOrderChanges] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [draggedStaff, setDraggedStaff] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -51,7 +55,11 @@ export function SalonStaff() {
       ]);
       
       // Handle paginated or array response
-      setStaff(Array.isArray(staffData) ? staffData : (staffData?.data || []));
+      const staffArray = Array.isArray(staffData) ? staffData : (staffData?.data || []);
+      // Sort by display_order
+      staffArray.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+      
+      setStaff(staffArray);
       setServices(Array.isArray(servicesData) ? servicesData : (servicesData?.data || []));
     } catch (error) {
       console.error('Error loading data:', error);
@@ -267,6 +275,53 @@ export function SalonStaff() {
     }));
   };
 
+  // Drag handlers for staff
+  const handleStaffDragStart = (e: React.DragEvent, staffMember: any) => {
+    setDraggedStaff(staffMember);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleStaffDragOver = (e: React.DragEvent, targetStaff: any) => {
+    e.preventDefault();
+    if (!draggedStaff || draggedStaff.id === targetStaff.id) return;
+    
+    const newStaff = [...staff];
+    const draggedIndex = newStaff.findIndex(s => s.id === draggedStaff.id);
+    const targetIndex = newStaff.findIndex(s => s.id === targetStaff.id);
+    
+    newStaff.splice(draggedIndex, 1);
+    newStaff.splice(targetIndex, 0, draggedStaff);
+    
+    // Update display_order
+    newStaff.forEach((s, i) => s.display_order = i);
+    
+    setStaff(newStaff);
+    setHasOrderChanges(true);
+  };
+
+  const handleStaffDragEnd = () => {
+    setDraggedStaff(null);
+  };
+
+  // Save order changes
+  const saveOrderChanges = async () => {
+    if (!user?.salon) return;
+    
+    try {
+      setSavingOrder(true);
+      await staffAPI.reorderStaff(user.salon.id, {
+        staff: staff.map((s, i) => ({ id: s.id, display_order: i }))
+      });
+      setHasOrderChanges(false);
+      setIsReordering(false);
+    } catch (error) {
+      console.error('Error saving order:', error);
+      alert('Greška pri spremanju redoslijeda');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
   const WorkingHoursDisplay = ({ workingHours }: { workingHours: any }) => {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const dayNames = ['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'];
@@ -303,26 +358,84 @@ export function SalonStaff() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Upravljanje zaposlenima</h1>
-        <button 
-          onClick={() => {
-            resetForm();
-            setEditingStaff(null);
-            setShowAddModal(true);
-          }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Dodaj zaposlenog
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {isReordering ? (
+            <>
+              <button 
+                onClick={() => {
+                  setIsReordering(false);
+                  setHasOrderChanges(false);
+                  loadData();
+                }}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-all flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Otkaži
+              </button>
+              <button 
+                onClick={saveOrderChanges}
+                disabled={!hasOrderChanges || savingOrder}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {savingOrder ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Sačuvaj redoslijed
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setIsReordering(true)}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-all flex items-center gap-2"
+              >
+                <GripVertical className="w-4 h-4" />
+                Promijeni redoslijed
+              </button>
+              <button 
+                onClick={() => {
+                  resetForm();
+                  setEditingStaff(null);
+                  setShowAddModal(true);
+                }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Dodaj zaposlenog
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      
+      {isReordering && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-blue-800 text-sm">
+            <strong>Način uređivanja:</strong> Povucite kartice zaposlenih da promijenite njihov redoslijed. 
+            Ovaj redoslijed će se prikazivati na profilu salona i widgetu.
+          </p>
+        </div>
+      )}
 
       {/* Staff Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {staff.map(staffMember => (
-          <div key={staffMember.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-all duration-200">
+          <div 
+            key={staffMember.id} 
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-all duration-200 ${isReordering ? 'cursor-move' : ''} ${draggedStaff?.id === staffMember.id ? 'opacity-50 ring-2 ring-blue-400' : ''}`}
+            draggable={isReordering}
+            onDragStart={(e) => isReordering && handleStaffDragStart(e, staffMember)}
+            onDragOver={(e) => isReordering && handleStaffDragOver(e, staffMember)}
+            onDragEnd={handleStaffDragEnd}
+          >
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                {isReordering && (
+                  <GripVertical className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                )}
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0">
                   {staffMember.avatar ? (
                     <img 
                       src={staffMember.avatar} 
@@ -333,14 +446,16 @@ export function SalonStaff() {
                     <User className="w-8 h-8 text-white" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{staffMember.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{staffMember.name}</h3>
                   <p className="text-sm text-gray-600">{StaffRoleLabels[staffMember.role as StaffRole] || staffMember.role}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{staffMember.rating}</span>
-                    <span className="text-xs text-gray-500">({staffMember.review_count})</span>
-                  </div>
+                  {staffMember.rating > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                      <span className="text-sm font-medium">{staffMember.rating}</span>
+                      <span className="text-xs text-gray-500">({staffMember.review_count})</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -373,22 +488,24 @@ export function SalonStaff() {
                 </div>
               </div>
 
-              <div className="flex gap-2 mt-6">
-                <button 
-                  onClick={() => handleEdit(staffMember)}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  Uredi
-                </button>
-                <button 
-                  onClick={() => handleDelete(staffMember.id)}
-                  className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Ukloni
-                </button>
-              </div>
+              {!isReordering && (
+                <div className="flex gap-2 mt-6">
+                  <button 
+                    onClick={() => handleEdit(staffMember)}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Uredi
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(staffMember.id)}
+                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Ukloni
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

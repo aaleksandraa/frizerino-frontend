@@ -136,6 +136,7 @@ export interface Staff {
   vacations?: Vacation[];
   rating: number;
   review_count: number;
+  display_order?: number;
   salon_id: string;
   services?: Service[];
   staff_ids?: string[];

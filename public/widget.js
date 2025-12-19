@@ -380,11 +380,13 @@
     var staffHtml = state.staff.map(function(s) {
       var selected = state.selectedStaff && state.selectedStaff.id === s.id;
       var initials = s.name.split(' ').map(function(n) { return n[0]; }).join('').toUpperCase();
+      // Only show rating if > 0
+      var ratingHtml = (s.rating && s.rating > 0) ? ' • ⭐ ' + s.rating : '';
       return '<div class="frzn-staff-item' + (selected ? ' selected' : '') + '" data-staff-id="' + s.id + '">' +
         '<div class="frzn-staff-avatar">' + (s.avatar ? '<img src="' + s.avatar + '" alt="' + s.name + '">' : initials) + '</div>' +
         '<div class="frzn-service-info">' +
           '<div class="frzn-service-name">' + s.name + '</div>' +
-          '<div class="frzn-service-meta">' + (s.role || 'Frizer') + (s.rating ? ' • ⭐ ' + s.rating : '') + '</div>' +
+          '<div class="frzn-service-meta">' + (s.role || 'Frizer') + ratingHtml + '</div>' +
         '</div>' +
       '</div>';
     }).join('');

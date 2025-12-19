@@ -316,6 +316,11 @@ export const staffAPI = {
   getMyProfile: async () => {
     const response = await api.get('/user');
     return response.data;
+  },
+  
+  reorderStaff: async (salonId: string, data: { staff: { id: number; display_order: number }[] }) => {
+    const response = await api.post(`/salons/${salonId}/staff/reorder`, data);
+    return response.data;
   }
 };
 
