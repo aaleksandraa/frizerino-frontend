@@ -95,6 +95,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  // Track dates with available slots
+  const [datesWithSlots, setDatesWithSlots] = useState<Set<string>>(new Set());
+  const [loadingDates, setLoadingDates] = useState(false);
+
   // Guest data
   const [guestData, setGuestData] = useState<GuestData>({
     guest_name: '',
@@ -152,6 +156,81 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       loadAvailableSlots();
     }
   }, [selectedServices, selectedDate, selectedStaffId]);
+
+  // Load dates with available slots when staff and services are selected
+  useEffect(() => {
+    if (selectedStaffId && selectedServices[0]?.id && step === 3) {
+      setDatesWithSlots(new Set()); // Reset before loading
+      loadDatesWithSlots();
+    }
+  }, [selectedStaffId, selectedServices, step, currentMonth]);
+
+  const loadDatesWithSlots = async () => {
+    if (!selectedStaffId || !selectedServices[0]?.id) return;
+    
+    setLoadingDates(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get first and last day of current displayed month
+      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      
+      // Build services data for multi-service API
+      const servicesData = selectedServices
+        .filter(s => s.id && s.service)
+        .map(s => ({
+          serviceId: s.id,
+          staffId: selectedStaffId,
+          duration: s.service?.duration || 0
+        }));
+
+      const datesSet = new Set<string>();
+      
+      // Check each day in the month
+      for (let day = firstDay; day <= lastDay; day.setDate(day.getDate() + 1)) {
+        // Skip past dates
+        if (day < today) continue;
+        
+        // Check if date is available (working day, not on vacation, etc.)
+        const availability = isDateAvailable(new Date(day));
+        if (!availability.available) continue;
+        
+        // Format date for API
+        const dateStr = `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}.${day.getFullYear()}`;
+        
+        try {
+          const response = await publicAPI.getAvailableSlotsForMultipleServices(
+            String(salon.id),
+            dateStr,
+            servicesData
+          );
+          
+          let slots = response.slots || [];
+          
+          // Filter past slots if today
+          if (day.toDateString() === today.toDateString()) {
+            const currentTime = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')}`;
+            slots = slots.filter((slot: string) => slot > currentTime);
+          }
+          
+          // If there are available slots, add to set
+          if (slots.length > 0) {
+            datesSet.add(dateStr);
+          }
+        } catch (err) {
+          console.error(`Error checking slots for ${dateStr}:`, err);
+        }
+      }
+      
+      setDatesWithSlots(datesSet);
+    } catch (err) {
+      console.error('Error loading dates with slots:', err);
+    } finally {
+      setLoadingDates(false);
+    }
+  };
 
   const loadAvailableSlots = async () => {
     if (!selectedStaffId || !selectedServices[0]?.id || !selectedDate) return;
@@ -828,6 +907,12 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
               </div>
               
               <div className="bg-gray-50 rounded-xl p-3 sm:p-5">
+                {loadingDates && (
+                  <div className="flex items-center justify-center py-4 mb-4 bg-white rounded-lg">
+                    <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <span className="text-sm text-gray-600">Provjeravam dostupne termine...</span>
+                  </div>
+                )}
                 {/* Custom date picker with month navigation */}
                 {(() => {
                   const today = new Date();
@@ -960,7 +1045,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const isToday = date.toDateString() === today.toDateString();
                             const isSunday = date.getDay() === 0;
                             const availability = isDateAvailable(date);
-                            const isDisabled = isPast || isFuture || !availability.available;
+                            const hasSlots = datesWithSlots.has(dateStr);
+                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots;
                             
                             return (
                               <button
@@ -973,7 +1059,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                     setSelectedTime('');
                                   }
                                 }}
-                                title={isDisabled && availability.reason ? availability.reason : undefined}
+                                title={
+                                  isDisabled 
+                                    ? !hasSlots && !isPast && !isFuture && availability.available
+                                      ? 'Nema dostupnih termina'
+                                      : availability.reason || 'Nedostupno'
+                                    : undefined
+                                }
                                 className={`
                                   aspect-square flex flex-col items-center justify-center rounded-xl 
                                   text-sm sm:text-base font-medium transition-all duration-200
