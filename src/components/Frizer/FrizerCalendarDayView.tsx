@@ -8,7 +8,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { staffAPI, serviceAPI, appointmentAPI } from '../../services/api';
+import { serviceAPI, appointmentAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
@@ -34,7 +34,7 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
   useEffect(() => {
     loadData();
     loadCapacityData();
-  }, [user, selectedDate]);
+  }, [user, selectedMonth]); // Reload when month changes
 
   const loadData = async () => {
     if (!user?.staff_profile) return;
@@ -42,14 +42,30 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
     try {
       setLoading(true);
       
+      // Calculate date range for current month view
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Format dates for API (DD.MM.YYYY)
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
+      
       const [appointmentsData, servicesResponse] = await Promise.all([
-        staffAPI.getAppointments(user.staff_profile.salon_id, user.staff_profile.id),
+        appointmentAPI.getAppointments({ 
+          per_page: 1000,
+          start_date: startDate,
+          end_date: endDate,
+          staff_id: user.staff_profile.id
+        }),
         serviceAPI.getServices(user.staff_profile.salon_id)
       ]);
       
       const servicesArray = Array.isArray(servicesResponse) ? servicesResponse : (servicesResponse.data || []);
+      const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
       
-      setAppointments(appointmentsData.appointments || []);
+      setAppointments(appointmentsArray);
       setServices(servicesArray.filter((s: any) => s.staff_ids?.includes(user.staff_profile?.id)));
     } catch (error) {
       console.error('Error loading data:', error);

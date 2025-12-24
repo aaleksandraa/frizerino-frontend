@@ -8,7 +8,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { staffAPI, serviceAPI } from '../../services/api';
+import { serviceAPI, appointmentAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
@@ -46,19 +46,19 @@ export function FrizerCalendarWeekView({ onViewChange }: FrizerCalendarWeekViewP
       const endDate = formatDateEuropean(weekDays[6]);
       
       const [appointmentsData, servicesResponse] = await Promise.all([
-        staffAPI.getAppointments(user.staff_profile.salon_id, user.staff_profile.id),
+        appointmentAPI.getAppointments({ 
+          per_page: 500,
+          start_date: startDate,
+          end_date: endDate,
+          staff_id: user.staff_profile.id
+        }),
         serviceAPI.getServices(user.staff_profile.salon_id)
       ]);
       
       const servicesArray = Array.isArray(servicesResponse) ? servicesResponse : (servicesResponse.data || []);
-      const allAppointments = appointmentsData.appointments || [];
+      const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
       
-      // Filter appointments for current week
-      const weekAppointments = allAppointments.filter((app: any) => {
-        return app.date >= startDate && app.date <= endDate;
-      });
-      
-      setAppointments(weekAppointments);
+      setAppointments(appointmentsArray);
       setServices(servicesArray.filter((s: any) => s.staff_ids?.includes(user.staff_profile?.id)));
     } catch (error) {
       console.error('Error loading data:', error);

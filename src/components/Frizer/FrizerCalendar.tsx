@@ -70,14 +70,15 @@ export function FrizerCalendar() {
 
   useEffect(() => {
     loadData();
-    loadCapacityData();
   }, [user]);
 
+  // Reload appointments and capacity when month changes
   useEffect(() => {
-    if (selectedDate) {
-      loadAppointmentsForDate(selectedDate);
+    if (user?.staff_profile) {
+      loadAppointmentsForMonth();
+      loadCapacityData();
     }
-  }, [selectedDate]);
+  }, [currentDate, user]);
 
   const loadData = async (keepSelectedDate = false) => {
     if (!user?.staff_profile) return;
@@ -133,23 +134,61 @@ export function FrizerCalendar() {
     }
   };
 
+  // Load appointments for the current month view
+  const loadAppointmentsForMonth = async () => {
+    if (!user?.staff_profile) return;
+
+    try {
+      // Calculate date range for current month view
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Format dates for API (DD.MM.YYYY)
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
+      
+      // Load appointments for this month only
+      const appointmentsData = await appointmentAPI.getAppointments({ 
+        per_page: 1000,
+        start_date: startDate,
+        end_date: endDate,
+        staff_id: user.staff_profile.id
+      });
+      
+      const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
+      setAppointments(appointmentsArray);
+    } catch (error) {
+      console.error('Error loading appointments for month:', error);
+    }
+  };
+
   // Refresh appointments without changing selected date
   const refreshAppointments = async () => {
     if (!user?.staff_profile) return;
     
     try {
-      const appointmentsData = await staffAPI.getAppointments(user.staff_profile.salon_id, user.staff_profile.id);
-      setAppointments(appointmentsData.appointments || []);
+      // Calculate date range for current month
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
+      
+      const appointmentsData = await appointmentAPI.getAppointments({ 
+        per_page: 1000,
+        start_date: startDate,
+        end_date: endDate,
+        staff_id: user.staff_profile.id
+      });
+      const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
+      setAppointments(appointmentsArray);
     } catch (error) {
       console.error('Error refreshing appointments:', error);
     }
-  };
-
-  const loadAppointmentsForDate = (date: string) => {
-    // Filter appointments for selected date - not used but kept for future reference
-    appointments
-      .filter(app => app.date === date)
-      .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const getDaysInMonth = (date: Date) => {
