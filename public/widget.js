@@ -62,11 +62,13 @@
     selectedDate: null,
     selectedTime: null,
     availableSlots: [],
+    availableDates: [], // Dates with available slots
+    unavailableDates: [], // Dates without available slots (fully booked or closed)
+    loadingDates: false,
     step: 1,
     loading: true,
     error: null
   };
-
 
   // Computed colors based on config
   var bgDefault = config.theme === 'dark' ? '#1a1a1a' : '#ffffff';
@@ -256,6 +258,48 @@
     });
   }
 
+  function loadAvailableDates(staffId, month, services) {
+    return apiRequest('/widget/dates/available', {
+      method: 'POST',
+      body: {
+        key: config.apiKey,
+        staff_id: staffId,
+        month: month,
+        services: services
+      }
+    });
+  }
+
+  // Load available dates when entering step 3 or changing month
+  function loadDatesForMonth() {
+    if (!state.selectedStaff || state.selectedServices.length === 0) return;
+    
+    var today = new Date();
+    var currentMonth = state.calendarMonth || today.getMonth();
+    var currentYear = state.calendarYear || today.getFullYear();
+    var monthStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+    
+    var services = state.selectedServices.map(function(s) {
+      return { serviceId: s.id.toString(), duration: s.duration };
+    });
+    
+    state.loadingDates = true;
+    render();
+    
+    loadAvailableDates(state.selectedStaff.id, monthStr, services)
+      .then(function(data) {
+        state.availableDates = data.available_dates || [];
+        state.unavailableDates = data.unavailable_dates || [];
+        state.loadingDates = false;
+        render();
+      })
+      .catch(function(err) {
+        console.error('Error loading available dates:', err);
+        state.loadingDates = false;
+        render();
+      });
+  }
+
   // Render functions
   function render() {
     var container = document.getElementById(config.containerId);
@@ -411,6 +455,21 @@
     return dayHours && dayHours.is_open;
   }
 
+  // Check if date has available slots (from API response)
+  function isDateAvailable(date) {
+    var isoDate = date.getFullYear() + '-' + 
+      String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(date.getDate()).padStart(2, '0');
+    
+    // If we have loaded dates, check against them
+    if (state.availableDates.length > 0 || state.unavailableDates.length > 0) {
+      return state.availableDates.indexOf(isoDate) !== -1;
+    }
+    
+    // Fallback to working day check if dates not loaded yet
+    return isDayWorking(date);
+  }
+
   function renderStep3() {
     var today = new Date();
     var currentMonth = state.calendarMonth || today.getMonth();
@@ -430,30 +489,39 @@
         '<button class="frzn-calendar-nav" data-action="prev-month">‹</button>' +
         '<span>' + monthNames[currentMonth] + ' ' + currentYear + '</span>' +
         '<button class="frzn-calendar-nav" data-action="next-month">›</button>' +
-      '</div>' +
-      '<div class="frzn-calendar-grid">';
+      '</div>';
     
-    dayNames.forEach(function(d) { calendarHtml += '<div class="frzn-calendar-day">' + d + '</div>'; });
-    
-    for (var i = 0; i < firstDay; i++) { calendarHtml += '<div></div>'; }
-    
-    for (var day = 1; day <= daysInMonth; day++) {
-      var date = new Date(currentYear, currentMonth, day);
-      var dateStr = formatDate(date);
-      var isToday = date.toDateString() === today.toDateString();
-      var isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      var isSelected = state.selectedDate === dateStr;
-      var isNonWorking = !isDayWorking(date);
+    // Show loading indicator while loading dates
+    if (state.loadingDates) {
+      calendarHtml += '<div class="frzn-loading" style="padding:20px;"><div class="frzn-spinner"></div><p>Učitavanje dostupnih datuma...</p></div>';
+    } else {
+      calendarHtml += '<div class="frzn-calendar-grid">';
       
-      var classes = 'frzn-calendar-date';
-      if (isToday) classes += ' today';
-      if (isPast || isNonWorking) classes += ' disabled';
-      if (isSelected && !isNonWorking) classes += ' selected';
+      dayNames.forEach(function(d) { calendarHtml += '<div class="frzn-calendar-day">' + d + '</div>'; });
       
-      calendarHtml += '<div class="' + classes + '" data-date="' + dateStr + '">' + day + '</div>';
+      for (var i = 0; i < firstDay; i++) { calendarHtml += '<div></div>'; }
+      
+      for (var day = 1; day <= daysInMonth; day++) {
+        var date = new Date(currentYear, currentMonth, day);
+        var dateStr = formatDate(date);
+        var isToday = date.toDateString() === today.toDateString();
+        var isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        var isSelected = state.selectedDate === dateStr;
+        var isNonWorking = !isDayWorking(date);
+        var hasNoSlots = !isDateAvailable(date);
+        
+        var classes = 'frzn-calendar-date';
+        if (isToday) classes += ' today';
+        if (isPast || isNonWorking || hasNoSlots) classes += ' disabled';
+        if (isSelected && !isNonWorking && !hasNoSlots) classes += ' selected';
+        
+        calendarHtml += '<div class="' + classes + '" data-date="' + dateStr + '">' + day + '</div>';
+      }
+      
+      calendarHtml += '</div>';
     }
     
-    calendarHtml += '</div></div>';
+    calendarHtml += '</div>';
 
     var timesHtml = '';
     if (state.selectedDate && state.availableSlots.length > 0) {
@@ -606,7 +674,11 @@
           state.calendarMonth = 11;
           state.calendarYear--;
         }
-        render();
+        // Reset date selection and load available dates for new month
+        state.selectedDate = null;
+        state.selectedTime = null;
+        state.availableSlots = [];
+        loadDatesForMonth();
       });
     });
 
@@ -619,7 +691,11 @@
           state.calendarMonth = 0;
           state.calendarYear++;
         }
-        render();
+        // Reset date selection and load available dates for new month
+        state.selectedDate = null;
+        state.selectedTime = null;
+        state.availableSlots = [];
+        loadDatesForMonth();
       });
     });
 
@@ -642,15 +718,37 @@
           state.guestAddress = address;
           state.guestNotes = document.getElementById('frzn-notes').value.trim();
         }
+        
+        var previousStep = state.step;
         state.step++;
-        render();
+        
+        // When entering step 3 (date/time selection), load available dates
+        if (state.step === 3 && previousStep === 2) {
+          // Reset calendar to current month
+          var today = new Date();
+          state.calendarMonth = today.getMonth();
+          state.calendarYear = today.getFullYear();
+          state.selectedDate = null;
+          state.selectedTime = null;
+          state.availableSlots = [];
+          loadDatesForMonth();
+        } else {
+          render();
+        }
       });
     });
 
     container.querySelectorAll('[data-action="prev"]').forEach(function(el) {
       el.addEventListener('click', function() {
+        var previousStep = state.step;
         state.step--;
-        render();
+        
+        // When going back to step 3 (date/time selection), reload available dates
+        if (state.step === 3 && previousStep === 4) {
+          loadDatesForMonth();
+        } else {
+          render();
+        }
       });
     });
 
