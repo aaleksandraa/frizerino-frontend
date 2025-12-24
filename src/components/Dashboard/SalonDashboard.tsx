@@ -8,9 +8,12 @@ import {
   Clock,
   DollarSign,
   Star,
-  Bell
+  Bell,
+  Phone,
+  User
 } from 'lucide-react';
-import { appointmentAPI, salonAPI } from '../../services/api';
+import { appointmentAPI, salonAPI, dashboardAPI } from '../../services/api';
+import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 
 interface SalonDashboardProps {
   onSectionChange: (section: string) => void;
@@ -21,6 +24,8 @@ export function SalonDashboard({ onSectionChange }: SalonDashboardProps) {
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
   const [salon, setSalon] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [showClientModal, setShowClientModal] = useState(false);
   const [stats, setStats] = useState({
     todayCount: 0,
     monthlyCount: 0,
@@ -38,49 +43,38 @@ export function SalonDashboard({ onSectionChange }: SalonDashboardProps) {
     try {
       setLoading(true);
       
-      // Load salon data
+      // Load salon data and dashboard stats in parallel
+      const promises = [];
+      
       if (user.salon) {
-        const salonData = await salonAPI.getSalon(user.salon.id);
-        setSalon(salonData);
+        promises.push(salonAPI.getSalon(user.salon.id));
       }
       
-      // Load today's appointments
-      const today = getCurrentDateEuropean();
-      const appointmentsResponse = await appointmentAPI.getAppointments({
-        date: today,
-        per_page: 50
-      });
+      // Use optimized dashboard API (single call, cached on backend)
+      promises.push(dashboardAPI.getSalonStats());
+      promises.push(dashboardAPI.getTodayAppointments());
       
-      const todaysAppointments = appointmentsResponse
-        .filter((app: any) => app.date === today)
-        .sort((a: any, b: any) => a.time.localeCompare(b.time));
+      const results = await Promise.all(promises);
       
+      // Parse results
+      let salonData, statsData, todaysAppointments;
+      
+      if (user.salon) {
+        [salonData, statsData, todaysAppointments] = results;
+        setSalon(salonData);
+      } else {
+        [statsData, todaysAppointments] = results;
+      }
+      
+      // Set today's appointments
       setTodayAppointments(todaysAppointments);
       
-      // Calculate stats
-      const allAppointments = await appointmentAPI.getAppointments();
-      const thisMonth = new Date().getMonth() + 1;
-      const thisYear = new Date().getFullYear();
-      
-      const monthlyAppointments = allAppointments.filter((app: any) => {
-        const [day, month, year] = app.date.split('.');
-        return parseInt(month) === thisMonth && parseInt(year) === thisYear;
-      });
-      
-      const completedThisWeek = allAppointments.filter((app: any) => {
-        const appointmentDate = new Date(app.date.split('.').reverse().join('-'));
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return appointmentDate >= weekAgo && app.status === 'completed';
-      });
-      
-      const weeklyRevenue = completedThisWeek.reduce((sum: number, app: any) => sum + app.total_price, 0);
-      
+      // Set stats from backend
       setStats({
-        todayCount: todaysAppointments.length,
-        monthlyCount: monthlyAppointments.length,
-        weeklyRevenue,
-        averageRating: salon?.rating || 0
+        todayCount: statsData.today_count,
+        monthlyCount: statsData.monthly_count,
+        weeklyRevenue: statsData.weekly_revenue,
+        averageRating: statsData.average_rating
       });
       
     } catch (error) {
@@ -174,14 +168,37 @@ export function SalonDashboard({ onSectionChange }: SalonDashboardProps) {
               {todayAppointments.length > 0 ? (
                 todayAppointments.map((appointment) => (
                   <div key={appointment.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="text-center min-w-[60px]">
                         <div className="text-lg font-bold text-gray-900">{appointment.time}</div>
+                        <div className="text-xs text-gray-500">{appointment.end_time}</div>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{appointment.client_name}</h4>
-                        <p className="text-sm text-gray-600">{appointment.service?.name}</p>
-                        <p className="text-xs text-gray-500">sa {appointment.staff?.name}</p>
+                        <div className="flex items-center gap-2">
+                          <h4 
+                            onClick={() => {
+                              setSelectedClient({
+                                id: appointment.client_id ? String(appointment.client_id) : undefined,
+                                name: appointment.client_name,
+                                phone: appointment.client_phone,
+                                email: appointment.client_email
+                              });
+                              setShowClientModal(true);
+                            }}
+                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            {appointment.client_name}
+                          </h4>
+                          {appointment.is_guest && (
+                            <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Gost</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                          <Phone className="w-3 h-3" />
+                          <span>{appointment.client_phone}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{appointment.service?.name}</p>
+                        <p className="text-xs text-gray-500">sa {appointment.staff?.name} • {appointment.total_price} KM</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -198,9 +215,6 @@ export function SalonDashboard({ onSectionChange }: SalonDashboardProps) {
                          appointment.status === 'pending' ? 'Na čekanju' :
                          appointment.status === 'completed' ? 'Završen' : 'Otkazan'}
                       </span>
-                      <button className="text-blue-600 hover:text-blue-700">
-                        <Clock className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 ))
@@ -307,6 +321,21 @@ export function SalonDashboard({ onSectionChange }: SalonDashboardProps) {
           </button>
         </div>
       </div>
+
+      {/* Client Details Modal */}
+      {selectedClient && (
+        <ClientDetailsModal
+          isOpen={showClientModal}
+          onClose={() => {
+            setShowClientModal(false);
+            setSelectedClient(null);
+          }}
+          clientId={selectedClient.id}
+          clientName={selectedClient.name}
+          clientPhone={selectedClient.phone}
+          clientEmail={selectedClient.email}
+        />
+      )}
     </div>
   );
 }

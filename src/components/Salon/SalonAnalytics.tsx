@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Calendar, 
   DollarSign, 
@@ -8,31 +8,19 @@ import {
   Download,
   FileText,
   X,
-  ChevronDown
+  ChevronDown,
+  UserCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { appointmentAPI, reviewAPI, staffAPI, serviceAPI } from '../../services/api';
-
-type DateRange = {
-  start: Date;
-  end: Date;
-  label: string;
-};
+import { dashboardAPI, staffAPI } from '../../services/api';
 
 type PeriodOption = 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
 
 export function SalonAnalytics() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
-  const [previousStats, setPreviousStats] = useState<any>(null);
-  const [topServices, setTopServices] = useState<any[]>([]);
-  const [topStaff, setTopStaff] = useState<any[]>([]);
-  const [timeSlots, setTimeSlots] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [allAppointments, setAllAppointments] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
   
   // Period selection
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>('this_month');
@@ -42,296 +30,119 @@ export function SalonAnalytics() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'csv'>('pdf');
   const [exporting, setExporting] = useState(false);
-
-  const formatDateShort = (date: Date): string => {
-    return date.toLocaleDateString('bs-BA', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
-
-  // Get date range based on selected period
-  const getDateRange = useCallback((): DateRange => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    switch (selectedPeriod) {
-      case 'this_month':
-        return {
-          start: new Date(now.getFullYear(), now.getMonth(), 1),
-          end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-          label: 'Ovaj mjesec'
-        };
-      case 'last_month':
-        return {
-          start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-          end: new Date(now.getFullYear(), now.getMonth(), 0),
-          label: 'Prošli mjesec'
-        };
-      case 'this_year':
-        return {
-          start: new Date(now.getFullYear(), 0, 1),
-          end: new Date(now.getFullYear(), 11, 31),
-          label: 'Ova godina'
-        };
-      case 'last_year':
-        return {
-          start: new Date(now.getFullYear() - 1, 0, 1),
-          end: new Date(now.getFullYear() - 1, 11, 31),
-          label: 'Prošla godina'
-        };
-      case 'custom':
-        if (customDateStart && customDateEnd) {
-          return {
-            start: new Date(customDateStart),
-            end: new Date(customDateEnd),
-            label: `${formatDateShort(new Date(customDateStart))} - ${formatDateShort(new Date(customDateEnd))}`
-          };
-        }
-        return {
-          start: new Date(now.getFullYear(), now.getMonth(), 1),
-          end: today,
-          label: 'Ovaj mjesec'
-        };
-      default:
-        return {
-          start: new Date(now.getFullYear(), now.getMonth(), 1),
-          end: today,
-          label: 'Ovaj mjesec'
-        };
-    }
-  }, [selectedPeriod, customDateStart, customDateEnd]);
-
-  // Get previous period for comparison
-  const getPreviousDateRange = useCallback((): DateRange => {
-    const current = getDateRange();
-    const duration = current.end.getTime() - current.start.getTime();
-    
-    return {
-      start: new Date(current.start.getTime() - duration - 86400000),
-      end: new Date(current.start.getTime() - 86400000),
-      label: 'Prethodni period'
-    };
-  }, [getDateRange]);
-
-  // Parse date string (dd.mm.yyyy) to Date object
-  const parseAppointmentDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split('.');
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts.map(p => parseInt(p, 10));
-    return new Date(year, month - 1, day);
-  };
-
-  // Filter appointments by date range
-  const filterAppointmentsByDateRange = useCallback((appointments: any[], range: DateRange) => {
-    return appointments.filter((app: any) => {
-      const appDate = parseAppointmentDate(app.date);
-      if (!appDate) return false;
-      return appDate >= range.start && appDate <= range.end;
-    });
-  }, []);
+  
+  // Staff filter - hidden for staff users (they only see their own data)
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const isStaff = user?.role === 'frizer';
+  const salonId = user?.salon?.id || user?.staff_profile?.salon_id;
 
   useEffect(() => {
-    loadInitialData();
+    loadStaff();
   }, [user]);
 
-  // Separate effect that runs after data is loaded
   useEffect(() => {
-    // Only calculate if we have loaded services and staff (even if empty)
-    // This ensures we calculate on initial load
-    if (!loading) {
-      calculateAnalytics();
+    if (staff.length >= 0) { // Load even if no staff
+      loadAnalytics();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPeriod, customDateStart, customDateEnd, allAppointments, services, staff, reviews, loading]);
+  }, [selectedPeriod, customDateStart, customDateEnd, selectedStaffId, staff]);
 
-  const loadInitialData = async () => {
-    if (!user?.salon) return;
+  const loadStaff = async () => {
+    // Staff users don't need to load staff list (they only see their own data)
+    if (isStaff || !salonId) return;
+
+    try {
+      const staffResponse = await staffAPI.getStaff(salonId);
+      const staffData = Array.isArray(staffResponse) ? staffResponse : (staffResponse?.data || []);
+      setStaff(staffData);
+    } catch (error) {
+      console.error('Error loading staff:', error);
+      setStaff([]);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    if (!salonId) return;
 
     try {
       setLoading(true);
       
-      const appointmentsResponse = await appointmentAPI.getAppointments();
-      const appointments = Array.isArray(appointmentsResponse) ? appointmentsResponse : (appointmentsResponse?.data || []);
-      const salonAppointments = appointments.filter((app: any) => app.salon_id === user?.salon?.id);
-      setAllAppointments(salonAppointments);
-      
-      const [servicesResponse, staffResponse, reviewsResponse] = await Promise.all([
-        serviceAPI.getServices(user.salon.id),
-        staffAPI.getStaff(user.salon.id),
-        reviewAPI.getSalonReviews(user.salon.id)
-      ]);
+      const params: any = {
+        period: selectedPeriod
+      };
 
-      const servicesData = Array.isArray(servicesResponse) ? servicesResponse : (servicesResponse?.data || []);
-      const staffData = Array.isArray(staffResponse) ? staffResponse : (staffResponse?.data || []);
-      const reviewsData = Array.isArray(reviewsResponse) ? reviewsResponse : (reviewsResponse?.data || []);
+      // For staff users, backend automatically filters to their own data
+      // For salon owners, use the selected staff filter
+      if (!isStaff && selectedStaffId) {
+        params.staff_id = selectedStaffId;
+      }
 
-      setServices(servicesData);
-      setStaff(staffData);
-      setReviews(reviewsData);
-      
+      if (selectedPeriod === 'custom' && customDateStart && customDateEnd) {
+        params.start_date = customDateStart;
+        params.end_date = customDateEnd;
+      }
+
+      const data = await dashboardAPI.getSalonAnalytics(params);
+      setAnalytics(data);
     } catch (error) {
-      console.error('Error loading analytics data:', error);
+      console.error('Error loading analytics:', error);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateAnalytics = useCallback(() => {
-    const currentRange = getDateRange();
-    const previousRange = getPreviousDateRange();
-    
-    const currentAppointments = filterAppointmentsByDateRange(allAppointments, currentRange);
-    const previousAppointments = filterAppointmentsByDateRange(allAppointments, previousRange);
-    
-    const completedCurrent = currentAppointments.filter((app: any) => app.status === 'completed');
-    const totalRevenueCurrent = completedCurrent.reduce((sum: number, app: any) => sum + (app.total_price || 0), 0);
-    const newClientsCurrent = new Set(currentAppointments.map((app: any) => app.client_id)).size;
-    
-    const completedPrevious = previousAppointments.filter((app: any) => app.status === 'completed');
-    const totalRevenuePrevious = completedPrevious.reduce((sum: number, app: any) => sum + (app.total_price || 0), 0);
-    const newClientsPrevious = new Set(previousAppointments.map((app: any) => app.client_id)).size;
-
-    setStats({
-      totalRevenue: totalRevenueCurrent.toFixed(2),
-      appointmentCount: currentAppointments.length,
-      completedCount: completedCurrent.length,
-      newClients: newClientsCurrent,
-      averageRating: reviews.length > 0 ? (reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0',
-      dateRange: currentRange
-    });
-
-    setPreviousStats({
-      totalRevenue: totalRevenuePrevious,
-      appointmentCount: previousAppointments.length,
-      newClients: newClientsPrevious
-    });
-
-    const serviceStats = services.map((service: any) => {
-      const serviceAppointments = currentAppointments.filter((app: any) => {
-        // Check multiple possible service id fields
-        return app.service_id === service.id || 
-               app.service?.id === service.id ||
-               app.services?.some((s: any) => s.id === service.id);
-      });
-      const revenue = serviceAppointments.reduce((sum: number, app: any) => sum + (app.total_price || 0), 0);
-      return {
-        name: service.name,
-        bookings: serviceAppointments.length,
-        revenue: revenue.toFixed(2),
-        percentage: currentAppointments.length > 0 ? Math.round((serviceAppointments.length / currentAppointments.length) * 100) : 0
-      };
-    }).filter(s => s.bookings > 0).sort((a, b) => b.bookings - a.bookings).slice(0, 4);
-    
-    setTopServices(serviceStats);
-
-    const staffStats = staff.map((staffMember: any) => {
-      const staffAppointments = currentAppointments.filter((app: any) => {
-        // Check multiple possible staff id fields
-        return app.staff_id === staffMember.id || 
-               app.staff?.id === staffMember.id;
-      });
-      const revenue = staffAppointments.reduce((sum: number, app: any) => sum + (app.total_price || 0), 0);
-      return {
-        name: staffMember.name,
-        bookings: staffAppointments.length,
-        revenue: revenue.toFixed(2),
-        rating: staffMember.rating || 0
-      };
-    }).filter(s => s.bookings > 0).sort((a, b) => b.bookings - a.bookings).slice(0, 3);
-    
-    setTopStaff(staffStats);
-
-    const timeSlotStats = [];
-    for (let hour = 9; hour <= 18; hour++) {
-      const timeSlot = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
-      const slotAppointments = currentAppointments.filter((app: any) => {
-        if (!app.time) return false;
-        const appHour = parseInt(app.time.split(':')[0]);
-        return appHour === hour;
-      });
-      
-      timeSlotStats.push({
-        time: timeSlot,
-        bookings: slotAppointments.length,
-        percentage: currentAppointments.length > 0 ? Math.round((slotAppointments.length / currentAppointments.length) * 100) : 0
-      });
-    }
-    
-    setTimeSlots(timeSlotStats);
-  }, [allAppointments, services, staff, reviews, getDateRange, getPreviousDateRange, filterAppointmentsByDateRange]);
-
-  const getPercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' | 'neutral' } => {
-    if (previous === 0) {
-      if (current > 0) return { value: '+100%', type: 'positive' };
-      return { value: '0%', type: 'neutral' };
-    }
-    const change = ((current - previous) / previous) * 100;
-    const sign = change >= 0 ? '+' : '';
-    return {
-      value: `${sign}${change.toFixed(0)}%`,
-      type: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'
-    };
-  };
-
   const exportReport = async () => {
-    if (!stats) return;
+    if (!analytics) return;
     
     setExporting(true);
     
     try {
-      // Debug logging
-      console.log('Export - topServices:', topServices);
-      console.log('Export - topStaff:', topStaff);
-      console.log('Export - timeSlots:', timeSlots);
-      console.log('Export - stats:', stats);
-      
       const reportData = {
-        period: stats.dateRange.label,
+        period: analytics.period.label,
         generatedAt: new Date().toLocaleString('bs-BA'),
-        salonName: user?.salon?.name || 'Salon',
-        stats: {
-          totalRevenue: stats.totalRevenue,
-          appointmentCount: stats.appointmentCount,
-          completedCount: stats.completedCount,
-          newClients: stats.newClients,
-          averageRating: stats.averageRating
-        },
-        topServices: [...topServices], // Make a copy to ensure data is captured
-        topStaff: [...topStaff],
-        timeSlots: [...timeSlots]
+        salonName: user?.salon?.name || user?.staff_profile?.name || 'Salon',
+        staffFilter: isStaff 
+          ? user?.staff_profile?.name || 'Zaposleni'
+          : (selectedStaffId ? staff.find(s => s.id === selectedStaffId)?.name : 'Svi zaposleni'),
+        stats: analytics.stats,
+        topServices: analytics.top_services || [],
+        topStaff: analytics.top_staff || [],
+        timeSlots: analytics.time_slots || []
       };
-      
-      console.log('Export - reportData:', reportData);
 
       if (exportFormat === 'csv') {
         let csv = 'Izvještaj analitike salona\n\n';
         csv += `Period,${reportData.period}\n`;
         csv += `Generisano,${reportData.generatedAt}\n`;
-        csv += `Salon,${reportData.salonName}\n\n`;
+        csv += `Salon,${reportData.salonName}\n`;
+        csv += `Filter,${reportData.staffFilter}\n\n`;
         
         csv += 'STATISTIKA\n';
-        csv += `Ukupan prihod,${reportData.stats.totalRevenue} KM\n`;
-        csv += `Broj termina,${reportData.stats.appointmentCount}\n`;
-        csv += `Završeno,${reportData.stats.completedCount}\n`;
-        csv += `Novi klijenti,${reportData.stats.newClients}\n`;
-        csv += `Prosječna ocjena,${reportData.stats.averageRating}\n\n`;
+        csv += `Ukupan prihod,${reportData.stats.total_revenue} KM\n`;
+        csv += `Broj termina,${reportData.stats.total_appointments}\n`;
+        csv += `Završeno,${reportData.stats.completed_appointments}\n`;
+        csv += `Novi klijenti,${reportData.stats.unique_clients}\n`;
+        csv += `Stopa završetka,${reportData.stats.completion_rate}%\n\n`;
         
         csv += 'NAJPOPULARNIJE USLUGE\n';
         csv += 'Usluga,Rezervacije,Prihod\n';
-        topServices.forEach(s => {
+        reportData.topServices.forEach((s: any) => {
           csv += `${s.name},${s.bookings},${s.revenue} KM\n`;
         });
         csv += '\n';
         
-        csv += 'PERFORMANSE ZAPOSLENIH\n';
-        csv += 'Ime,Termini,Prihod,Ocjena\n';
-        topStaff.forEach(s => {
-          csv += `${s.name},${s.bookings},${s.revenue} KM,${s.rating}\n`;
-        });
-        csv += '\n';
+        if (reportData.topStaff.length > 0) {
+          csv += 'PERFORMANSE ZAPOSLENIH\n';
+          csv += 'Ime,Termini,Prihod,Ocjena\n';
+          reportData.topStaff.forEach((s: any) => {
+            csv += `${s.name},${s.bookings},${s.revenue} KM,${s.rating}\n`;
+          });
+          csv += '\n';
+        }
         
         csv += 'ANALIZA PO SATIMA\n';
         csv += 'Vrijeme,Termini,Postotak\n';
-        timeSlots.forEach(s => {
+        reportData.timeSlots.forEach((s: any) => {
           csv += `${s.time},${s.bookings},${s.percentage}%\n`;
         });
 
@@ -372,26 +183,27 @@ export function SalonAnalytics() {
               <div class="info">
                 <p><strong>Salon:</strong> ${reportData.salonName}</p>
                 <p><strong>Period:</strong> ${reportData.period}</p>
+                <p><strong>Filter:</strong> ${reportData.staffFilter}</p>
                 <p><strong>Generisano:</strong> ${reportData.generatedAt}</p>
               </div>
               
               <h2>Statistika</h2>
               <div class="stat-grid">
                 <div class="stat-card">
-                  <div class="stat-value">${reportData.stats.totalRevenue} KM</div>
+                  <div class="stat-value">${reportData.stats.total_revenue} KM</div>
                   <div class="stat-label">Ukupan prihod</div>
                 </div>
                 <div class="stat-card">
-                  <div class="stat-value">${reportData.stats.appointmentCount}</div>
+                  <div class="stat-value">${reportData.stats.total_appointments}</div>
                   <div class="stat-label">Broj termina</div>
                 </div>
                 <div class="stat-card">
-                  <div class="stat-value">${reportData.stats.newClients}</div>
+                  <div class="stat-value">${reportData.stats.unique_clients}</div>
                   <div class="stat-label">Novi klijenti</div>
                 </div>
                 <div class="stat-card">
-                  <div class="stat-value">${reportData.stats.averageRating}</div>
-                  <div class="stat-label">Prosječna ocjena</div>
+                  <div class="stat-value">${reportData.stats.completion_rate}%</div>
+                  <div class="stat-label">Stopa završetka</div>
                 </div>
               </div>
               
@@ -399,25 +211,25 @@ export function SalonAnalytics() {
               ${reportData.topServices.length > 0 ? `
               <table>
                 <thead>
-                  <tr><th>Usluga</th><th>Rezervacije</th><th>Prihod</th><th>%</th></tr>
+                  <tr><th>Usluga</th><th>Rezervacije</th><th>Prihod</th></tr>
                 </thead>
                 <tbody>
-                  ${reportData.topServices.map(s => `<tr><td>${s.name}</td><td>${s.bookings}</td><td>${s.revenue} KM</td><td>${s.percentage}%</td></tr>`).join('')}
+                  ${reportData.topServices.map((s: any) => `<tr><td>${s.name}</td><td>${s.bookings}</td><td>${s.revenue} KM</td></tr>`).join('')}
                 </tbody>
               </table>
               ` : '<p style="color: #6b7280; padding: 20px 0;">Nema podataka o uslugama za odabrani period</p>'}
               
-              <h2>Performanse zaposlenih</h2>
               ${reportData.topStaff.length > 0 ? `
+              <h2>Performanse zaposlenih</h2>
               <table>
                 <thead>
                   <tr><th>Ime</th><th>Termini</th><th>Prihod</th><th>Ocjena</th></tr>
                 </thead>
                 <tbody>
-                  ${reportData.topStaff.map(s => `<tr><td>${s.name}</td><td>${s.bookings}</td><td>${s.revenue} KM</td><td>⭐ ${s.rating}</td></tr>`).join('')}
+                  ${reportData.topStaff.map((s: any) => `<tr><td>${s.name}</td><td>${s.bookings}</td><td>${s.revenue} KM</td><td>⭐ ${s.rating}</td></tr>`).join('')}
                 </tbody>
               </table>
-              ` : '<p style="color: #6b7280; padding: 20px 0;">Nema podataka o zaposlenima za odabrani period</p>'}
+              ` : ''}
               
               <h2>Analiza termina po satima</h2>
               <table>
@@ -425,7 +237,7 @@ export function SalonAnalytics() {
                   <tr><th>Vrijeme</th><th>Broj termina</th><th>Zauzetost</th></tr>
                 </thead>
                 <tbody>
-                  ${reportData.timeSlots.map(s => `<tr><td>${s.time}</td><td>${s.bookings}</td><td>${s.percentage}%</td></tr>`).join('')}
+                  ${reportData.timeSlots.map((s: any) => `<tr><td>${s.time}</td><td>${s.bookings}</td><td>${s.percentage}%</td></tr>`).join('')}
                 </tbody>
               </table>
               
@@ -472,7 +284,7 @@ export function SalonAnalytics() {
     );
   }
 
-  if (!stats) {
+  if (!analytics) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">Greška pri učitavanju analitike</p>
@@ -480,14 +292,28 @@ export function SalonAnalytics() {
     );
   }
 
-  const revenueChange = getPercentageChange(parseFloat(stats.totalRevenue), previousStats?.totalRevenue || 0);
-  const appointmentChange = getPercentageChange(stats.appointmentCount, previousStats?.appointmentCount || 0);
-  const clientsChange = getPercentageChange(stats.newClients, previousStats?.newClients || 0);
+  const stats = analytics.stats;
+  const comparison = analytics.comparison;
+  const topServices = analytics.top_services || [];
+  const topStaff = analytics.top_staff || [];
+  const timeSlots = analytics.time_slots || [];
+
+  const getChangeDisplay = (change: any) => {
+    if (!change) return { value: '0%', type: 'neutral' as const };
+    return {
+      value: `${change.direction === 'up' ? '+' : change.direction === 'down' ? '-' : ''}${change.value}%`,
+      type: change.direction === 'up' ? 'positive' as const : change.direction === 'down' ? 'negative' as const : 'neutral' as const
+    };
+  };
+
+  const revenueChange = getChangeDisplay(comparison?.revenue_change);
+  const appointmentChange = getChangeDisplay(comparison?.appointments_change);
+  const clientsChange = getChangeDisplay(comparison?.clients_change);
 
   const analyticsStats = [
     {
       label: 'Ukupan prihod',
-      value: `${stats.totalRevenue} KM`,
+      value: `${stats.total_revenue} KM`,
       change: revenueChange.value,
       changeType: revenueChange.type,
       icon: DollarSign,
@@ -495,7 +321,7 @@ export function SalonAnalytics() {
     },
     {
       label: 'Broj termina',
-      value: stats.appointmentCount.toString(),
+      value: stats.total_appointments.toString(),
       change: appointmentChange.value,
       changeType: appointmentChange.type,
       icon: Calendar,
@@ -503,15 +329,15 @@ export function SalonAnalytics() {
     },
     {
       label: 'Novi klijenti',
-      value: stats.newClients.toString(),
+      value: stats.unique_clients.toString(),
       change: clientsChange.value,
       changeType: clientsChange.type,
       icon: Users,
       color: 'purple'
     },
     {
-      label: 'Prosječna ocjena',
-      value: stats.averageRating,
+      label: 'Stopa završetka',
+      value: `${stats.completion_rate}%`,
       change: '',
       changeType: 'neutral' as const,
       icon: Star,
@@ -525,10 +351,30 @@ export function SalonAnalytics() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analitika salona</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Period: {stats.dateRange.label}
+            Period: {analytics.period.label}
+            {!isStaff && selectedStaffId && ` • ${staff.find(s => s.id === selectedStaffId)?.name}`}
+            {isStaff && ` • ${user?.staff_profile?.name || 'Moji podaci'}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Staff Filter - Only show for salon owners */}
+          {!isStaff && staff.length > 0 && (
+            <div className="relative">
+              <select 
+                value={selectedStaffId || ''}
+                onChange={(e) => setSelectedStaffId(e.target.value ? Number(e.target.value) : null)}
+                className="appearance-none bg-white px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent cursor-pointer"
+              >
+                <option value="">Svi zaposleni</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <UserCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+          )}
+          
+          {/* Period Filter */}
           <div className="relative">
             <select 
               value={selectedPeriod === 'custom' ? 'custom' : selectedPeriod}
@@ -647,7 +493,9 @@ export function SalonAnalytics() {
             </div>
             
             <p className="text-gray-600 mb-4">
-              Izvještaj za period: <strong>{stats.dateRange.label}</strong>
+              Izvještaj za period: <strong>{analytics.period.label}</strong>
+              {!isStaff && selectedStaffId && <><br/>Filter: <strong>{staff.find(s => s.id === selectedStaffId)?.name}</strong></>}
+              {isStaff && <><br/>Zaposleni: <strong>{user?.staff_profile?.name}</strong></>}
             </p>
             
             <div className="space-y-3 mb-6">
@@ -762,7 +610,7 @@ export function SalonAnalytics() {
           <div className="p-6">
             <div className="space-y-4">
               {topServices.length > 0 ? (
-                topServices.map((service, index) => (
+                topServices.map((service: any, index: number) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">{service.name}</h4>
@@ -773,7 +621,7 @@ export function SalonAnalytics() {
                       <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
                         <div 
                           className="bg-orange-600 h-2 rounded-full"
-                          style={{ width: `${service.percentage}%` }}
+                          style={{ width: `${service.percentage || 0}%` }}
                         />
                       </div>
                     </div>
@@ -795,7 +643,7 @@ export function SalonAnalytics() {
           <div className="p-6">
             <div className="space-y-4">
               {topStaff.length > 0 ? (
-                topStaff.map((staffMember, index) => (
+                topStaff.map((staffMember: any, index: number) => (
                   <div key={index} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-orange-600 to-amber-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -831,7 +679,7 @@ export function SalonAnalytics() {
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {timeSlots.map((slot, index) => (
+            {timeSlots.map((slot: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Clock className="w-5 h-5 text-orange-600" />

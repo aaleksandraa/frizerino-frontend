@@ -80,23 +80,13 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     }
   }, [selectedService]);
 
-  // Auto-select staff if only one available
+  // Auto-select staff if only one available (but don't skip the step)
   useEffect(() => {
     const availableStaff = getAvailableStaffForAllServices();
     if (availableStaff.length === 1 && !selectedStaffId) {
       setSelectedStaffId(availableStaff[0].id);
     }
   }, [selectedServiceIds, staff]);
-
-  // Auto-skip step 2 if only one staff available
-  useEffect(() => {
-    if (step === 2) {
-      const availableStaff = getAvailableStaffForAllServices();
-      if (availableStaff.length === 1 && selectedStaffId) {
-        setTimeout(() => setStep(3), 300);
-      }
-    }
-  }, [step, selectedStaffId]);
 
   const loadSalonData = async () => {
     try {
@@ -400,10 +390,12 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900">{member.name}</h4>
                             <p className="text-sm text-gray-600">{StaffRoleLabels[member.role as StaffRole] || member.role}</p>
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className="text-xs text-yellow-600">★ {member.rating}</span>
-                              <span className="text-xs text-gray-500">({member.review_count} recenzija)</span>
-                            </div>
+                            {member.review_count > 0 && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-yellow-600">★ {member.rating}</span>
+                                <span className="text-xs text-gray-500">({member.review_count} recenzija)</span>
+                              </div>
+                            )}
                           </div>
                           {selectedStaffId === member.id && <Check className="w-5 h-5 text-orange-500" />}
                         </div>

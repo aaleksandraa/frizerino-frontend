@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppearanceProvider } from './context/AppearanceContext';
 import { publicSettingsAPI } from './services/api';
@@ -124,8 +125,10 @@ function AuthWrapper() {
       
       <Route path="/kontakt" element={<ContactPage />} />
       <Route path="/cjenovnik" element={<PricingPage />} />
-      <Route path="/saloni/:citySlug" element={<CityPage />} />
+      
+      {/* City and category routes - order matters! */}
       <Route path="/saloni/:citySlug/:categorySlug" element={<CityPage />} />
+      <Route path="/saloni/:citySlug" element={<CityPage />} />
       <Route path="/salon/:slug" element={<PublicSalonPage />} />
       <Route path="/profil/:slug" element={<StaffProfilePage />} />
       
@@ -179,6 +182,30 @@ function App() {
       <AppearanceProvider>
         <GoogleAnalytics />
         <ScrollToTop />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <Routes>
           {/* Widget Route - MUST be outside AuthWrapper to avoid auth checks */}
           <Route path="/widget/:salonSlug" element={<WidgetBooking />} />

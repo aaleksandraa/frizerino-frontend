@@ -15,6 +15,7 @@ interface ContactForm {
   email: string;
   subject: string;
   message: string;
+  honeypot: string; // Anti-spam honeypot field
 }
 
 export const ContactPage: React.FC = () => {
@@ -22,14 +23,30 @@ export const ContactPage: React.FC = () => {
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    honeypot: '' // Hidden field for bots
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formStartTime] = useState<number>(Date.now()); // Track when form was loaded
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Anti-spam: Check honeypot field (should be empty)
+    if (form.honeypot) {
+      // Bot detected - silently fail
+      setSuccess(true);
+      return;
+    }
+
+    // Anti-spam: Check minimum time (prevent instant submissions)
+    const timeSinceLoad = Date.now() - formStartTime;
+    if (timeSinceLoad < 3000) { // Less than 3 seconds
+      setError('Molimo sačekajte trenutak prije slanja forme');
+      return;
+    }
     
     if (!form.name || !form.email || !form.message) {
       setError('Molimo popunite sva obavezna polja');
@@ -48,9 +65,8 @@ export const ContactPage: React.FC = () => {
       });
       
       setSuccess(true);
-      setForm({ name: '', email: '', subject: '', message: '' });
+      setForm({ name: '', email: '', subject: '', message: '', honeypot: '' });
     } catch (err: any) {
-      console.error('Contact form error:', err);
       const errorMessage = err?.response?.data?.message || 
                           'Greška pri slanju poruke. Pokušajte ponovo ili nas kontaktirajte direktno na podrska@frizerino.com';
       setError(errorMessage);
@@ -239,6 +255,20 @@ export const ContactPage: React.FC = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Honeypot field - hidden from users, visible to bots */}
+                    <div style={{ position: 'absolute', left: '-9999px' }} aria-hidden="true">
+                      <label htmlFor="website">Website (leave blank)</label>
+                      <input
+                        type="text"
+                        id="website"
+                        name="website"
+                        value={form.honeypot}
+                        onChange={(e) => setForm({ ...form, honeypot: e.target.value })}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">

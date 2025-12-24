@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Calendar as CalendarIcon, 
@@ -10,17 +10,20 @@ import {
   CheckCircle,
   XCircle,
   Play,
-  Edit,
   Plus,
   MessageSquare,
-  Scissors
+  Scissors,
+  LayoutGrid,
+  Columns,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
-import { StaffRole, StaffRoleLabels } from '../../types';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
+import { FrizerCalendarWeekView } from './FrizerCalendarWeekView';
+import { FrizerCalendarDayView } from './FrizerCalendarDayView';
 
 export function FrizerCalendar() {
   const { user } = useAuth();
@@ -35,6 +38,7 @@ export function FrizerCalendar() {
   const [highlightedAppointment, setHighlightedAppointment] = useState<number | null>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
 
   // Read date and appointment from URL params
   useEffect(() => {
@@ -92,7 +96,7 @@ export function FrizerCalendar() {
       // Load services - API returns { data: [...] } format
       const servicesResponse = await serviceAPI.getServices(user.staff_profile.salon_id);
       const servicesArray = Array.isArray(servicesResponse) ? servicesResponse : (servicesResponse.data || []);
-      setServices(servicesArray.filter((s: any) => s.staff_ids?.includes(user.staff_profile.id)));
+      setServices(servicesArray.filter((s: any) => s.staff_ids?.includes(user.staff_profile?.id)));
 
       // Set today as selected date only if not keeping current date
       if (!keepSelectedDate || !currentSelectedDate) {
@@ -119,8 +123,8 @@ export function FrizerCalendar() {
   };
 
   const loadAppointmentsForDate = (date: string) => {
-    // Filter appointments for selected date
-    const dayAppointments = appointments
+    // Filter appointments for selected date - not used but kept for future reference
+    appointments
       .filter(app => app.date === date)
       .sort((a, b) => a.time.localeCompare(b.time));
   };
@@ -263,11 +267,58 @@ export function FrizerCalendar() {
     );
   }
 
+  // If week view is selected, render the week view component
+  if (viewMode === 'week') {
+    return <FrizerCalendarWeekView onViewChange={setViewMode} />;
+  }
+
+  // If day view is selected, render the day view component
+  if (viewMode === 'day') {
+    return <FrizerCalendarDayView onViewChange={setViewMode} />;
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Kalendar termina</h1>
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('month')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'month'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Mjesec</span>
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Columns className="w-4 h-4" />
+              <span className="hidden sm:inline">Sedmica</span>
+            </button>
+            <button
+              onClick={() => setViewMode('day')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'day'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Dan</span>
+            </button>
+          </div>
+
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
@@ -276,9 +327,6 @@ export function FrizerCalendar() {
             <span className="hidden sm:inline">Dodaj termin</span>
             <span className="sm:hidden">Dodaj</span>
           </button>
-          <div className="hidden sm:block text-sm text-gray-600">
-            {staff.name} - {StaffRoleLabels[staff.role as StaffRole] || staff.role}
-          </div>
         </div>
       </div>
 
@@ -531,8 +579,8 @@ export function FrizerCalendar() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSuccess={loadData}
-          salonId={user.staff_profile.salon_id}
-          staffId={user.staff_profile.id}
+          salonId={Number(user.staff_profile.salon_id)}
+          staffId={Number(user.staff_profile.id)}
           preselectedDate={selectedDate}
         />
       )}
@@ -545,7 +593,7 @@ export function FrizerCalendar() {
             setShowClientModal(false);
             setSelectedClient(null);
           }}
-          clientId={selectedClient.id}
+          clientId={selectedClient?.id}
           clientName={selectedClient.name}
           clientPhone={selectedClient.phone}
           clientEmail={selectedClient.email}

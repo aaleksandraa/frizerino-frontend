@@ -794,7 +794,7 @@ Rezervacija je brza i besplatna.
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Pretraži salone, usluge ili grad (npr. šišanje, Sarajevo)...)"
+                  placeholder="Pretraži salone, usluge ili grad (npr. šišanje, trajni lak, Sarajevo)"
                   value={filters.q}
                   onChange={(e) => {
                     handleFilterChange('q', e.target.value);

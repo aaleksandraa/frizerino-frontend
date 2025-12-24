@@ -14,7 +14,10 @@ import {
   ShieldCheck,
   Briefcase,
   Code,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  FileText,
+  Grid
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -34,9 +37,11 @@ export function Sidebar({ activeSection, onSectionChange, isPendingSalon = false
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'salons', label: 'Svi saloni', icon: MapPin },
           { id: 'users', label: 'Korisnici', icon: Users },
+          { id: 'import', label: 'Import Termina', icon: Upload },
           { id: 'widgets', label: 'Widget Sistem', icon: Code },
           { id: 'consents', label: 'GDPR Pristanci', icon: ShieldCheck },
           { id: 'job-ads', label: 'Oglasi za posao', icon: Briefcase },
+          { id: 'homepage-categories', label: 'Kategorije', icon: Grid },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
           { id: 'settings', label: 'Podešavanja', icon: Settings }
         ];
@@ -62,6 +67,7 @@ export function Sidebar({ activeSection, onSectionChange, isPendingSalon = false
           { id: 'calendar', label: 'Kalendar', icon: Calendar },
           { id: 'analytics', label: 'Analitika', icon: BarChart3 },
           { id: 'reviews', label: 'Recenzije', icon: Star },
+          { id: 'reports', label: 'Dnevni izvještaji', icon: FileText },
           { id: 'job-ads', label: 'Oglasi za posao', icon: Briefcase }
         ];
       

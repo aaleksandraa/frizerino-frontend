@@ -399,6 +399,39 @@ export const appointmentAPI = {
   }
 };
 
+// Dashboard API (optimized with caching)
+export const dashboardAPI = {
+  getSalonStats: async () => {
+    const response = await api.get('/dashboard/salon/stats');
+    return response.data;
+  },
+  
+  getTodayAppointments: async () => {
+    const response = await api.get('/dashboard/salon/today');
+    return response.data;
+  },
+  
+  getSalonAnalytics: async (params?: {
+    period?: 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
+    staff_id?: number;
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const response = await api.get('/dashboard/salon/analytics', { params });
+    return response.data;
+  },
+  
+  getStaffStats: async () => {
+    const response = await api.get('/dashboard/staff/stats');
+    return response.data;
+  },
+  
+  clearCache: async () => {
+    const response = await api.post('/dashboard/clear-cache');
+    return response.data;
+  }
+};
+
 // Review API
 export const reviewAPI = {
   getSalonReviews: async (salonId: string, params = {}) => {
@@ -1176,6 +1209,115 @@ export const clientAPI = {
   // Send email to client
   sendEmail: async (id: string, data: { subject: string; message: string }) => {
     const response = await api.post(`/clients/${id}/send-email`, data);
+    return response.data;
+  }
+};
+
+// Salon Settings API (daily reports, etc.)
+export const salonSettingsAPI = {
+  // Get salon settings
+  getSettings: async () => {
+    const response = await api.get('/salon/settings');
+    return response.data;
+  },
+  
+  // Update salon settings
+  updateSettings: async (data: {
+    daily_report_enabled?: boolean;
+    daily_report_time?: string;
+    daily_report_email?: string;
+    daily_report_include_staff?: boolean;
+    daily_report_include_services?: boolean;
+    daily_report_include_capacity?: boolean;
+    daily_report_include_cancellations?: boolean;
+  }) => {
+    const response = await api.put('/salon/settings', data);
+    return response.data;
+  },
+  
+  // Send test report
+  sendTestReport: async () => {
+    const response = await api.post('/salon/settings/test-report');
+    return response.data;
+  },
+  
+  // Preview report data
+  previewReport: async () => {
+    const response = await api.get('/salon/settings/preview-report');
+    return response.data;
+  }
+};
+
+// Homepage Categories API
+export const homepageCategoriesAPI = {
+  // Public - Get enabled categories
+  getPublic: async () => {
+    const response = await api.get('/public/homepage-categories');
+    return response.data;
+  },
+  
+  // Admin - Get all categories with settings
+  getAll: async () => {
+    const response = await api.get('/admin/homepage-categories');
+    return response.data;
+  },
+  
+  // Admin - Create new category
+  create: async (data: {
+    name: string;
+    title: string;
+    description?: string;
+    link_type: 'search' | 'url' | 'category';
+    link_value: string;
+    is_enabled?: boolean;
+  }) => {
+    const response = await api.post('/admin/homepage-categories', data);
+    return response.data;
+  },
+  
+  // Admin - Update category
+  update: async (id: number, data: {
+    name?: string;
+    title?: string;
+    description?: string;
+    link_type?: 'search' | 'url' | 'category';
+    link_value?: string;
+    is_enabled?: boolean;
+  }) => {
+    const response = await api.put(`/admin/homepage-categories/${id}`, data);
+    return response.data;
+  },
+  
+  // Admin - Delete category
+  delete: async (id: number) => {
+    const response = await api.delete(`/admin/homepage-categories/${id}`);
+    return response.data;
+  },
+  
+  // Admin - Upload category image
+  uploadImage: async (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await api.post(`/admin/homepage-categories/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+  
+  // Admin - Reorder categories
+  reorder: async (categories: Array<{ id: number; display_order: number }>) => {
+    const response = await api.post('/admin/homepage-categories/reorder', { categories });
+    return response.data;
+  },
+  
+  // Admin - Update global settings
+  updateSettings: async (settings: {
+    enabled: boolean;
+    mobile: boolean;
+    desktop: boolean;
+    layout: 'grid' | 'carousel';
+  }) => {
+    const response = await api.put('/admin/homepage-categories/settings', settings);
     return response.data;
   }
 };

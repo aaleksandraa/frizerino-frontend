@@ -588,6 +588,9 @@ export function SalonProfile() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                   placeholder="info@salon.rs"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  💡 Klijenti će moći odgovoriti direktno na ovaj email kada prime potvrdu termina
+                </p>
               </div>
               
               <div>

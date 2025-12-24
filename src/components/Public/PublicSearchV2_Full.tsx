@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppearance } from '../../context/AppearanceContext';
 import { MainNavbar } from '../Layout/MainNavbar';
 import { PublicFooter } from './PublicFooter';
+import HomepageCategoryCards from './HomepageCategoryCards';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/datepicker-custom.css';
@@ -207,10 +208,16 @@ export const PublicSearchV2: React.FC = () => {
 
   // Track screen height for responsive service tags
   const [screenHeight, setScreenHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 800);
+  
+  // Track if mobile for category cards
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
   // Update screen height on resize
   useEffect(() => {
-    const handleResize = () => setScreenHeight(window.innerHeight);
+    const handleResize = () => {
+      setScreenHeight(window.innerHeight);
+      setIsMobile(window.innerWidth < 768);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -918,7 +925,7 @@ Rezervacija je brza i besplatna.
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Pretraži salone, usluge ili grad (npr. šišanje, Sarajevo)...)"
+                  placeholder="Pretraži salone, usluge ili grad (npr. šišanje, trajni lak, Sarajevo)"
                   value={filters.q}
                   onChange={(e) => {
                     handleFilterChange('q', e.target.value);
@@ -1092,6 +1099,20 @@ Rezervacija je brza i besplatna.
               </svg>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Homepage Category Cards - Mobile (replaces search results initially) */}
+      <div className="md:hidden bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <HomepageCategoryCards isMobile={true} />
+        </div>
+      </div>
+
+      {/* Homepage Category Cards - Desktop only (below search) */}
+      <div className="hidden md:block bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <HomepageCategoryCards isMobile={false} />
         </div>
       </div>
 

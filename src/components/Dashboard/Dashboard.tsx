@@ -29,6 +29,7 @@ import { SalonClients } from '../Salon/SalonClients';
 import { SalonJobAds } from '../Salon/SalonJobAds';
 import { SalonSetupWizard } from '../Salon/SalonSetupWizard';
 import { PendingSalonDashboard } from '../Salon/PendingSalonDashboard';
+import SalonReportSettings from '../Salon/SalonReportSettings';
 
 // Admin components
 import { AdminSalons } from '../Admin/AdminSalons';
@@ -38,6 +39,9 @@ import { AdminSettings } from '../Admin/AdminSettings';
 import { AdminConsents } from '../Admin/AdminConsents';
 import { AdminJobAds } from '../Admin/AdminJobAds';
 import { AdminWidgetManagement } from '../Admin/AdminWidgetManagement';
+import { AdminImportAppointments } from '../Admin/AdminImportAppointments';
+import { AdminImportHistory } from '../Admin/AdminImportHistory';
+import AdminHomepageCategories from '../Admin/AdminHomepageCategories';
 
 // Frizer components
 import { FrizerCalendar } from '../Frizer/FrizerCalendar';
@@ -114,9 +118,12 @@ export function Dashboard() {
           case 'dashboard': return <AdminDashboard />;
           case 'salons': return <AdminSalons />;
           case 'users': return <AdminUsers />;
+          case 'import': return <AdminImportAppointments />;
+          case 'import-history': return <AdminImportHistory />;
           case 'widgets': return <AdminWidgetManagement />;
           case 'consents': return <AdminConsents />;
           case 'job-ads': return <AdminJobAds />;
+          case 'homepage-categories': return <AdminHomepageCategories />;
           case 'analytics': return <AdminAnalytics />;
           case 'settings': return <AdminSettings />;
           case 'profile': return <ClientProfile />;
@@ -146,6 +153,7 @@ export function Dashboard() {
           case 'reviews': return <SalonReviews />;
           case 'clients': return <SalonClients />;
           case 'job-ads': return <SalonJobAds />;
+          case 'reports': return <SalonReportSettings />;
           case 'settings': return <SalonProfile />;
           default: return <SalonDashboard onSectionChange={setActiveSection} />;
         }

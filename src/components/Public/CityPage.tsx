@@ -117,6 +117,7 @@ const cityKeywords: Record<string, string[]> = {
 
 export const CityPage: React.FC = () => {
   const { citySlug, categorySlug } = useParams<{ citySlug: string; categorySlug?: string }>();
+  
   const [city, setCity] = useState<CityData | null>(null);
   const [salons, setSalons] = useState<Salon[]>([]);
   const [meta, setMeta] = useState<MetaData | null>(null);
@@ -124,8 +125,22 @@ export const CityPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Check if citySlug is actually a category (for routes like /saloni/kozmeticari)
+  const isCategoryOnly = useMemo(() => 
+    citySlug ? (serviceCategories[citySlug] !== undefined && !categorySlug) : false,
+    [citySlug, categorySlug]
+  );
+  
   // Get current category info
-  const currentCategory = categorySlug ? serviceCategories[categorySlug] : null;
+  const currentCategory = useMemo(() => {
+    if (isCategoryOnly && citySlug) {
+      return serviceCategories[citySlug];
+    }
+    if (categorySlug) {
+      return serviceCategories[categorySlug];
+    }
+    return null;
+  }, [isCategoryOnly, citySlug, categorySlug]);
   
   // View mode: list or map
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -156,75 +171,95 @@ export const CityPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (citySlug) {
-      loadCityData();
-    }
-  }, [citySlug, categorySlug]);
-
-  const loadCityData = async () => {
     if (!citySlug) return;
     
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // If category is specified, use search API with filters
-      if (categorySlug && currentCategory) {
-        const searchData = await publicAPI.searchSalons({
-          city: citySlug,
-          service: currentCategory.name,
-          per_page: 50
-        });
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Check if citySlug is actually a category
+        const isCategoryRoute = serviceCategories[citySlug] !== undefined && !categorySlug;
         
-        // Create city data from slug
-        const cityName = slugToName(citySlug);
-        setCity({ name: cityName, slug: citySlug });
-        setSalons(searchData.salons?.data || searchData.salons || []);
-        
-        // Generate meta for category page
-        setMeta({
-          title: `${currentCategory.name} u ${cityName} - ${currentCategory.description} | Frizerino`,
-          description: `${currentCategory.description} Pronađite najbolje ${currentCategory.name.toLowerCase()} salone u gradu ${cityName}. Online zakazivanje termina.`,
-          keywords: currentCategory.keywords.map(k => `${k} ${cityName.toLowerCase()}`),
-          canonical: `/saloni/${citySlug}/${categorySlug}`
-        });
-        setSchema(null);
-      } else {
+        // If category-only (no city), search all salons with that service
+        if (isCategoryRoute) {
+          const category = serviceCategories[citySlug];
+          
+          const searchData = await publicAPI.searchSalons({
+            service: category.name,
+            per_page: 50
+          });
+          
+          setCity(null);
+          setSalons(searchData.salons?.data || searchData.salons || []);
+          
+          setMeta({
+            title: `${category.name} - ${category.description} | Frizerino`,
+            description: `${category.description} Pronađite najbolje ${category.name.toLowerCase()} salone u Bosni i Hercegovini. Online zakazivanje termina.`,
+            keywords: category.keywords,
+            canonical: `/saloni/${citySlug}`
+          });
+          setSchema(null);
+        }
+        // If category is specified with city
+        else if (categorySlug && serviceCategories[categorySlug]) {
+          const category = serviceCategories[categorySlug];
+          
+          const searchData = await publicAPI.searchSalons({
+            city: citySlug,
+            service: category.name,
+            per_page: 50
+          });
+          
+          const cityName = slugToName(citySlug);
+          setCity({ name: cityName, slug: citySlug });
+          setSalons(searchData.salons?.data || searchData.salons || []);
+          
+          setMeta({
+            title: `${category.name} u ${cityName} - ${category.description} | Frizerino`,
+            description: `${category.description} Pronađite najbolje ${category.name.toLowerCase()} salone u gradu ${cityName}. Online zakazivanje termina.`,
+            keywords: category.keywords.map(k => `${k} ${cityName.toLowerCase()}`),
+            canonical: `/saloni/${citySlug}/${categorySlug}`
+          });
+          setSchema(null);
+        } 
         // Load all salons for the city
-        const data = await publicAPI.getSalonsByCity(citySlug);
-        setCity(data.city);
-        setSalons(data.salons?.data || data.salons || []);
-        setMeta(data.meta);
-        setSchema(data.schema);
+        else {
+          const data = await publicAPI.getSalonsByCity(citySlug);
+          setCity(data.city);
+          setSalons(data.salons?.data || data.salons || []);
+          setMeta(data.meta);
+          setSchema(data.schema);
+        }
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          setError('Grad nije pronađen');
+        } else {
+          setError('Greška pri učitavanju podataka');
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
-        setError('Grad nije pronađen');
-      } else {
-        setError('Greška pri učitavanju podataka');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+    };
+    
+    loadData();
+  }, [citySlug, categorySlug]);
+
   // Convert slug to readable name
   const slugToName = (slug: string): string => {
     const cityNames: Record<string, string> = {
       'sarajevo': 'Sarajevo',
       'banja-luka': 'Banja Luka',
       'tuzla': 'Tuzla',
-      'zenica': 'Zenica',
       'mostar': 'Mostar',
-      'bihac': 'Bihać',
+      'zenica': 'Zenica',
       'bijeljina': 'Bijeljina',
-      'brcko': 'Brčko',
       'prijedor': 'Prijedor',
-      'doboj': 'Doboj',
+      'brcko': 'Brčko',
       'trebinje': 'Trebinje',
-      'modrica': 'Modriča',
+      'doboj': 'Doboj',
     };
-    return cityNames[slug] || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return cityNames[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
   };
 
   // Calculate distance between user and salon
@@ -442,11 +477,13 @@ export const CityPage: React.FC = () => {
         <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white">
           <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
             <Link 
-              to={currentCategory ? `/saloni/${citySlug}` : "/pretraga"}
+              to={currentCategory && city ? `/saloni/${citySlug}` : "/pretraga"}
               className="inline-flex items-center text-orange-100 hover:text-white mb-4"
             >
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              {currentCategory ? `Svi saloni u ${city?.name}` : 'Povratak na pretragu'}
+              {currentCategory && city && `Svi saloni u ${city.name}`}
+              {currentCategory && !city && 'Povratak na pretragu'}
+              {!currentCategory && 'Povratak na pretragu'}
             </Link>
             
             <div className="flex items-center gap-3 mb-4">
@@ -456,18 +493,16 @@ export const CityPage: React.FC = () => {
                 <MapPinIcon className="w-10 h-10 text-white" />
               )}
               <h1 className="text-3xl sm:text-4xl font-bold">
-                {currentCategory 
-                  ? `${currentCategory.name} u ${city?.name}`
-                  : `Frizeri i Saloni u ${city?.name}`
-                }
+                {currentCategory && !city && currentCategory.name}
+                {currentCategory && city && `${currentCategory.name} u ${city.name}`}
+                {!currentCategory && city && `Frizeri i Saloni u ${city.name}`}
               </h1>
             </div>
             
             <p className="text-xl text-orange-100">
-              {currentCategory 
-                ? `${salons.length} ${salons.length === 1 ? 'salon' : 'salona'} sa uslugom ${currentCategory.name.toLowerCase()}`
-                : `${salons.length} ${salons.length === 1 ? 'salon' : salons.length < 5 ? 'salona' : 'salona'} u gradu ${city?.name}`
-              }
+              {currentCategory && !city && `${salons.length} ${salons.length === 1 ? 'salon' : 'salona'} sa uslugom ${currentCategory.name.toLowerCase()}`}
+              {currentCategory && city && `${salons.length} ${salons.length === 1 ? 'salon' : 'salona'} sa uslugom ${currentCategory.name.toLowerCase()} u ${city.name}`}
+              {!currentCategory && city && `${salons.length} ${salons.length === 1 ? 'salon' : salons.length < 5 ? 'salona' : 'salona'} u gradu ${city.name}`}
             </p>
             
             {currentCategory && (
@@ -549,11 +584,24 @@ export const CityPage: React.FC = () => {
                 </Link>
                 <meta itemProp="position" content="2" />
               </li>
-              <span className="mx-2">›</span>
-              <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
-                <span className="text-gray-900" itemProp="name">{city?.name}</span>
-                <meta itemProp="position" content="3" />
-              </li>
+              {city && (
+                <>
+                  <span className="mx-2">›</span>
+                  <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+                    <span className="text-gray-900" itemProp="name">{city.name}</span>
+                    <meta itemProp="position" content="3" />
+                  </li>
+                </>
+              )}
+              {currentCategory && (
+                <>
+                  <span className="mx-2">›</span>
+                  <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+                    <span className="text-gray-900" itemProp="name">{currentCategory.name}</span>
+                    <meta itemProp="position" content={city ? "4" : "3"} />
+                  </li>
+                </>
+              )}
             </ol>
           </nav>
         </div>
@@ -563,13 +611,33 @@ export const CityPage: React.FC = () => {
           {/* SEO Text */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              Pronađite najbolji frizerski ili kozmetički salon u {city?.name}
+              {currentCategory && !city && `Pronađite najbolje ${currentCategory.name.toLowerCase()} salone`}
+              {currentCategory && city && `Pronađite najbolje ${currentCategory.name.toLowerCase()} salone u ${city.name}`}
+              {!currentCategory && city && `Pronađite najbolji frizerski ili kozmetički salon u ${city.name}`}
             </h2>
             <p className="text-gray-600 leading-relaxed">
-              Frizerino vam nudi najširi izbor frizerskih i kozmetičkih salona u gradu {city?.name}. 
-              Pogledajte cijene usluga, pročitajte recenzije drugih klijenata i zakažite svoj termin online. 
-              Bilo da tražite klasično šišanje, moderno farbanje, pramenove, tretmane lica ili njegu noktiju, 
-              ovdje ćete pronaći salon koji odgovara vašim potrebama i budžetu.
+              {currentCategory && !city && (
+                <>
+                  Frizerino vam nudi najširi izbor {currentCategory.name.toLowerCase()} salona u Bosni i Hercegovini. 
+                  Pogledajte cijene usluga, pročitajte recenzije drugih klijenata i zakažite svoj termin online. 
+                  {currentCategory.description}
+                </>
+              )}
+              {currentCategory && city && (
+                <>
+                  Frizerino vam nudi najširi izbor {currentCategory.name.toLowerCase()} salona u gradu {city.name}. 
+                  Pogledajte cijene usluga, pročitajte recenzije drugih klijenata i zakažite svoj termin online. 
+                  {currentCategory.description}
+                </>
+              )}
+              {!currentCategory && city && (
+                <>
+                  Frizerino vam nudi najširi izbor frizerskih i kozmetičkih salona u gradu {city.name}. 
+                  Pogledajte cijene usluga, pročitajte recenzije drugih klijenata i zakažite svoj termin online. 
+                  Bilo da tražite klasično šišanje, moderno farbanje, pramenove, tretmane lica ili njegu noktiju, 
+                  ovdje ćete pronaći salon koji odgovara vašim potrebama i budžetu.
+                </>
+              )}
             </p>
           </div>
 

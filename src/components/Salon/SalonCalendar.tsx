@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Calendar as CalendarIcon, 
@@ -10,12 +10,17 @@ import {
   CheckCircle,
   XCircle,
   Filter,
-  Users
+  Users,
+  LayoutGrid,
+  Columns,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
+import { SalonCalendarWeekView } from './SalonCalendarWeekView';
+import { SalonCalendarDayView } from './SalonCalendarDayView';
 
 export function SalonCalendar() {
   const { user } = useAuth();
@@ -30,6 +35,7 @@ export function SalonCalendar() {
   const [highlightedAppointment, setHighlightedAppointment] = useState<number | null>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
 
   // Read date and appointment from URL params
   useEffect(() => {
@@ -60,25 +66,34 @@ export function SalonCalendar() {
 
   useEffect(() => {
     loadData();
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedDate) {
-      loadAppointmentsForDate(selectedDate);
-    }
-  }, [selectedDate, selectedStaff]);
+  }, [user, currentDate]); // Reload when month changes
 
   const loadData = async (keepSelectedDate = false) => {
     if (!user?.salon) return;
 
-    const currentSelectedDate = selectedDate; // Save current selected date
+    const currentSelectedDate = selectedDate;
 
     try {
       setLoading(true);
       
+      // Calculate date range for current month view
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Format dates for API (DD.MM.YYYY)
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
+      
       // Load appointments, staff, and services
+      // Only load appointments for current month to improve performance
       const [appointmentsData, staffData, servicesData] = await Promise.all([
-        appointmentAPI.getAppointments(),
+        appointmentAPI.getAppointments({ 
+          per_page: 1000, // Reasonable limit for one month
+          start_date: startDate,
+          end_date: endDate
+        }),
         staffAPI.getStaff(user.salon.id),
         serviceAPI.getServices(user.salon.id)
       ]);
@@ -112,24 +127,26 @@ export function SalonCalendar() {
     if (!user?.salon) return;
     
     try {
-      const appointmentsData = await appointmentAPI.getAppointments();
+      // Calculate date range for current month
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
+      
+      const appointmentsData = await appointmentAPI.getAppointments({ 
+        per_page: 1000,
+        start_date: startDate,
+        end_date: endDate
+      });
       const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
       const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user.salon.id);
       setAppointments(salonAppointments);
     } catch (error) {
       console.error('Error refreshing appointments:', error);
     }
-  };
-
-  const loadAppointmentsForDate = (date: string) => {
-    // Filter appointments for selected date and staff
-    let dayAppointments = appointments.filter(app => app.date === date);
-    
-    if (selectedStaff !== 'all') {
-      dayAppointments = dayAppointments.filter(app => app.staff_id === selectedStaff);
-    }
-    
-    dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -263,26 +280,75 @@ export function SalonCalendar() {
     );
   }
 
+  // If week view is selected, render the week view component
+  if (viewMode === 'week') {
+    return <SalonCalendarWeekView onViewChange={setViewMode} />;
+  }
+
+  // If day view is selected, render the day view component
+  if (viewMode === 'day') {
+    return <SalonCalendarDayView onViewChange={setViewMode} />;
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Kalendar salona</h1>
         
-        {/* Staff Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-gray-400" />
-          <select
-            value={selectedStaff}
-            onChange={(e) => setSelectedStaff(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">Svi zaposleni</option>
-            {staff.map(staffMember => (
-              <option key={staffMember.id} value={staffMember.id}>
-                {staffMember.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('month')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'month'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Mjesec
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Columns className="w-4 h-4" />
+              Sedmica
+            </button>
+            <button
+              onClick={() => setViewMode('day')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'day'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Dan
+            </button>
+          </div>
+
+          {/* Staff Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-400" />
+            <select
+              value={selectedStaff}
+              onChange={(e) => setSelectedStaff(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">Svi zaposleni</option>
+              {staff.map(staffMember => (
+                <option key={staffMember.id} value={staffMember.id}>
+                  {staffMember.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -302,7 +368,11 @@ export function SalonCalendar() {
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </button>
               <button
-                onClick={() => setCurrentDate(new Date())}
+                onClick={() => {
+                  const today = new Date();
+                  setCurrentDate(today);
+                  setSelectedDate(getCurrentDateEuropean());
+                }}
                 className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Danas
@@ -329,7 +399,7 @@ export function SalonCalendar() {
             {/* Calendar days */}
             {getDaysInMonth(currentDate).map((day, index) => {
               if (!day) {
-                return <div key={index} className="p-1 sm:p-2 h-10 sm:h-20"></div>;
+                return <div key={`empty-${index}`} className="p-1 sm:p-2 h-10 sm:h-20"></div>;
               }
               
               const dayAppointments = getAppointmentsForDay(day);
@@ -339,7 +409,7 @@ export function SalonCalendar() {
               
               return (
                 <div
-                  key={day}
+                  key={`day-${day}`}
                   onClick={() => handleDateClick(day)}
                   className={`p-1 sm:p-2 h-10 sm:h-20 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors rounded-sm sm:rounded ${
                     isSelected ? 'bg-blue-50 border-blue-300' : ''
