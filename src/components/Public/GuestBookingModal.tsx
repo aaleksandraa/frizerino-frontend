@@ -98,6 +98,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   // Track dates with available slots
   const [datesWithSlots, setDatesWithSlots] = useState<Set<string>>(new Set());
   const [loadingDates, setLoadingDates] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Guest data
   const [guestData, setGuestData] = useState<GuestData>({
@@ -169,6 +170,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     if (!selectedStaffId || !selectedServices[0]?.id) return;
     
     setLoadingDates(true);
+    setLoadingProgress(0);
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -188,8 +190,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
       const datesSet = new Set<string>();
       
-      // Check each day in the month
-      for (let day = firstDay; day <= lastDay; day.setDate(day.getDate() + 1)) {
+      // Collect all dates to check
+      const datesToCheck: Date[] = [];
+      for (let day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) {
         // Skip past dates
         if (day < today) continue;
         
@@ -197,31 +200,57 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         const availability = isDateAvailable(new Date(day));
         if (!availability.available) continue;
         
-        // Format date for API
-        const dateStr = `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}.${day.getFullYear()}`;
+        datesToCheck.push(new Date(day));
+      }
+      
+      const totalDates = datesToCheck.length;
+      let processedDates = 0;
+      
+      // Process dates in parallel batches of 5 to avoid overwhelming the server
+      const batchSize = 5;
+      for (let i = 0; i < datesToCheck.length; i += batchSize) {
+        const batch = datesToCheck.slice(i, i + batchSize);
         
-        try {
-          const response = await publicAPI.getAvailableSlotsForMultipleServices(
-            String(salon.id),
-            dateStr,
-            servicesData
-          );
+        const batchPromises = batch.map(async (day) => {
+          const dateStr = `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}.${day.getFullYear()}`;
           
-          let slots = response.slots || [];
-          
-          // Filter past slots if today
-          if (day.toDateString() === today.toDateString()) {
-            const currentTime = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')}`;
-            slots = slots.filter((slot: string) => slot > currentTime);
+          try {
+            const response = await publicAPI.getAvailableSlotsForMultipleServices(
+              String(salon.id),
+              dateStr,
+              servicesData
+            );
+            
+            let slots = response.slots || [];
+            
+            // Filter past slots if today
+            if (day.toDateString() === today.toDateString()) {
+              const currentTime = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')}`;
+              slots = slots.filter((slot: string) => slot > currentTime);
+            }
+            
+            // If there are available slots, return the date
+            return slots.length > 0 ? dateStr : null;
+          } catch (err) {
+            console.error(`Error checking slots for ${dateStr}:`, err);
+            return null;
           }
-          
-          // If there are available slots, add to set
-          if (slots.length > 0) {
-            datesSet.add(dateStr);
-          }
-        } catch (err) {
-          console.error(`Error checking slots for ${dateStr}:`, err);
-        }
+        });
+        
+        // Wait for current batch to complete
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add successful dates to set
+        batchResults.forEach(dateStr => {
+          if (dateStr) datesSet.add(dateStr);
+        });
+        
+        // Update progress
+        processedDates += batch.length;
+        setLoadingProgress(Math.round((processedDates / totalDates) * 100));
+        
+        // Update UI progressively as batches complete
+        setDatesWithSlots(new Set(datesSet));
       }
       
       setDatesWithSlots(datesSet);
@@ -229,6 +258,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       console.error('Error loading dates with slots:', err);
     } finally {
       setLoadingDates(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -908,9 +938,22 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
               
               <div className="bg-gray-50 rounded-xl p-3 sm:p-5">
                 {loadingDates && (
-                  <div className="flex items-center justify-center py-4 mb-4 bg-white rounded-lg">
-                    <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-                    <span className="text-sm text-gray-600">Provjeravam dostupne termine...</span>
+                  <div className="py-4 mb-4 bg-white rounded-lg">
+                    <div className="flex items-center justify-center mb-2">
+                      <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span className="text-sm text-gray-600">Provjeravam dostupne termine...</span>
+                    </div>
+                    {loadingProgress > 0 && (
+                      <div className="px-4">
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-300"
+                            style={{ width: `${loadingProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 text-center mt-1">{loadingProgress}%</p>
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* Custom date picker with month navigation */}
