@@ -1109,7 +1109,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const capacity = capacityData.get(isoDateStr);
                             const isFull = capacity && capacity.percentage >= 100;
                             
-                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
+                            // Special handling for today - disable if no slots OR if loading is complete and no slots found
+                            const isTodayWithoutSlots = isToday && !hasSlots && !loadingDates;
+                            
+                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull || isTodayWithoutSlots;
                             
                             return (
                               <button
@@ -1126,9 +1129,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                   isDisabled 
                                     ? isFull
                                       ? 'Dan je potpuno popunjen'
-                                      : !hasSlots && !isPast && !isFuture && availability.available
-                                        ? 'Nema dostupnih termina'
-                                        : availability.reason || 'Nedostupno'
+                                      : isTodayWithoutSlots
+                                        ? 'Nema dostupnih termina za danas'
+                                        : !hasSlots && !isPast && !isFuture && availability.available
+                                          ? 'Nema dostupnih termina'
+                                          : availability.reason || 'Nedostupno'
                                     : undefined
                                 }
                                 className={`
@@ -1149,7 +1154,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                   {date.getDate()}
                                 </span>
                                 {isDisabled && !isPast && !isFuture && (
-                                  <span className="text-[8px] sm:text-[10px] leading-tight">Zatvoreno</span>
+                                  <span className="text-[8px] sm:text-[10px] leading-tight">
+                                    {!hasSlots && availability.available 
+                                      ? 'Nema termina'
+                                      : isFull
+                                        ? 'Popunjeno'
+                                        : availability.reason || 'Zatvoreno'
+                                    }
+                                  </span>
                                 )}
                               </button>
                             );
