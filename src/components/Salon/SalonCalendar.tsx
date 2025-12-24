@@ -88,6 +88,8 @@ export function SalonCalendar() {
       const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
       const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
       
+      console.log('Loading appointments for month:', `${year}-${month + 1}`, 'Date range:', startDate, '-', endDate);
+      
       // Load appointments, staff, and services
       // Only load appointments for current month to improve performance
       const [appointmentsData, staffData, servicesData] = await Promise.all([
@@ -105,8 +107,12 @@ export function SalonCalendar() {
       const staffArray = Array.isArray(staffData) ? staffData : (staffData?.data || []);
       const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.data || []);
       
+      console.log('Loaded appointments:', appointmentsArray.length, 'appointments');
+      
       // Filter appointments for this salon
       const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user.salon.id);
+      
+      console.log('Salon appointments:', salonAppointments.length, 'for salon', user.salon.id);
       
       setAppointments(salonAppointments);
       setStaff(staffArray);
