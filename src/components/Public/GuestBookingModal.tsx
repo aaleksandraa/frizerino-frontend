@@ -173,8 +173,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     setLoadingDates(true);
     setLoadingProgress(0);
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // CRITICAL: Use separate variables for date comparison and time filtering
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
+      
+      // Current time for filtering today's slots
+      const now = new Date();
+      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       
       // Get first and last day of current displayed month
       const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -207,8 +212,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       // Collect all dates to check
       const datesToCheck: Date[] = [];
       for (let day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) {
-        // Skip past dates
-        if (day < today) continue;
+        // Skip past dates (compare with midnight)
+        if (day < todayMidnight) continue;
         
         // Check if date is available (working day, not on vacation, etc.)
         const availability = isDateAvailable(new Date(day));
@@ -237,10 +242,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             
             let slots = response.slots || [];
             
-            // Filter past slots if today
-            if (day.toDateString() === today.toDateString()) {
-              const currentTime = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')}`;
-              slots = slots.filter((slot: string) => slot > currentTime);
+            // CRITICAL: Filter past slots if today - use CURRENT time, not midnight!
+            if (day.toDateString() === todayMidnight.toDateString()) {
+              slots = slots.filter((slot: string) => slot > currentTimeStr);
             }
             
             // If there are available slots, return the date
@@ -633,7 +637,18 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
       setShowSuccess(true);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri rezervaciji. Pokušajte ponovo.');
+      const errorMessage = err.response?.data?.message || 'Greška pri rezervaciji. Pokušajte ponovo.';
+      
+      // Check if it's a double booking error - go back to time selection
+      if (errorMessage.includes('upravo zauzet') || errorMessage.includes('nije dostupan') || errorMessage.includes('double booking')) {
+        setError('Neko je u međuvremenu zakazao ovaj termin. Molimo odaberite drugo vrijeme.');
+        setSelectedTime(''); // Clear selected time
+        setStep(4); // Go back to time selection
+        // Reload available slots
+        loadAvailableSlots();
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -1102,6 +1117,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const isToday = date.toDateString() === today.toDateString();
                             const isSunday = date.getDay() === 0;
                             const availability = isDateAvailable(date);
+                            
+                            // CRITICAL: Check if date has available slots
+                            // For today, we need to be extra careful - only enable if explicitly in the set
                             const hasSlots = datesWithSlots.has(dateStr);
                             
                             // Check capacity - disable if 100% full (red)
@@ -1109,12 +1127,24 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const capacity = capacityData.get(isoDateStr);
                             const isFull = capacity && capacity.percentage >= 100;
                             
-                            // CRITICAL FIX: For today, if loading is done and it's NOT in the set, disable it
-                            // This ensures today is disabled when all slots are in the past
-                            let isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
+                            // CRITICAL: Determine if date should be disabled
+                            // 1. Past dates are always disabled
+                            // 2. Future dates beyond 3 months are disabled
+                            // 3. Non-working days are disabled
+                            // 4. Days without available slots are disabled
+                            // 5. Full days (100% capacity) are disabled
+                            // 6. TODAY: Only enable if loading is COMPLETE AND it's in the datesWithSlots set
+                            let isDisabled = isPast || isFuture || !availability.available || isFull;
                             
-                            // Extra check for today: if loading is complete and today has no slots, force disable
-                            if (isToday && !loadingDates && !hasSlots) {
+                            // For all dates (including today): disable if no slots available
+                            // But only after loading is complete to avoid flickering
+                            if (!loadingDates && !hasSlots) {
+                              isDisabled = true;
+                            }
+                            
+                            // During loading, disable dates that are not yet confirmed to have slots
+                            // This prevents clicking on dates before we know if they have slots
+                            if (loadingDates && !hasSlots) {
                               isDisabled = true;
                             }
                             
