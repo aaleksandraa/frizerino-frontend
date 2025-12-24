@@ -28,9 +28,11 @@ export function FrizerCalendarWeekView({ onViewChange }: FrizerCalendarWeekViewP
   const [showClientModal, setShowClientModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadData();
+    loadCapacityData();
   }, [user, currentWeekStart]);
 
   const loadData = async () => {
@@ -62,6 +64,28 @@ export function FrizerCalendarWeekView({ onViewChange }: FrizerCalendarWeekViewP
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCapacityData = async () => {
+    if (!user?.staff_profile) return;
+
+    try {
+      const weekDays = getWeekDays();
+      const year = weekDays[0].getFullYear();
+      const month = weekDays[0].getMonth() + 1;
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      
+      const response = await appointmentAPI.getMonthCapacity(monthStr);
+      
+      const capacityMap = new Map();
+      response.capacity.forEach((item: any) => {
+        capacityMap.set(item.date, item);
+      });
+      
+      setCapacityData(capacityMap);
+    } catch (error) {
+      console.error('Error loading capacity data:', error);
     }
   };
 
@@ -279,11 +303,18 @@ export function FrizerCalendarWeekView({ onViewChange }: FrizerCalendarWeekViewP
               <div className="p-3 text-sm font-medium text-gray-500 border-r">Vrijeme</div>
               {weekDays.map((day, index) => {
                 const isToday = formatDateEuropean(day) === getCurrentDateEuropean();
+                const isoDateStr = day.toISOString().split('T')[0];
+                const capacity = capacityData.get(isoDateStr);
+                
                 return (
                   <div
                     key={index}
                     className={`p-3 text-center border-r last:border-r-0 ${
                       isToday ? 'bg-blue-50' : ''
+                    } ${
+                      capacity?.color === 'red' ? 'bg-red-50' :
+                      capacity?.color === 'yellow' ? 'bg-yellow-50' :
+                      capacity?.color === 'green' ? 'bg-green-50' : ''
                     }`}
                   >
                     <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
@@ -292,6 +323,18 @@ export function FrizerCalendarWeekView({ onViewChange }: FrizerCalendarWeekViewP
                     <div className={`text-xs ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
                       {day.getDate()}.{day.getMonth() + 1}.
                     </div>
+                    {/* Capacity badge */}
+                    {capacity && capacity.percentage > 0 && (
+                      <div className="mt-1">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          capacity.color === 'red' ? 'bg-red-500 text-white' :
+                          capacity.color === 'yellow' ? 'bg-yellow-500 text-white' :
+                          'bg-green-500 text-white'
+                        }`}>
+                          {capacity.percentage}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })}

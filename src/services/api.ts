@@ -396,6 +396,11 @@ export const appointmentAPI = {
   cancelAppointment: async (id: string) => {
     const response = await api.put(`/appointments/${id}/cancel`);
     return response.data;
+  },
+
+  getMonthCapacity: async (month: string) => {
+    const response = await api.get('/appointments/capacity/month', { params: { month } });
+    return response.data;
   }
 };
 

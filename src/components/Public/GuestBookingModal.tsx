@@ -99,6 +99,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const [datesWithSlots, setDatesWithSlots] = useState<Set<string>>(new Set());
   const [loadingDates, setLoadingDates] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
   // Guest data
   const [guestData, setGuestData] = useState<GuestData>({
@@ -178,6 +179,19 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       // Get first and last day of current displayed month
       const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      
+      // Load capacity data for the month FIRST
+      const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+      try {
+        const capacityResponse = await appointmentAPI.getMonthCapacity(monthStr);
+        const capacityMap = new Map();
+        capacityResponse.capacity.forEach((item: any) => {
+          capacityMap.set(item.date, item);
+        });
+        setCapacityData(capacityMap);
+      } catch (err) {
+        console.error('Error loading capacity data:', err);
+      }
       
       // Build services data for multi-service API
       const servicesData = selectedServices
@@ -1089,7 +1103,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const isSunday = date.getDay() === 0;
                             const availability = isDateAvailable(date);
                             const hasSlots = datesWithSlots.has(dateStr);
-                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots;
+                            
+                            // Check capacity - disable if 100% full (red)
+                            const isoDateStr = date.toISOString().split('T')[0];
+                            const capacity = capacityData.get(isoDateStr);
+                            const isFull = capacity && capacity.percentage >= 100;
+                            
+                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
                             
                             return (
                               <button
@@ -1104,9 +1124,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                 }}
                                 title={
                                   isDisabled 
-                                    ? !hasSlots && !isPast && !isFuture && availability.available
-                                      ? 'Nema dostupnih termina'
-                                      : availability.reason || 'Nedostupno'
+                                    ? isFull
+                                      ? 'Dan je potpuno popunjen'
+                                      : !hasSlots && !isPast && !isFuture && availability.available
+                                        ? 'Nema dostupnih termina'
+                                        : availability.reason || 'Nedostupno'
                                     : undefined
                                 }
                                 className={`

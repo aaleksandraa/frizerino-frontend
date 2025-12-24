@@ -36,6 +36,7 @@ export function SalonCalendar() {
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
   // Read date and appointment from URL params
   useEffect(() => {
@@ -66,6 +67,7 @@ export function SalonCalendar() {
 
   useEffect(() => {
     loadData();
+    loadCapacityData();
   }, [user, currentDate]); // Reload when month changes
 
   const loadData = async (keepSelectedDate = false) => {
@@ -119,6 +121,31 @@ export function SalonCalendar() {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCapacityData = async () => {
+    if (!user?.salon) return;
+
+    try {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      
+      console.log('Loading capacity data for month:', monthStr);
+      const response = await appointmentAPI.getMonthCapacity(monthStr);
+      console.log('Capacity response:', response);
+      
+      // Convert array to Map for quick lookup
+      const capacityMap = new Map();
+      response.capacity.forEach((item: any) => {
+        capacityMap.set(item.date, item);
+      });
+      
+      console.log('Capacity map size:', capacityMap.size);
+      setCapacityData(capacityMap);
+    } catch (error) {
+      console.error('Error loading capacity data:', error);
     }
   };
 
@@ -407,20 +434,47 @@ export function SalonCalendar() {
               const isSelected = selectedDate === dateStr;
               const isToday = dateStr === getCurrentDateEuropean();
               
+              // Get capacity data for this day
+              const isoDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
+              const capacity = capacityData.get(isoDateStr);
+              
+              // Debug first day
+              if (day === 1) {
+                console.log('Day 1 - ISO date:', isoDateStr, 'Capacity:', capacity, 'Map size:', capacityData.size);
+              }
+              
+              // Determine background color based on capacity
+              let capacityBg = '';
+              let capacityBorder = '';
+              if (capacity) {
+                if (capacity.color === 'red') {
+                  capacityBg = 'bg-red-50';
+                  capacityBorder = 'border-red-300';
+                } else if (capacity.color === 'yellow') {
+                  capacityBg = 'bg-yellow-50';
+                  capacityBorder = 'border-yellow-300';
+                } else if (capacity.color === 'green') {
+                  capacityBg = 'bg-green-50';
+                  capacityBorder = 'border-green-300';
+                }
+              }
+              
               return (
                 <div
                   key={`day-${day}`}
                   onClick={() => handleDateClick(day)}
-                  className={`p-1 sm:p-2 h-10 sm:h-20 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors rounded-sm sm:rounded ${
-                    isSelected ? 'bg-blue-50 border-blue-300' : ''
-                  } ${isToday ? 'bg-orange-50 border-orange-300' : ''}`}
+                  className={`p-1 sm:p-2 h-10 sm:h-20 border cursor-pointer hover:bg-gray-50 transition-colors rounded-sm sm:rounded ${
+                    isSelected ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-300' : 
+                    isToday ? 'bg-orange-50 border-orange-300 ring-2 ring-orange-300' : 
+                    `${capacityBg} ${capacityBorder || 'border-gray-200'}`
+                  }`}
                 >
                   <div className={`text-xs sm:text-sm font-medium ${
                     isToday ? 'text-orange-600' : isSelected ? 'text-blue-600' : 'text-gray-900'
                   }`}>
                     {day}
                   </div>
-                  {/* Desktop: show appointment times */}
+                  {/* Desktop: show appointment times and capacity */}
                   <div className="hidden sm:block space-y-1 mt-1">
                     {dayAppointments.slice(0, 2).map(appointment => (
                       <div
@@ -435,11 +489,32 @@ export function SalonCalendar() {
                         +{dayAppointments.length - 2} više
                       </div>
                     )}
+                    {/* Capacity indicator */}
+                    {capacity && capacity.percentage > 0 && (
+                      <div className="mt-1">
+                        <div className="w-full bg-gray-200 rounded-full h-1">
+                          <div 
+                            className={`h-1 rounded-full ${
+                              capacity.color === 'red' ? 'bg-red-500' :
+                              capacity.color === 'yellow' ? 'bg-yellow-500' :
+                              'bg-green-500'
+                            }`}
+                            style={{ width: `${capacity.percentage}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-[10px] text-gray-500 text-center mt-0.5">
+                          {capacity.percentage}%
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {/* Mobile: compact dot indicator */}
+                  {/* Mobile: compact dot indicator with capacity */}
                   {dayAppointments.length > 0 && (
                     <div className="sm:hidden flex items-center justify-center mt-0.5">
                       <div className={`w-1.5 h-1.5 rounded-full ${
+                        capacity?.color === 'red' ? 'bg-red-500' :
+                        capacity?.color === 'yellow' ? 'bg-yellow-500' :
+                        capacity?.color === 'green' ? 'bg-green-500' :
                         dayAppointments.some(a => a.status === 'pending') ? 'bg-yellow-500' :
                         dayAppointments.some(a => a.status === 'confirmed') ? 'bg-orange-500' :
                         'bg-green-500'

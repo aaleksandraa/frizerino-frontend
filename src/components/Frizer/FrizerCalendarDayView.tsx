@@ -8,7 +8,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { staffAPI, serviceAPI } from '../../services/api';
+import { staffAPI, serviceAPI, appointmentAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
@@ -29,9 +29,11 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
   const [showClientModal, setShowClientModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadData();
+    loadCapacityData();
   }, [user, selectedDate]);
 
   const loadData = async () => {
@@ -53,6 +55,27 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCapacityData = async () => {
+    if (!user?.staff_profile) return;
+
+    try {
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth() + 1;
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      
+      const response = await appointmentAPI.getMonthCapacity(monthStr);
+      
+      const capacityMap = new Map();
+      response.capacity.forEach((item: any) => {
+        capacityMap.set(item.date, item);
+      });
+      
+      setCapacityData(capacityMap);
+    } catch (error) {
+      console.error('Error loading capacity data:', error);
     }
   };
 
@@ -398,7 +421,7 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
         <div className="lg:col-span-3">
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gray-50 border-b p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => navigateDay('prev')}
@@ -428,6 +451,43 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
                   {dayAppointments.length} {dayAppointments.length === 1 ? 'termin' : 'termina'}
                 </div>
               </div>
+
+              {/* Capacity Summary */}
+              {(() => {
+                const isoDateStr = selectedDate.toISOString().split('T')[0];
+                const capacity = capacityData.get(isoDateStr);
+                
+                if (!capacity || capacity.percentage === 0) return null;
+                
+                return (
+                  <div className={`p-3 rounded-lg border-l-4 ${
+                    capacity.color === 'red' ? 'bg-red-50 border-red-500' :
+                    capacity.color === 'yellow' ? 'bg-yellow-50 border-yellow-500' :
+                    'bg-green-50 border-green-500'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-gray-700">Popunjenost dana</div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {capacity.occupied_slots} / {capacity.total_slots} termina zauzeto
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-2xl font-bold ${
+                          capacity.color === 'red' ? 'text-red-700' :
+                          capacity.color === 'yellow' ? 'text-yellow-700' :
+                          'text-green-700'
+                        }`}>
+                          {capacity.percentage}%
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {capacity.free_slots} slobodno
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="p-6">
