@@ -183,7 +183,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       // Load capacity data for the month FIRST
       const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
       try {
-        const capacityResponse = await appointmentAPI.getMonthCapacity(monthStr);
+        const capacityResponse = await publicAPI.getMonthCapacity(String(salon.id), monthStr);
         const capacityMap = new Map();
         capacityResponse.capacity.forEach((item: any) => {
           capacityMap.set(item.date, item);

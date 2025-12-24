@@ -695,6 +695,12 @@ export const publicAPI = {
   }) => {
     const response = await api.post('/public/contact', data);
     return response.data;
+  },
+
+  // Get month capacity (public - for guest booking)
+  getMonthCapacity: async (salonId: string, month: string) => {
+    const response = await api.get(`/public/salons/${salonId}/capacity/month`, { params: { month } });
+    return response.data;
   }
 };
 
