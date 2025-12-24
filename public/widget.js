@@ -275,8 +275,9 @@
     if (!state.selectedStaff || state.selectedServices.length === 0) return;
     
     var today = new Date();
-    var currentMonth = state.calendarMonth || today.getMonth();
-    var currentYear = state.calendarYear || today.getFullYear();
+    // Use explicit undefined check to handle month 0 (January) correctly
+    var currentMonth = state.calendarMonth !== undefined ? state.calendarMonth : today.getMonth();
+    var currentYear = state.calendarYear !== undefined ? state.calendarYear : today.getFullYear();
     var monthStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
     
     var services = state.selectedServices.map(function(s) {
@@ -472,8 +473,9 @@
 
   function renderStep3() {
     var today = new Date();
-    var currentMonth = state.calendarMonth || today.getMonth();
-    var currentYear = state.calendarYear || today.getFullYear();
+    // Use explicit undefined check to handle month 0 (January) correctly
+    var currentMonth = state.calendarMonth !== undefined ? state.calendarMonth : today.getMonth();
+    var currentYear = state.calendarYear !== undefined ? state.calendarYear : today.getFullYear();
     var monthNames = ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'];
     // Start week from Monday (European format)
     var dayNames = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
@@ -668,12 +670,19 @@
     container.querySelectorAll('[data-action="prev-month"]').forEach(function(el) {
       el.addEventListener('click', function() {
         var today = new Date();
-        state.calendarMonth = (state.calendarMonth || today.getMonth()) - 1;
-        state.calendarYear = state.calendarYear || today.getFullYear();
-        if (state.calendarMonth < 0) {
-          state.calendarMonth = 11;
-          state.calendarYear--;
+        // Use explicit undefined check to handle month 0 (January) correctly
+        var currentMonth = state.calendarMonth !== undefined ? state.calendarMonth : today.getMonth();
+        var currentYear = state.calendarYear !== undefined ? state.calendarYear : today.getFullYear();
+        
+        currentMonth = currentMonth - 1;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
         }
+        
+        state.calendarMonth = currentMonth;
+        state.calendarYear = currentYear;
+        
         // Reset date selection and load available dates for new month
         state.selectedDate = null;
         state.selectedTime = null;
@@ -685,12 +694,19 @@
     container.querySelectorAll('[data-action="next-month"]').forEach(function(el) {
       el.addEventListener('click', function() {
         var today = new Date();
-        state.calendarMonth = (state.calendarMonth || today.getMonth()) + 1;
-        state.calendarYear = state.calendarYear || today.getFullYear();
-        if (state.calendarMonth > 11) {
-          state.calendarMonth = 0;
-          state.calendarYear++;
+        // Use explicit undefined check to handle month 0 (January) correctly
+        var currentMonth = state.calendarMonth !== undefined ? state.calendarMonth : today.getMonth();
+        var currentYear = state.calendarYear !== undefined ? state.calendarYear : today.getFullYear();
+        
+        currentMonth = currentMonth + 1;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
         }
+        
+        state.calendarMonth = currentMonth;
+        state.calendarYear = currentYear;
+        
         // Reset date selection and load available dates for new month
         state.selectedDate = null;
         state.selectedTime = null;
