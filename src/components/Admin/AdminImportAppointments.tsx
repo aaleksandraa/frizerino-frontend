@@ -103,9 +103,8 @@ export function AdminImportAppointments() {
 
   const loadStaff = async (salonId: number) => {
     try {
-      const response = await fetch(`/api/v1/salons/${salonId}/staff`);
-      const data = await response.json();
-      setStaffMembers(data.data || []);
+      const response = await adminAPI.get(`/salons/${salonId}/staff`);
+      setStaffMembers(response.data.data || []);
     } catch (err) {
       console.error('Error loading staff:', err);
     }
@@ -165,17 +164,15 @@ export function AdminImportAppointments() {
       const formData = new FormData();
       formData.append('file', fileToUpload);
 
-      const response = await fetch('/api/v1/admin/import/upload', {
-        method: 'POST',
+      const response = await adminAPI.post('/admin/import/upload', formData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Greška pri upload-u fajla');
       }
 
@@ -207,32 +204,25 @@ export function AdminImportAppointments() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/v1/admin/import/${importData.importId}/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await adminAPI.post(`/admin/import/${importData.importId}/validate`, {
+        salon_id: selectedSalon,
+        staff_id: selectedStaff,
+        mapping: {
+          name: 'client_name',
+          email: 'client_email',
+          phone: 'client_phone',
+          date: 'date',
+          time: 'time',
+          services: 'services',
+          duration: 'duration'
         },
-        body: JSON.stringify({
-          salon_id: selectedSalon,
-          staff_id: selectedStaff,
-          mapping: {
-            name: 'client_name',
-            email: 'client_email',
-            phone: 'client_phone',
-            date: 'date',
-            time: 'time',
-            services: 'services',
-            duration: 'duration'
-          },
-          auto_map_services: true,
-          create_guest_users: true
-        })
+        auto_map_services: true,
+        create_guest_users: true
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Greška pri validaciji');
       }
 
@@ -255,33 +245,26 @@ export function AdminImportAppointments() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/v1/admin/import/${importData.importId}/process`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await adminAPI.post(`/admin/import/${importData.importId}/process`, {
+        salon_id: selectedSalon,
+        staff_id: selectedStaff,
+        mapping: {
+          name: 'client_name',
+          email: 'client_email',
+          phone: 'client_phone',
+          date: 'date',
+          time: 'time',
+          services: 'services',
+          duration: 'duration'
         },
-        body: JSON.stringify({
-          salon_id: selectedSalon,
-          staff_id: selectedStaff,
-          mapping: {
-            name: 'client_name',
-            email: 'client_email',
-            phone: 'client_phone',
-            date: 'date',
-            time: 'time',
-            services: 'services',
-            duration: 'duration'
-          },
-          auto_map_services: true,
-          create_guest_users: true,
-          skip_invalid: true
-        })
+        auto_map_services: true,
+        create_guest_users: true,
+        skip_invalid: true
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Greška pri pokretanju importa');
       }
 
@@ -296,15 +279,10 @@ export function AdminImportAppointments() {
 
   const checkImportStatus = async (batchId: number) => {
     try {
-      const response = await fetch(`/api/v1/admin/import/batch/${batchId}/status`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await adminAPI.get(`/admin/import/batch/${batchId}/status`);
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data.success) {
         setImportStatus(data.data);
       }
     } catch (err) {
@@ -316,13 +294,11 @@ export function AdminImportAppointments() {
     if (!importBatchId) return;
 
     try {
-      const response = await fetch(`/api/v1/admin/import/batch/${importBatchId}/errors`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await adminAPI.get(`/admin/import/batch/${importBatchId}/errors`, {
+        responseType: 'blob'
       });
 
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -338,13 +314,11 @@ export function AdminImportAppointments() {
 
   const downloadTemplate = async (format: 'json' | 'csv') => {
     try {
-      const response = await fetch(`/api/v1/admin/import/template/${format}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await adminAPI.get(`/admin/import/template/${format}`, {
+        responseType: 'blob'
       });
 
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

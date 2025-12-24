@@ -723,6 +723,23 @@ export const notificationAPI = {
 
 // Admin API
 export const adminAPI = {
+  // Generic methods for direct API access
+  get: async (url: string, config?: any) => {
+    return await api.get(url, config);
+  },
+  
+  post: async (url: string, data?: any, config?: any) => {
+    return await api.post(url, data, config);
+  },
+  
+  put: async (url: string, data?: any, config?: any) => {
+    return await api.put(url, data, config);
+  },
+  
+  delete: async (url: string, config?: any) => {
+    return await api.delete(url, config);
+  },
+  
   getDashboardStats: async () => {
     const response = await api.get('/admin/dashboard');
     return response.data;
