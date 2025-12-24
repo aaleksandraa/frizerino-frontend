@@ -31,11 +31,11 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
   const [loading, setLoading] = useState(true);
   const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
-  // Load data when component mounts or selected date changes
+  // Load data when component mounts or selected month changes
   useEffect(() => {
     loadData();
     loadCapacityData();
-  }, [user, selectedDate]);
+  }, [user, selectedMonth]);
 
   const loadData = async () => {
     if (!user?.salon) return;
@@ -43,19 +43,20 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
     try {
       setLoading(true);
       
-      // Load appointments for selected day (and a few days around it for context)
-      const dayBefore = new Date(selectedDate);
-      dayBefore.setDate(selectedDate.getDate() - 1);
-      const dayAfter = new Date(selectedDate);
-      dayAfter.setDate(selectedDate.getDate() + 1);
+      // Calculate date range for current month view (for mini calendar)
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
       
-      const startDate = formatDateEuropean(dayBefore);
-      const endDate = formatDateEuropean(dayAfter);
+      // Format dates for API (DD.MM.YYYY)
+      const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
+      const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
       
       // Load appointments, staff, and services
       const [appointmentsData, staffData, servicesData] = await Promise.all([
         appointmentAPI.getAppointments({ 
-          per_page: 200,
+          per_page: 1000,
           start_date: startDate,
           end_date: endDate
         }),
@@ -83,8 +84,8 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
     if (!user?.salon) return;
 
     try {
-      const year = selectedDate.getFullYear();
-      const month = selectedDate.getMonth() + 1;
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth() + 1;
       const monthStr = `${year}-${String(month).padStart(2, '0')}`;
       
       const response = await appointmentAPI.getMonthCapacity(monthStr);
