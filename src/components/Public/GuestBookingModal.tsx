@@ -1109,12 +1109,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const capacity = capacityData.get(isoDateStr);
                             const isFull = capacity && capacity.percentage >= 100;
                             
-                            // CRITICAL: For today, ALWAYS check if it has slots (don't rely on cache)
-                            // If loading is done and today is not in the set, it means no slots available
-                            const isTodayWithoutSlots = isToday && !loadingDates && !hasSlots;
+                            // CRITICAL FIX: For today, if loading is done and it's NOT in the set, disable it
+                            // This ensures today is disabled when all slots are in the past
+                            let isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
                             
-                            // Disable if no slots available (including today with no future slots)
-                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
+                            // Extra check for today: if loading is complete and today has no slots, force disable
+                            if (isToday && !loadingDates && !hasSlots) {
+                              isDisabled = true;
+                            }
                             
                             return (
                               <button
