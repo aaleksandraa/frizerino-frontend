@@ -240,7 +240,15 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             // Filter past slots if today
             if (day.toDateString() === today.toDateString()) {
               const currentTime = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')}`;
+              const beforeFilter = slots.length;
               slots = slots.filter((slot: string) => slot > currentTime);
+              console.log('🔍 Today Slots Filter:', {
+                dateStr,
+                currentTime,
+                beforeFilter,
+                afterFilter: slots.length,
+                slots
+              });
             }
             
             // If there are available slots, return the date
@@ -1104,15 +1112,24 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                             const availability = isDateAvailable(date);
                             const hasSlots = datesWithSlots.has(dateStr);
                             
+                            // Debug logging for today
+                            if (isToday) {
+                              console.log('🔍 Today Debug:', {
+                                dateStr,
+                                hasSlots,
+                                datesWithSlotsSize: datesWithSlots.size,
+                                loadingDates,
+                                availability: availability.available
+                              });
+                            }
+                            
                             // Check capacity - disable if 100% full (red)
                             const isoDateStr = date.toISOString().split('T')[0];
                             const capacity = capacityData.get(isoDateStr);
                             const isFull = capacity && capacity.percentage >= 100;
                             
-                            // Special handling for today - disable if no slots OR if loading is complete and no slots found
-                            const isTodayWithoutSlots = isToday && !hasSlots && !loadingDates;
-                            
-                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull || isTodayWithoutSlots;
+                            // Disable if no slots available (including today with no future slots)
+                            const isDisabled = isPast || isFuture || !availability.available || !hasSlots || isFull;
                             
                             return (
                               <button
@@ -1129,11 +1146,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                                   isDisabled 
                                     ? isFull
                                       ? 'Dan je potpuno popunjen'
-                                      : isTodayWithoutSlots
-                                        ? 'Nema dostupnih termina za danas'
-                                        : !hasSlots && !isPast && !isFuture && availability.available
-                                          ? 'Nema dostupnih termina'
-                                          : availability.reason || 'Nedostupno'
+                                      : !hasSlots && !isPast && !isFuture && availability.available
+                                        ? isToday 
+                                          ? 'Nema dostupnih termina za danas'
+                                          : 'Nema dostupnih termina'
+                                        : availability.reason || 'Nedostupno'
                                     : undefined
                                 }
                                 className={`
