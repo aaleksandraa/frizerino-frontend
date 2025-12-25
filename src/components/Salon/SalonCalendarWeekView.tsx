@@ -3,8 +3,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
-  Clock,
-  User,
   Filter,
   LayoutGrid,
   Columns,
@@ -24,7 +22,11 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
   const [appointments, setAppointments] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
   const [selectedStaff, setSelectedStaff] = useState<string>('all');
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -107,7 +109,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     return new Date(d.setDate(diff));
   }
 
-  // Get working hours from salon or selected staff
+  // Get working hours from salon or selected staff (earliest/latest across all days for week view)
   const getWorkingHours = () => {
     // If specific staff is selected, use their working hours
     if (selectedStaff !== 'all') {
@@ -119,7 +121,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
         let latestEnd = 0;
         
         Object.values(hours).forEach((day: any) => {
-          if (day.is_working && day.start && day.end) {
+          if (day?.is_working && day.start && day.end) {
             const startHour = parseInt(day.start.split(':')[0]);
             const endHour = parseInt(day.end.split(':')[0]);
             if (startHour < earliestStart) earliestStart = startHour;
@@ -140,7 +142,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
       let latestEnd = 0;
       
       Object.values(hours).forEach((day: any) => {
-        if (day.is_open && day.open && day.close) {
+        if (day?.is_open && day.open && day.close) {
           const startHour = parseInt(day.open.split(':')[0]);
           const endHour = parseInt(day.close.split(':')[0]);
           if (startHour < earliestStart) earliestStart = startHour;
@@ -153,22 +155,73 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
       }
     }
     
-    return { start: 8, end: 20 }; // Default
+    return { start: 9, end: 17 }; // Default to 9-17 instead of 8-20
+  };
+
+  // Check if a specific day, hour and minute is within working hours
+  const isWithinWorkingHours = (day: Date, hour: number, minute: number = 0): boolean => {
+    const dayOfWeek = day.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayNames[dayOfWeek];
+    
+    const timeInMinutes = hour * 60 + minute;
+    
+    // If specific staff is selected, check their working hours
+    if (selectedStaff !== 'all') {
+      const staffMember = staff.find(s => String(s.id) === String(selectedStaff));
+      if (staffMember?.working_hours?.[dayKey]) {
+        const dayHours = staffMember.working_hours[dayKey];
+        if (dayHours?.is_working && dayHours.start && dayHours.end) {
+          const [startH, startM] = dayHours.start.split(':').map(Number);
+          const [endH, endM] = dayHours.end.split(':').map(Number);
+          const startMinutes = startH * 60 + startM;
+          const endMinutes = endH * 60 + endM;
+          return timeInMinutes >= startMinutes && timeInMinutes < endMinutes;
+        }
+      }
+      return false;
+    }
+    
+    // Otherwise check salon working hours
+    if (user?.salon?.working_hours?.[dayKey]) {
+      const dayHours = user.salon.working_hours[dayKey];
+      if (dayHours?.is_open && dayHours.open && dayHours.close) {
+        const [startH, startM] = dayHours.open.split(':').map(Number);
+        const [endH, endM] = dayHours.close.split(':').map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        return timeInMinutes >= startMinutes && timeInMinutes < endMinutes;
+      }
+    }
+    
+    return false;
   };
 
   const workingHours = getWorkingHours();
   const workingHoursStart = workingHours.start;
   const workingHoursEnd = workingHours.end;
 
-  // Get 7 days starting from Monday
+  // Get 7 days starting from today (not Monday)
   const getWeekDays = () => {
     const days = [];
+    const startDate = new Date(currentWeekStart);
+    
     for (let i = 0; i < 7; i++) {
-      const date = new Date(currentWeekStart);
-      date.setDate(currentWeekStart.getDate() + i);
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
       days.push(date);
     }
     return days;
+  };
+
+  // Generate 30-minute time slots
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = workingHoursStart; hour < workingHoursEnd; hour++) {
+      slots.push({ hour, minute: 0, label: `${String(hour).padStart(2, '0')}:00` });
+      slots.push({ hour, minute: 30, label: `${String(hour).padStart(2, '0')}:30` });
+    }
+    return slots;
   };
 
   // Navigate week
@@ -178,19 +231,21 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     setCurrentWeekStart(newDate);
   };
 
-  // Go to current week
+  // Go to current week (starting from today)
   const goToToday = () => {
-    setCurrentWeekStart(getMonday(new Date()));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(today);
   };
 
-  // Get appointments for a specific date and hour
-  const getAppointmentsForSlot = (date: Date, hour: number) => {
+  // Get appointments for a specific date and 30-minute slot
+  const getAppointmentsForSlot = (date: Date, hour: number, minute: number) => {
     const dateStr = formatDateEuropean(date);
     
     let dayAppointments = appointments.filter(app => {
       if (app.date !== dateStr) return false;
       
-      // Check if appointment overlaps with this hour slot
+      // Check if appointment overlaps with this 30-minute slot
       const appHour = parseInt(app.time.split(':')[0]);
       const appMinute = parseInt(app.time.split(':')[1]);
       const appStartMinutes = appHour * 60 + appMinute;
@@ -200,10 +255,10 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
       const appEndMinute = parseInt(endTimeParts[1]);
       const appEndMinutes = appEndHour * 60 + appEndMinute;
       
-      const slotStartMinutes = hour * 60;
-      const slotEndMinutes = (hour + 1) * 60;
+      const slotStartMinutes = hour * 60 + minute;
+      const slotEndMinutes = slotStartMinutes + 30;
       
-      // Check if appointment overlaps with this hour slot
+      // Check if appointment overlaps with this 30-minute slot
       return appStartMinutes < slotEndMinutes && appEndMinutes > slotStartMinutes;
     });
 
@@ -214,8 +269,8 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     return dayAppointments;
   };
 
-  // Calculate position and height of appointment in the slot
-  const getAppointmentStyle = (appointment: any, hour: number) => {
+  // Calculate position and height of appointment in the 30-minute slot
+  const getAppointmentStyle = (appointment: any, slotHour: number, slotMinute: number) => {
     const appHour = parseInt(appointment.time.split(':')[0]);
     const appMinute = parseInt(appointment.time.split(':')[1]);
     
@@ -228,16 +283,17 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     const endMinutes = appEndHour * 60 + appEndMinute;
     const durationMinutes = endMinutes - startMinutes;
     
-    // Calculate offset from hour start
-    const offsetMinutes = startMinutes - (hour * 60);
-    const offsetPercent = (offsetMinutes / 60) * 100;
+    // Calculate offset from slot start (30-minute slot)
+    const slotStartMinutes = slotHour * 60 + slotMinute;
+    const offsetMinutes = startMinutes - slotStartMinutes;
+    const offsetPercent = (offsetMinutes / 30) * 100;
     
-    // Calculate height based on duration
-    const heightPercent = (durationMinutes / 60) * 100;
+    // Calculate height based on duration (relative to 30-minute slot)
+    const heightPercent = (durationMinutes / 30) * 100;
     
     return {
-      top: `${offsetPercent}%`,
-      height: `${Math.min(heightPercent, 100 - offsetPercent)}%`,
+      top: `${Math.max(0, offsetPercent)}%`,
+      height: `${heightPercent}%`,
     };
   };
 
@@ -245,8 +301,8 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     switch (status) {
       case 'completed': return 'bg-green-100 border-green-300 text-green-800';
       case 'in_progress': return 'bg-blue-100 border-blue-300 text-blue-800';
-      case 'confirmed': return 'bg-orange-100 border-orange-300 text-orange-800';
-      case 'pending': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+      case 'confirmed': return 'bg-gray-200 border-gray-400 text-gray-800';
+      case 'pending': return 'bg-gray-100 border-gray-300 text-gray-700';
       case 'cancelled': return 'bg-red-100 border-red-300 text-red-800';
       default: return 'bg-gray-100 border-gray-300 text-gray-800';
     }
@@ -267,14 +323,13 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     setShowAppointmentModal(true);
   };
 
-  const dayNames = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
   const monthNames = [
     'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
     'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
   ];
 
   const weekDays = getWeekDays();
-  const hours = Array.from({ length: workingHoursEnd - workingHoursStart }, (_, i) => workingHoursStart + i);
+  const timeSlots = generateTimeSlots();
 
   if (loading) {
     return (
@@ -292,10 +347,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Sedmični raspored</h1>
-          <div className="text-sm text-gray-600">
-            {weekDays[0].getDate()} {monthNames[weekDays[0].getMonth()]} - {weekDays[6].getDate()} {monthNames[weekDays[6].getMonth()]} {weekDays[6].getFullYear()}
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Dostupnost</h1>
         </div>
         
         <div className="flex items-center gap-3">
@@ -345,25 +397,31 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-center gap-2">
-        <button
-          onClick={() => navigateWeek('prev')}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <button
-          onClick={goToToday}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Danas
-        </button>
-        <button
-          onClick={() => navigateWeek('next')}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
-        </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigateWeek('prev')}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <button
+            onClick={goToToday}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Danas
+          </button>
+          <button
+            onClick={() => navigateWeek('next')}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+        
+        <div className="text-sm text-gray-600">
+          {weekDays[0].getDate()} {monthNames[weekDays[0].getMonth()]} - {weekDays[6].getDate()} {monthNames[weekDays[6].getMonth()]} {weekDays[6].getFullYear()}
+        </div>
       </div>
 
       {/* Calendar Grid */}
@@ -371,34 +429,34 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
         <div className="overflow-x-auto">
           <div className="min-w-[800px]">
             {/* Header with days */}
-            <div className="grid grid-cols-8 border-b bg-gray-50">
-              <div className="p-3 text-sm font-medium text-gray-500 border-r">Vrijeme</div>
+            <div className="grid grid-cols-8 border-b-2 border-gray-200 bg-gray-50">
+              <div className="p-4 text-sm font-bold text-gray-600 border-r border-gray-200 sticky left-0 bg-gray-50 z-20">
+                Vrijeme
+              </div>
               {weekDays.map((day, index) => {
                 const isToday = formatDateEuropean(day) === getCurrentDateEuropean();
                 const isoDateStr = day.toISOString().split('T')[0];
                 const capacity = capacityData.get(isoDateStr);
+                const dayOfWeek = day.getDay();
+                const dayNamesForHeader = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub'];
                 
                 return (
                   <div
                     key={index}
-                    className={`p-3 text-center border-r last:border-r-0 ${
+                    className={`p-4 text-center border-r border-gray-200 last:border-r-0 ${
                       isToday ? 'bg-blue-50' : ''
-                    } ${
-                      capacity?.color === 'red' ? 'bg-red-50' :
-                      capacity?.color === 'yellow' ? 'bg-yellow-50' :
-                      capacity?.color === 'green' ? 'bg-green-50' : ''
                     }`}
                   >
-                    <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
-                      {dayNames[index]}
+                    <div className={`text-sm font-bold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
+                      {dayNamesForHeader[dayOfWeek]}
                     </div>
-                    <div className={`text-xs ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                    <div className={`text-lg font-bold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>
                       {day.getDate()}.{day.getMonth() + 1}.
                     </div>
                     {/* Capacity badge */}
                     {capacity && capacity.percentage > 0 && (
-                      <div className="mt-1">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                      <div className="mt-2">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                           capacity.color === 'red' ? 'bg-red-500 text-white' :
                           capacity.color === 'yellow' ? 'bg-yellow-500 text-white' :
                           'bg-green-500 text-white'
@@ -412,55 +470,91 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
               })}
             </div>
 
-            {/* Time slots */}
+            {/* Time slots - 30 minute intervals */}
             <div className="relative">
-              {hours.map((hour) => (
-                <div key={hour} className="grid grid-cols-8 border-b" style={{ minHeight: '80px' }}>
-                  {/* Time label */}
-                  <div className="p-2 text-sm text-gray-500 border-r flex items-start">
-                    {hour}:00
+              {timeSlots.map((slot) => {
+                return (
+                <div 
+                  key={`${slot.hour}-${slot.minute}`} 
+                  className={`grid grid-cols-8 transition-all bg-white ${
+                    slot.minute === 0 
+                      ? 'border-b-2 border-gray-200' 
+                      : 'border-b border-dashed border-gray-100'
+                  }`} 
+                  style={{ minHeight: '70px' }}
+                >
+                  {/* Time label - Clean styling */}
+                  <div className={`p-3 text-sm border-r border-gray-200 flex items-center sticky left-0 z-10 bg-white ${
+                    slot.minute === 0 
+                      ? 'text-gray-800 font-semibold' 
+                      : 'text-gray-500 font-normal'
+                  }`}>
+                    {slot.label}
                   </div>
 
                   {/* Day columns */}
                   {weekDays.map((day, dayIndex) => {
-                    const slotAppointments = getAppointmentsForSlot(day, hour);
+                    const slotAppointments = getAppointmentsForSlot(day, slot.hour, slot.minute);
                     const isToday = formatDateEuropean(day) === getCurrentDateEuropean();
+                    const isWorkingHour = isWithinWorkingHours(day, slot.hour, slot.minute);
 
                     return (
                       <div
                         key={dayIndex}
-                        className={`relative border-r last:border-r-0 ${
-                          isToday ? 'bg-blue-50/30' : ''
-                        }`}
+                        className={`relative border-r border-gray-200 last:border-r-0 transition-colors ${
+                          isToday ? 'bg-blue-50/50' : ''
+                        } ${!isWorkingHour ? 'bg-gray-100' : ''}`}
                       >
+                        {/* Show "Zatvoreno" ONLY when NOT working hours AND no appointments */}
+                        {!isWorkingHour && slot.minute === 0 && slotAppointments.length === 0 && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">Zatvoreno</span>
+                          </div>
+                        )}
+                        
+                        {/* Show appointments */}
                         {slotAppointments.map((appointment) => {
-                          const style = getAppointmentStyle(appointment, hour);
                           const appHour = parseInt(appointment.time.split(':')[0]);
+                          const appMinute = parseInt(appointment.time.split(':')[1]);
+                          const appStartMinutes = appHour * 60 + appMinute;
+                          const slotStartMinutes = slot.hour * 60 + slot.minute;
                           
-                          // Only render if this is the starting hour
-                          if (appHour !== hour) return null;
+                          // Only render if this is the starting slot
+                          if (appStartMinutes !== slotStartMinutes) return null;
+
+                          const style = getAppointmentStyle(appointment, slot.hour, slot.minute);
+                          
+                          // Parse additional services from notes
+                          const additionalServices = appointment.notes 
+                            ? appointment.notes.replace('Dodatne usluge: ', '').split(', ').filter((s: string) => s.trim())
+                            : [];
 
                           return (
                             <div
                               key={appointment.id}
-                              className={`absolute left-1 right-1 rounded border-l-4 p-1.5 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${getStatusColor(appointment.status)}`}
+                              className={`absolute left-1.5 right-1.5 rounded-lg border-2 p-2 cursor-pointer hover:shadow-lg transition-all overflow-hidden shadow-sm ${getStatusColor(appointment.status)}`}
                               style={style}
                               onClick={() => handleAppointmentClick(appointment)}
                             >
-                              <div className="text-xs font-semibold truncate">
+                              <div className="text-xs font-bold truncate mb-1">
                                 {appointment.time} - {appointment.end_time}
                               </div>
-                              <div className="text-xs font-medium truncate">
+                              <div className="text-xs font-semibold truncate mb-1">
                                 {appointment.client_name}
                               </div>
                               <div className="text-xs truncate opacity-90">
                                 {getServiceName(appointment.service_id)}
                               </div>
                               {selectedStaff === 'all' && (
-                                <div className="text-xs truncate opacity-75">
-                                  {getStaffName(appointment.staff_id)}
+                                <div className="text-xs truncate opacity-75 mt-1">
+                                  👤 {getStaffName(appointment.staff_id)}
                                 </div>
                               )}
+                              {additionalServices.length > 0 && additionalServices.map((service: string, idx: number) => (
+                                <div key={idx} className="text-xs truncate opacity-90 mt-0.5">
+                                  {service}
+                                </div>
+                              ))}
                             </div>
                           );
                         })}
@@ -468,7 +562,8 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
                     );
                   })}
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         </div>

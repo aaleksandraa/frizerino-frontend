@@ -9,6 +9,8 @@ import { serviceAPI, staffAPI, appointmentAPI } from '../../services/api';
 import { useFormStore } from '../../store/formStore';
 import { AutoSaveIndicator } from '../Common/AutoSaveIndicator';
 import { useAutoSave } from '../../hooks/useAutoSave';
+import SuccessModal from '../Common/SuccessModal';
+import { ServiceSelector } from '../Common/ServiceSelector';
 
 interface BookingModalProps {
   salon: Salon;
@@ -28,6 +30,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<any[]>([]);
+  const [createdAppointment, setCreatedAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -174,6 +177,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
       }
 
       setBookingDetails(appointments);
+      setCreatedAppointment(appointments[0]); // Save first appointment for SuccessModal
       setShowSuccess(true);
       clearAppointmentForm();
     } catch (error) {
@@ -199,45 +203,18 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     staffId: selectedStaffId
   }));
 
-  if (showSuccess) {
+  if (showSuccess && createdAppointment) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[95vh] overflow-y-auto">
-          <div className="p-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Uspješno rezervisano!</h2>
-            <p className="text-gray-600 mb-6">Vaš termin je uspješno zakazan u salonu {salon.name}</p>
-            
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-              <h3 className="font-semibold text-gray-900 mb-3">Detalji rezervacije:</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Datum:</span>
-                  <span className="font-medium">{bookingData.date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Ukupno vrijeme:</span>
-                  <span className="font-medium">{getTotalDuration()} min</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Ukupna cijena:</span>
-                  <span className="font-medium text-green-600">{getTotalPrice()} KM</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <button
-                onClick={() => { setShowSuccess(false); onClose(); }}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl font-medium"
-              >
-                Zatvori
-              </button>
-            </div>
-          </div>
-        </div>
+      <>
+        <SuccessModal
+          isOpen={showSuccess}
+          onClose={() => {
+            setShowSuccess(false);
+            setCreatedAppointment(null);
+            onClose();
+          }}
+          appointment={createdAppointment}
+        />
         {showReviewModal && bookingDetails.length > 0 && (
           <ReviewModal
             salon={salon}
@@ -248,7 +225,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
             onReviewSubmitted={() => { setShowReviewModal(false); setShowSuccess(false); onClose(); }}
           />
         )}
-      </div>
+      </>
     );
   }
 
@@ -297,18 +274,14 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                 <div className="space-y-3">
                   {selectedServiceIds.map((serviceId, index) => (
                     <div key={index} className="flex gap-2">
-                      <select
-                        value={serviceId}
-                        onChange={(e) => updateServiceAtIndex(index, e.target.value)}
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500"
-                      >
-                        <option value="">Izaberite uslugu</option>
-                        {services.map(service => (
-                          <option key={service.id} value={service.id}>
-                            {service.name} - {service.discount_price || service.price} KM ({service.duration}min)
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex-1">
+                        <ServiceSelector
+                          services={services}
+                          selectedServiceId={serviceId}
+                          onSelect={(id) => updateServiceAtIndex(index, id)}
+                          label="Pretražite ili odaberite uslugu"
+                        />
+                      </div>
                       {selectedServiceIds.length > 1 && (
                         <button onClick={() => removeService(index)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl">
                           <Trash2 className="w-5 h-5" />

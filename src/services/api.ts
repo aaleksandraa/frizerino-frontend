@@ -701,6 +701,14 @@ export const publicAPI = {
   getMonthCapacity: async (salonId: string, month: string) => {
     const response = await api.get(`/public/salons/${salonId}/capacity/month`, { params: { month } });
     return response.data;
+  },
+
+  // Download ICS calendar file (public - no auth required)
+  downloadIcs: async (appointmentId: number) => {
+    const response = await api.get(`/public/appointments/${appointmentId}/ics`, {
+      responseType: 'blob',
+    });
+    return response.data;
   }
 };
 

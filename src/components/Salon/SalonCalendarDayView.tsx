@@ -101,61 +101,43 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
     }
   };
 
-  // Get working hours from salon or selected staff
+  // Get working hours for the selected date
   const getWorkingHours = () => {
-    console.log('Getting working hours for staff:', selectedStaff);
-    console.log('User salon:', user?.salon);
-    console.log('Staff list:', staff);
+    // Get day of week for selected date (0 = Sunday, 1 = Monday, etc.)
+    const dayOfWeek = selectedDate.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayNames[dayOfWeek];
     
-    // If specific staff is selected, use their working hours
+    console.log('Getting working hours for:', dayKey, selectedDate);
+    
+    // If specific staff is selected, use their working hours for this day
     if (selectedStaff !== 'all') {
       const staffMember = staff.find(s => String(s.id) === String(selectedStaff));
-      console.log('Selected staff member:', staffMember);
-      if (staffMember?.working_hours) {
-        // Extract earliest start and latest end from working hours
-        const hours = staffMember.working_hours;
-        let earliestStart = 24;
-        let latestEnd = 0;
-        
-        Object.values(hours).forEach((day: any) => {
-          if (day.is_working && day.start && day.end) {
-            const startHour = parseInt(day.start.split(':')[0]);
-            const endHour = parseInt(day.end.split(':')[0]);
-            if (startHour < earliestStart) earliestStart = startHour;
-            if (endHour > latestEnd) latestEnd = endHour;
-          }
-        });
-        
-        if (earliestStart < 24 && latestEnd > 0) {
-          console.log('Using staff working hours:', earliestStart, '-', latestEnd);
-          return { start: earliestStart, end: latestEnd };
+      if (staffMember?.working_hours && staffMember.working_hours[dayKey]) {
+        const dayHours = staffMember.working_hours[dayKey];
+        if (dayHours.is_working && dayHours.start && dayHours.end) {
+          const startHour = parseInt(dayHours.start.split(':')[0]);
+          const endHour = parseInt(dayHours.end.split(':')[0]);
+          console.log('Using staff working hours for', dayKey, ':', startHour, '-', endHour);
+          return { start: startHour, end: endHour };
         }
       }
     }
     
-    // Otherwise use salon working hours
-    if (user?.salon?.working_hours) {
-      const hours = user.salon.working_hours;
-      let earliestStart = 24;
-      let latestEnd = 0;
-      
-      Object.values(hours).forEach((day: any) => {
-        if (day.is_open && day.open && day.close) {
-          const startHour = parseInt(day.open.split(':')[0]);
-          const endHour = parseInt(day.close.split(':')[0]);
-          if (startHour < earliestStart) earliestStart = startHour;
-          if (endHour > latestEnd) latestEnd = endHour;
-        }
-      });
-      
-      if (earliestStart < 24 && latestEnd > 0) {
-        console.log('Using salon working hours:', earliestStart, '-', latestEnd);
-        return { start: earliestStart, end: latestEnd };
+    // Otherwise use salon working hours for this day
+    if (user?.salon?.working_hours && user.salon.working_hours[dayKey]) {
+      const dayHours = user.salon.working_hours[dayKey];
+      if (dayHours?.is_open && dayHours.open && dayHours.close) {
+        const startHour = parseInt(dayHours.open.split(':')[0]);
+        const endHour = parseInt(dayHours.close.split(':')[0]);
+        console.log('Using salon working hours for', dayKey, ':', startHour, '-', endHour);
+        return { start: startHour, end: endHour };
       }
     }
     
-    console.log('Using default working hours: 8 - 20');
-    return { start: 8, end: 20 };
+    // If no working hours found for this day, salon is closed
+    console.log('No working hours found for', dayKey, '- salon is closed');
+    return { start: 9, end: 9 }; // Return same start/end to show no working hours
   };
 
   const workingHours = getWorkingHours();
@@ -203,29 +185,89 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
   const getDayAvailability = (day: number): 'full' | 'partial' | 'free' => {
     if (!day) return 'free';
     
-    const dateStr = formatDateEuropean(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), day));
+    const date = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), day);
+    const dateStr = formatDateEuropean(date);
     const dayAppointments = appointments.filter(app => app.date === dateStr);
     
-    if (dayAppointments.length === 0) return 'free';
+    // Get working hours for THIS specific day
+    const dayOfWeek = date.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = dayNames[dayOfWeek];
     
-    // Calculate total working minutes
-    const totalWorkingMinutes = (workingHoursEnd - workingHoursStart) * 60;
+    let dayWorkingStartMinutes = 9 * 60;
+    let dayWorkingEndMinutes = 17 * 60;
     
-    // Calculate booked minutes
-    let bookedMinutes = 0;
-    dayAppointments.forEach(app => {
+    // If specific staff is selected, use their working hours for this day
+    if (selectedStaff !== 'all') {
+      const staffMember = staff.find(s => String(s.id) === String(selectedStaff));
+      if (staffMember?.working_hours && staffMember.working_hours[dayKey]) {
+        const dayHours = staffMember.working_hours[dayKey];
+        if (dayHours.is_working && dayHours.start && dayHours.end) {
+          const [startH, startM] = dayHours.start.split(':').map(Number);
+          const [endH, endM] = dayHours.end.split(':').map(Number);
+          dayWorkingStartMinutes = startH * 60 + startM;
+          dayWorkingEndMinutes = endH * 60 + endM;
+        } else {
+          // Staff not working this day
+          return 'free';
+        }
+      }
+    } else {
+      // Use salon working hours for this day
+      if (user?.salon?.working_hours && user.salon.working_hours[dayKey]) {
+        const dayHours = user.salon.working_hours[dayKey];
+        if (dayHours?.is_open && dayHours.open && dayHours.close) {
+          const [startH, startM] = dayHours.open.split(':').map(Number);
+          const [endH, endM] = dayHours.close.split(':').map(Number);
+          dayWorkingStartMinutes = startH * 60 + startM;
+          dayWorkingEndMinutes = endH * 60 + endM;
+        } else {
+          // Salon closed this day
+          return 'free';
+        }
+      }
+    }
+    
+    const totalWorkingMinutes = dayWorkingEndMinutes - dayWorkingStartMinutes;
+    
+    if (totalWorkingMinutes <= 0) {
+      return 'free';
+    }
+    
+    // Calculate number of free 30-minute slots
+    let currentMinutes = dayWorkingStartMinutes;
+    const endMinutes = dayWorkingEndMinutes;
+    let freeSlotCount = 0;
+    
+    // Sort appointments by time
+    const sortedAppointments = [...dayAppointments].sort((a, b) => a.time.localeCompare(b.time));
+    
+    sortedAppointments.forEach(app => {
       const startParts = app.time.split(':');
+      const appStartMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+      
       const endParts = app.end_time.split(':');
-      const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-      const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-      bookedMinutes += (endMinutes - startMinutes);
+      const appEndMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      
+      // Count free 30-minute slots before this appointment
+      if (currentMinutes < appStartMinutes) {
+        const freeMinutes = appStartMinutes - currentMinutes;
+        freeSlotCount += Math.floor(freeMinutes / 30);
+      }
+      
+      currentMinutes = appEndMinutes;
     });
     
-    // If more than 80% booked, consider it full
-    const bookedPercentage = (bookedMinutes / totalWorkingMinutes) * 100;
+    // Count final free slots
+    if (currentMinutes < endMinutes) {
+      const freeMinutes = endMinutes - currentMinutes;
+      freeSlotCount += Math.floor(freeMinutes / 30);
+    }
     
-    if (bookedPercentage >= 80) return 'full';
-    return 'partial';
+    // Determine availability based on free slot count
+    if (freeSlotCount === 0) return 'full';      // 100% popunjeno - crveno
+    if (freeSlotCount <= 3) return 'partial';    // 1-3 slota - narandžasto
+    return 'free';                                // 4+ slota - zeleno
   };
 
   // Generate time slots with appointments and free slots
@@ -480,8 +522,8 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
                         : availability === 'full'
                         ? 'bg-red-100 text-red-900 hover:bg-red-200'
                         : availability === 'partial'
-                        ? 'bg-green-100 text-green-900 hover:bg-green-200'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-yellow-100 text-yellow-900 hover:bg-yellow-200'
+                        : 'bg-green-100 text-green-900 hover:bg-green-200'
                     }`}
                   >
                     <span>{day}</span>
@@ -505,11 +547,15 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
               <div className="text-xs font-semibold text-gray-700 mb-2">Legenda:</div>
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-4 h-4 rounded-full bg-green-100 border border-green-300"></div>
-                <span className="text-gray-600">Dostupno</span>
+                <span className="text-gray-600">Dostupno (4+ slota)</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300"></div>
+                <span className="text-gray-600">Malo dostupno (1-3 slota)</span>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-4 h-4 rounded-full bg-red-100 border border-red-300"></div>
-                <span className="text-gray-600">Popunjeno</span>
+                <span className="text-gray-600">Popunjeno (0 slotova)</span>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-4 h-4 rounded-full bg-orange-200 border border-orange-300"></div>

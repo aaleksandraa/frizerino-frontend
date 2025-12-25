@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicAPI, appointmentAPI } from '../../services/api';
 import { Service, Staff, User, Break, Vacation } from '../../types';
+import SuccessModal from '../Common/SuccessModal';
+import { ServiceSelector } from '../Common/ServiceSelector';
 import { 
   XMarkIcon,
   CalendarDaysIcon,
@@ -114,6 +116,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   // Success state
   const [showSuccess, setShowSuccess] = useState(false);
+  const [createdAppointment, setCreatedAppointment] = useState<any>(null);
 
   // Initialize with preselected service
   useEffect(() => {
@@ -122,6 +125,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       setError(null);
       setValidationErrors({});
       setShowSuccess(false);
+      setCreatedAppointment(null);
       setSelectedDate('');
       setSelectedTime('');
       setNotes('');
@@ -635,6 +639,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         }
       }
 
+      // Save first appointment for SuccessModal
+      setCreatedAppointment(appointments[0]);
       setShowSuccess(true);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Greška pri rezervaciji. Pokušajte ponovo.';
@@ -658,63 +664,18 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Success Screen
-  if (showSuccess) {
+  // Success Modal
+  if (showSuccess && createdAppointment) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[95vh] overflow-y-auto">
-          <div className="p-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircleSolid className="w-8 h-8 text-green-600" />
-            </div>
-            
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Uspješno rezervisano!</h2>
-            <p className="text-gray-600 mb-6">Vaš termin je uspješno zakazan u salonu {salon.name}</p>
-            
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-              <h3 className="font-semibold text-gray-900 mb-3">Detalji rezervacije:</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CalendarDaysIcon className="w-4 h-4 text-orange-500" />
-                  <span>{selectedDate}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ClockIcon className="w-4 h-4 text-orange-500" />
-                  <span>{selectedTime}</span>
-                </div>
-                {selectedServices.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <ScissorsIcon className="w-4 h-4 text-orange-500" />
-                    <span>{item.service?.name}</span>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between">
-                <span className="font-medium">Ukupno:</span>
-                <span className="font-bold text-orange-600">{getTotalPrice()} KM</span>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {user && (
-                <button
-                  onClick={() => { onClose(); navigate('/moji-termini'); }}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl hover:from-orange-600 hover:to-red-600 transition-all font-medium"
-                >
-                  Pogledaj moje termine
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-              >
-                Zatvori
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SuccessModal
+        isOpen={showSuccess}
+        onClose={() => {
+          setShowSuccess(false);
+          setCreatedAppointment(null);
+          onClose();
+        }}
+        appointment={createdAppointment}
+      />
     );
   }
 
@@ -844,27 +805,15 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                         </button>
                       )}
                     </div>
-                    <select
-                      value={selectedService.id}
-                      onChange={(e) => updateService(index, e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
-                    >
-                      <option value="">Izaberite uslugu</option>
-                      {services
-                        .filter(service => {
-                          // For first service, exclude 0-duration services
-                          if (index === 0 && service.duration === 0) {
-                            return false;
-                          }
-                          return true;
-                        })
-                        .map((service) => (
-                          <option key={service.id} value={service.id}>
-                            {service.name} - {service.discount_price || service.price} KM ({service.duration} min)
-                            {service.duration === 0 ? ' (dodatak)' : ''}
-                          </option>
-                        ))}
-                    </select>
+                    
+                    <ServiceSelector
+                      services={services}
+                      selectedServiceId={selectedService.id}
+                      onSelect={(serviceId) => updateService(index, serviceId)}
+                      label="Pretražite ili odaberite uslugu"
+                      excludeZeroDuration={index === 0}
+                    />
+                    
                     {selectedService.service?.description && (
                       <p className="mt-2 text-sm text-gray-500">{selectedService.service.description}</p>
                     )}
