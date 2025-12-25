@@ -432,7 +432,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                 value={bookingData.date}
                 onChange={(date) => updateBookingData({ date, time: '' })}
                 minDate={new Date()}
-                maxDate={new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0)}
+                maxDate={new Date(new Date().getFullYear(), new Date().getMonth() + 3, 0)}
                 placeholder="Izaberite datum"
               />
               

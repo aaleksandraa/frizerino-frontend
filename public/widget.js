@@ -555,7 +555,6 @@
         '<input type="text" class="frzn-input" id="frzn-name" placeholder="Ime i prezime *" required>' +
         '<input type="tel" class="frzn-input" id="frzn-phone" placeholder="Telefon *" required>' +
         '<input type="email" class="frzn-input" id="frzn-email" placeholder="Email (opciono)">' +
-        '<input type="text" class="frzn-input" id="frzn-address" placeholder="Adresa *" required>' +
         '<textarea class="frzn-input" id="frzn-notes" placeholder="Napomena (opciono)" rows="2"></textarea>' +
       '</div>' +
       '<div class="frzn-footer">' +
@@ -722,16 +721,14 @@
           // Validate form
           var name = document.getElementById('frzn-name').value.trim();
           var phone = document.getElementById('frzn-phone').value.trim();
-          var address = document.getElementById('frzn-address').value.trim();
           
           if (!name || name.length < 3) { alert('Unesite ime i prezime (min 3 karaktera)'); return; }
           if (!phone || phone.length < 8) { alert('Unesite validan broj telefona'); return; }
-          if (!address || address.length < 5) { alert('Unesite adresu (min 5 karaktera)'); return; }
           
           state.guestName = name;
           state.guestPhone = phone;
           state.guestEmail = document.getElementById('frzn-email').value.trim();
-          state.guestAddress = address;
+          state.guestAddress = ''; // Optional, not collected
           state.guestNotes = document.getElementById('frzn-notes').value.trim();
         }
         

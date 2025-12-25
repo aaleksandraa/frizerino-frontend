@@ -88,8 +88,6 @@ export function SalonCalendar() {
       const startDate = `${String(firstDay.getDate()).padStart(2, '0')}.${String(firstDay.getMonth() + 1).padStart(2, '0')}.${firstDay.getFullYear()}`;
       const endDate = `${String(lastDay.getDate()).padStart(2, '0')}.${String(lastDay.getMonth() + 1).padStart(2, '0')}.${lastDay.getFullYear()}`;
       
-      console.log('Loading appointments for month:', `${year}-${month + 1}`, 'Date range:', startDate, '-', endDate);
-      
       // Load appointments, staff, and services
       // Only load appointments for current month to improve performance
       const [appointmentsData, staffData, servicesData] = await Promise.all([
@@ -107,12 +105,8 @@ export function SalonCalendar() {
       const staffArray = Array.isArray(staffData) ? staffData : (staffData?.data || []);
       const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.data || []);
       
-      console.log('Loaded appointments:', appointmentsArray.length, 'appointments');
-      
       // Filter appointments for this salon
       const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user.salon.id);
-      
-      console.log('Salon appointments:', salonAppointments.length, 'for salon', user.salon.id);
       
       setAppointments(salonAppointments);
       setStaff(staffArray);
@@ -138,9 +132,7 @@ export function SalonCalendar() {
       const month = currentDate.getMonth() + 1;
       const monthStr = `${year}-${String(month).padStart(2, '0')}`;
       
-      console.log('Loading capacity data for month:', monthStr);
       const response = await appointmentAPI.getMonthCapacity(monthStr);
-      console.log('Capacity response:', response);
       
       // Convert array to Map for quick lookup
       const capacityMap = new Map();
@@ -148,7 +140,6 @@ export function SalonCalendar() {
         capacityMap.set(item.date, item);
       });
       
-      console.log('Capacity map size:', capacityMap.size);
       setCapacityData(capacityMap);
     } catch (error) {
       console.error('Error loading capacity data:', error);
@@ -443,11 +434,6 @@ export function SalonCalendar() {
               // Get capacity data for this day
               const isoDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
               const capacity = capacityData.get(isoDateStr);
-              
-              // Debug first day
-              if (day === 1) {
-                console.log('Day 1 - ISO date:', isoDateStr, 'Capacity:', capacity, 'Map size:', capacityData.size);
-              }
               
               // Determine background color based on capacity
               let capacityBg = '';
