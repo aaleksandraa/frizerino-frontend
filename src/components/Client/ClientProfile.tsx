@@ -22,7 +22,6 @@ export function ClientProfile() {
     preferences: {
       notifications: boolean;
       emailUpdates: boolean;
-      smsReminders: boolean;
     };
   }>({
     name: user?.name || '',
@@ -33,8 +32,7 @@ export function ClientProfile() {
     gender: user?.gender || '',
     preferences: {
       notifications: true,
-      emailUpdates: true,
-      smsReminders: true
+      emailUpdates: true
     }
   });
 
@@ -57,8 +55,7 @@ export function ClientProfile() {
         gender: (user.gender as 'male' | 'female' | 'other' | '') || '',
         preferences: {
           notifications: true,
-          emailUpdates: true,
-          smsReminders: true
+          emailUpdates: true
         }
       };
       setFormData(data);
@@ -360,19 +357,6 @@ export function ClientProfile() {
               type="checkbox"
               checked={formData.preferences.emailUpdates}
               onChange={(e) => handlePreferenceChange('emailUpdates', e.target.checked)}
-              className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">SMS podsetnici</h4>
-              <p className="text-sm text-gray-600">Primajte SMS podsetnik dan prije termina</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.preferences.smsReminders}
-              onChange={(e) => handlePreferenceChange('smsReminders', e.target.checked)}
               className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
             />
           </div>

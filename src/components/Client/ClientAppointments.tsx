@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, User, Phone, Mail, Star, CheckCircle, Edit, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Phone, Mail, Star, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ReviewModal } from './ReviewModal';
@@ -128,12 +128,6 @@ export function ClientAppointments() {
     }
   };
 
-  const handleRescheduleAppointment = (appointment: any) => {
-    // Navigate to salon page for rescheduling
-    const salonIdentifier = appointment.salon?.slug || appointment.salon?.id;
-    navigate(`/salon/${salonIdentifier}?reschedule=${appointment.id}`);
-  };
-
   const handleContactSalon = (appointment: any) => {
     const salonIdentifier = appointment.salon?.slug || appointment.salon?.id;
     navigate(`/salon/${salonIdentifier}`);
@@ -223,22 +217,13 @@ export function ClientAppointments() {
 
         <div className="flex flex-col sm:flex-row gap-3">
           {appointment.status === 'confirmed' && (
-            <>
-              <button 
-                onClick={() => handleRescheduleAppointment(appointment)}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-2"
-              >
-                <Edit className="w-4 h-4" />
-                Promeni termin
-              </button>
-              <button 
-                onClick={() => handleCancelAppointment(appointment)}
-                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center justify-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Otkaži termin
-              </button>
-            </>
+            <button 
+              onClick={() => handleCancelAppointment(appointment)}
+              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Otkaži termin
+            </button>
           )}
           
           {appointment.status === 'pending' && (
