@@ -64,6 +64,7 @@ type SalonFormData = {
   amenities: string[];
   social_media: SocialMedia;
   auto_confirm: boolean;
+  email_notifications_enabled: boolean;
   booking_slot_interval: number;
   show_service_gallery: boolean;
 };
@@ -118,6 +119,7 @@ export function SalonProfile() {
       linkedin: ''
     },
     auto_confirm: false,
+    email_notifications_enabled: true,
     booking_slot_interval: 30,
     show_service_gallery: true
   });
@@ -172,6 +174,7 @@ export function SalonProfile() {
           amenities: salonData.amenities || [],
           social_media: salonData.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
           auto_confirm: salonData.auto_confirm || false,
+          email_notifications_enabled: salonData.email_notifications_enabled !== false,
           booking_slot_interval: salonData.booking_slot_interval || 30,
           show_service_gallery: salonData.show_service_gallery !== false
         };
@@ -416,6 +419,7 @@ export function SalonProfile() {
           amenities: response.salon.amenities || [],
           social_media: response.salon.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
           auto_confirm: response.salon.auto_confirm || false,
+          email_notifications_enabled: response.salon.email_notifications_enabled !== false,
           booking_slot_interval: response.salon.booking_slot_interval || 30,
           show_service_gallery: response.salon.show_service_gallery !== false
         };
@@ -461,6 +465,7 @@ export function SalonProfile() {
           amenities: response.salon.amenities || [],
           social_media: response.salon.social_media || { facebook: '', instagram: '', twitter: '', tiktok: '', linkedin: '' },
           auto_confirm: response.salon.auto_confirm || false,
+          email_notifications_enabled: response.salon.email_notifications_enabled !== false,
           booking_slot_interval: response.salon.booking_slot_interval || 30,
           show_service_gallery: response.salon.show_service_gallery !== false
         };
@@ -1154,6 +1159,21 @@ export function SalonProfile() {
                   <span className="font-medium text-gray-900 block">Automatska potvrda termina</span>
                   <span className="text-sm text-gray-600">
                     Kad je uključeno, novi termini će automatski biti potvrđeni bez potrebe za ručnim odobravanjem.
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.email_notifications_enabled}
+                  onChange={(e) => handleInputChange('email_notifications_enabled', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900 block">Email notifikacije o novim terminima</span>
+                  <span className="text-sm text-gray-600">
+                    Primajte email kada se zakaze novi termin. Obavještenja u aplikaciji će i dalje stizati.
                   </span>
                 </div>
               </label>

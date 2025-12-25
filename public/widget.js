@@ -150,6 +150,7 @@
     }
     .frzn-input:focus { outline: none; border-color: ${config.primaryColor}; }
     .frzn-input::placeholder { color: ${textFinal}; opacity: 0.5; }
+    textarea.frzn-input { color: ${textFinal} !important; }
     .frzn-btn {
       width: 100%; padding: 14px 24px; border: none; border-radius: ${config.buttonRadius};
       font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
