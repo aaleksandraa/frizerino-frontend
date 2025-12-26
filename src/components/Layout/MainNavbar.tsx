@@ -99,7 +99,6 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   const salonDashboardLinks = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
     { id: 'profile', label: 'Profil salona', icon: BuildingStorefrontIcon },
-    { id: 'appointments', label: 'Termini', icon: CalendarDaysIcon },
     { id: 'staff', label: 'Zaposleni', icon: UsersIcon },
     { id: 'services', label: 'Usluge', icon: WrenchScrewdriverIcon },
     { id: 'schedule', label: 'Raspored', icon: ClockIcon },

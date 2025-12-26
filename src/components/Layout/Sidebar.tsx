@@ -59,7 +59,6 @@ export function Sidebar({ activeSection, onSectionChange, isPendingSalon = false
         return [
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'profile', label: 'Profil salona', icon: Building },
-          { id: 'appointments', label: 'Termini', icon: Calendar },
           { id: 'staff', label: 'Zaposleni', icon: Users },
           { id: 'services', label: 'Usluge', icon: Settings },
           { id: 'schedule', label: 'Raspored', icon: Clock },
