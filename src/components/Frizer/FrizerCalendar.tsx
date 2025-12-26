@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { MultiServiceBookingModal } from '../Common/MultiServiceBookingModal';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { FrizerCalendarWeekView } from './FrizerCalendarWeekView';
 import { FrizerCalendarDayView } from './FrizerCalendarDayView';
@@ -678,11 +679,23 @@ export function FrizerCalendar() {
         </div>
       </div>
 
-      {/* Manual Booking Modal */}
+      {/* Multi-Service Booking Modal */}
       {user?.staff_profile && (
-        <ManualBookingModal
+        <MultiServiceBookingModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
+          onSuccess={refreshAppointments}
+          salonId={Number(user.staff_profile.salon_id)}
+          staffId={Number(user.staff_profile.id)}
+          preselectedDate={selectedDate}
+        />
+      )}
+
+      {/* Manual Booking Modal (kept for backward compatibility) */}
+      {user?.staff_profile && (
+        <ManualBookingModal
+          isOpen={false}
+          onClose={() => {}}
           onSuccess={loadData}
           salonId={Number(user.staff_profile.salon_id)}
           staffId={Number(user.staff_profile.id)}

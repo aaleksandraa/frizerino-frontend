@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Calendar as CalendarIcon, 
@@ -13,12 +13,14 @@ import {
   Users,
   LayoutGrid,
   Columns,
-  CalendarDays
+  CalendarDays,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
+import { MultiServiceBookingModal } from '../Common/MultiServiceBookingModal';
 import { SalonCalendarWeekView } from './SalonCalendarWeekView';
 import { SalonCalendarDayView } from './SalonCalendarDayView';
 
@@ -35,6 +37,7 @@ export function SalonCalendar() {
   const [highlightedAppointment, setHighlightedAppointment] = useState<number | null>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
@@ -106,7 +109,7 @@ export function SalonCalendar() {
       const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.data || []);
       
       // Filter appointments for this salon
-      const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user.salon.id);
+      const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user?.salon?.id);
       
       setAppointments(salonAppointments);
       setStaff(staffArray);
@@ -125,7 +128,7 @@ export function SalonCalendar() {
   };
 
   const loadCapacityData = async () => {
-    if (!user?.salon) return;
+    if (!user?.salon?.id) return;
 
     try {
       const year = currentDate.getFullYear();
@@ -148,7 +151,7 @@ export function SalonCalendar() {
 
   // Refresh appointments without changing selected date
   const refreshAppointments = async () => {
-    if (!user?.salon) return;
+    if (!user?.salon?.id) return;
     
     try {
       // Calculate date range for current month
@@ -166,7 +169,7 @@ export function SalonCalendar() {
         end_date: endDate
       });
       const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
-      const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user.salon.id);
+      const salonAppointments = appointmentsArray.filter((app: any) => app.salon_id === user?.salon?.id);
       setAppointments(salonAppointments);
     } catch (error) {
       console.error('Error refreshing appointments:', error);
@@ -320,6 +323,14 @@ export function SalonCalendar() {
         <h1 className="text-2xl font-bold text-gray-900">Kalendar salona</h1>
         
         <div className="flex items-center gap-3">
+          {/* Add Appointment Button */}
+          <button
+            onClick={() => setShowBookingModal(true)}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Dodaj termin
+          </button>
           {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
@@ -634,6 +645,17 @@ export function SalonCalendar() {
           )}
         </div>
       </div>
+
+      {/* Multi-Service Booking Modal */}
+      {user?.salon?.id && (
+        <MultiServiceBookingModal
+          isOpen={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          onSuccess={refreshAppointments}
+          salonId={Number(user.salon.id)}
+          preselectedDate={selectedDate}
+        />
+      )}
 
       {/* Client Details Modal */}
       {selectedClient && (
