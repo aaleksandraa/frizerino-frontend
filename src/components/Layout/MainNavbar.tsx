@@ -592,9 +592,9 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
                         </div>
                       </div>
                       
-                      {/* Dashboard links for salon/frizer/admin - always show on mobile */}
+                      {/* Dashboard links for salon/frizer/admin - show only on small mobile */}
                       {(isSalon || isFrizer || isAdmin) && (
-                        <div className="p-2 border-b border-gray-200 lg:hidden">
+                        <div className="p-2 border-b border-gray-200 md:hidden">
                           <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase">Panel</p>
                           {dashboardLinks.map((item) => {
                             const Icon = item.icon;

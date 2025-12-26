@@ -98,12 +98,12 @@ export function Sidebar({ activeSection, onSectionChange, isPendingSalon = false
 
   const menuItems = getMenuItems();
 
-  // Only render sidebar on desktop (lg and above)
+  // Render sidebar on tablets and desktop (md and above)
   // Mobile navigation is handled by MainNavbar
   return (
     <>
-      {/* Sidebar - Desktop only */}
-      <aside className="hidden lg:block lg:static w-64 bg-white border-r border-gray-200">
+      {/* Sidebar - Tablet and Desktop */}
+      <aside className="hidden md:block md:static w-48 lg:w-64 bg-white border-r border-gray-200">
         <div className="flex flex-col h-full">
           {/* Pending Salon Notice */}
           {isPendingSalon && (

@@ -192,7 +192,7 @@ export function Dashboard() {
       <MainNavbar />
       
       <div className="flex">
-        {/* Show sidebar only for non-clients (desktop only) */}
+        {/* Show sidebar only for non-clients (tablet and desktop) */}
         {!isClient && (
           <Sidebar 
             activeSection={activeSection} 
