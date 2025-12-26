@@ -154,6 +154,13 @@ export function ClientAppointments() {
     }
   };
 
+  // Format time to remove seconds (HH:MM:SS -> HH:MM)
+  const formatTime = (time: string): string => {
+    if (!time) return '';
+    const parts = time.split(':');
+    return `${parts[0]}:${parts[1]}`;
+  };
+
   const AppointmentCard = ({ appointment }: { appointment: any }) => {
     const [hasReviewState, setHasReviewState] = useState<boolean | null>(null);
     
@@ -187,8 +194,8 @@ export function ClientAppointments() {
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Clock className="w-4 h-4 text-blue-600" />
-              <span className="font-medium">Vreme:</span>
-              <span>{appointment.time} - {appointment.end_time}</span>
+              <span className="font-medium">Vrijeme:</span>
+              <span>{formatTime(appointment.time)} - {formatTime(appointment.end_time)}</span>
             </div>
           </div>
           
@@ -203,7 +210,7 @@ export function ClientAppointments() {
               <span className="ml-2">{appointment.service.name}</span>
             </div>
             <div className="text-sm">
-              <span className="font-medium">Cena:</span>
+              <span className="font-medium">Cijena:</span>
               <span className="ml-2 font-semibold text-green-600">{appointment.total_price} KM</span>
             </div>
           </div>
