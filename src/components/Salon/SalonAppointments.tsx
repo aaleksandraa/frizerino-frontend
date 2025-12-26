@@ -34,23 +34,28 @@ export function SalonAppointments() {
       if (selectedDate) {
         // Convert European date to ISO format for API
         params.date = europeanToIsoDate(selectedDate);
+        console.log('Filter params:', { selectedDate, isoDate: params.date, selectedStatus, selectedStaff });
       }
       if (selectedStatus !== 'all') {
         params.status = selectedStatus;
       }
       
       const appointmentsData = await appointmentAPI.getAppointments(params);
+      console.log('API Response:', appointmentsData);
       
       // Ensure we have an array
       const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.data || []);
+      console.log('Appointments array:', appointmentsArray.length, 'items');
       
       // Filter by salon and staff if needed
       let filteredAppointments = appointmentsArray.filter((app: any) => 
         String(app.salon_id) === String(user.salon?.id) || String(app.salon?.id) === String(user.salon?.id)
       );
+      console.log('After salon filter:', filteredAppointments.length, 'items');
       
       if (selectedStaff !== 'all') {
         filteredAppointments = filteredAppointments.filter((app: any) => String(app.staff_id) === String(selectedStaff));
+        console.log('After staff filter:', filteredAppointments.length, 'items');
       }
       
       setAppointments(filteredAppointments);
@@ -160,8 +165,12 @@ export function SalonAppointments() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
             <input
               type="date"
-              value={selectedDate.split('.').reverse().join('-')}
-              onChange={(e) => setSelectedDate(formatDateEuropean(new Date(e.target.value)))}
+              value={europeanToIsoDate(selectedDate)}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setSelectedDate(formatDateEuropean(new Date(e.target.value)));
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
