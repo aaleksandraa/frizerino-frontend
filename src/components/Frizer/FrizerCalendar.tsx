@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
-import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 import { MultiServiceBookingModal } from '../Common/MultiServiceBookingModal';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { FrizerCalendarWeekView } from './FrizerCalendarWeekView';
@@ -693,7 +693,7 @@ export function FrizerCalendar() {
 
       {/* Manual Booking Modal (kept for backward compatibility) */}
       {user?.staff_profile && (
-        <ManualBookingModal
+        <MultiServiceManualBookingModal
           isOpen={false}
           onClose={() => {}}
           onSuccess={loadData}

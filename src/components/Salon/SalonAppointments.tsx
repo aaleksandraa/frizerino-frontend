@@ -3,7 +3,7 @@ import { Calendar, Phone, Mail, Plus, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, serviceAPI, staffAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean, europeanToIsoDate } from '../../utils/dateUtils';
-import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 
 export function SalonAppointments() {
@@ -375,7 +375,7 @@ export function SalonAppointments() {
 
       {/* Manual Booking Modal */}
       {user?.salon && (
-        <ManualBookingModal
+        <MultiServiceManualBookingModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSuccess={loadData}

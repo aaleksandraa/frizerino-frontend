@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { serviceAPI, appointmentAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
-import { ManualBookingModal } from '../Common/ManualBookingModal';
+import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 
 interface FrizerCalendarDayViewProps {
   onViewChange?: (view: 'month' | 'week' | 'day') => void;
@@ -703,7 +703,7 @@ export function FrizerCalendarDayView({ onViewChange }: FrizerCalendarDayViewPro
       )}
 
       {user?.staff_profile && (
-        <ManualBookingModal
+        <MultiServiceManualBookingModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSuccess={loadData}

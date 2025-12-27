@@ -5,12 +5,14 @@ import {
   LayoutGrid,
   Columns,
   CalendarDays,
-  Filter
+  Filter,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
+import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 
 interface SalonCalendarDayViewProps {
   onViewChange?: (view: 'month' | 'week' | 'day') => void;
@@ -28,6 +30,7 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [capacityData, setCapacityData] = useState<Map<string, any>>(new Map());
 
@@ -423,6 +426,14 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
         <h1 className="text-3xl font-bold text-gray-900">Dostupnost</h1>
         
         <div className="flex items-center gap-3">
+          {/* Add Appointment Button */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Dodaj
+          </button>
           {/* View Mode Toggle */}
           {onViewChange && (
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
@@ -853,6 +864,17 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
           clientName={selectedClient.name}
           clientPhone={selectedClient.phone}
           clientEmail={selectedClient.email}
+        />
+      )}
+
+      {/* Manual Booking Modal */}
+      {user?.salon && (
+        <MultiServiceManualBookingModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={loadData}
+          salonId={Number(user.salon.id)}
+          preselectedDate={formatDateEuropean(selectedDate)}
         />
       )}
     </div>
