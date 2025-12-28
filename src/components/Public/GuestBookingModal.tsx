@@ -327,17 +327,23 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   };
 
   const updateService = (index: number, serviceId: string) => {
-    const service = services.find(s => String(s.id) === String(serviceId));
+    const foundService = services.find(s => String(s.id) === String(serviceId));
+    
+    // Normalize service with numeric duration
+    const service = foundService ? {
+      ...foundService,
+      duration: Number(foundService.duration) || 0
+    } : null;
     
     // Prevent selecting 0-duration service as first/only service
-    if (index === 0 && service && Number(service.duration) === 0) {
+    if (index === 0 && service && service.duration === 0) {
       setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
       return;
     }
     
     // Calculate what total duration would be after this selection
     const newServices = selectedServices.map((item, i) => 
-      i === index ? { ...item, id: serviceId, service: service || null } : item
+      i === index ? { ...item, id: serviceId, service: service } : item
     );
     const newTotalDuration = newServices.reduce((total, item) => {
       return total + (Number(item.service?.duration) || 0);

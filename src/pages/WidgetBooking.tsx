@@ -42,7 +42,12 @@ export const WidgetBooking: React.FC = () => {
       const response = await widgetAPI.getSalonWidget(salonSlug, apiKey);
       
       setSalon(response.salon);
-      setServices(response.services || []);
+      // CRITICAL: Ensure duration is a number for zero-duration validation
+      const servicesWithNumericDuration = (response.services || []).map((service: any) => ({
+        ...service,
+        duration: Number(service.duration) || 0
+      }));
+      setServices(servicesWithNumericDuration);
       setStaff(response.staff || []);
       setTheme(response.theme || {});
     } catch (err: any) {
