@@ -80,10 +80,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   // DEBUG: Check if new code is loaded - REMOVE AFTER TESTING
   useEffect(() => {
     if (isWidget && isOpen) {
-      console.log('=== WIDGET CODE VERSION 2024-12-28-v3 ===');
+      console.log('=== WIDGET CODE VERSION 2024-12-28-v4 ===');
       console.log('isWidget:', isWidget, 'services count:', services.length);
-      // TEMPORARY: Alert to verify new code is loaded
-      alert('Widget verzija: 2024-12-28-v3 - Novi kod je učitan!');
+      console.log('Services:', services.map(s => ({ name: s.name, duration: s.duration, type: typeof s.duration })));
     }
   }, [isWidget, isOpen, services]);
   
@@ -1489,27 +1488,29 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
               ← Nazad
             </button>
             
-            {/* CRITICAL: Hide button completely if zero duration on step 1 */}
-            {!(step === 1 && isZeroDurationOnly) && (
-              <button
-                onClick={() => {
-                  // CRITICAL: Direct validation before proceeding
-                  if (step === 1) {
-                    const totalDur = selectedServices.reduce((t, s) => t + (Number(s.service?.duration) || 0), 0);
-                    if (totalDur === 0) {
-                      setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
-                      return;
-                    }
+            <button
+              onClick={() => {
+                // CRITICAL: Direct validation before proceeding
+                if (step === 1) {
+                  const totalDur = selectedServices.reduce((t, s) => t + (Number(s.service?.duration) || 0), 0);
+                  console.log('[Button Click] Step 1 - totalDur:', totalDur);
+                  if (totalDur === 0) {
+                    setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
+                    return;
                   }
-                  handleNext();
-                }}
-                disabled={loading || !canProceed()}
-                className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors"
-              >
-                {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                {step === 4 && user ? 'Potvrdi rezervaciju' : step === (user ? 4 : 5) ? 'Potvrdi rezervaciju' : 'Nastavi'}
-              </button>
-            )}
+                }
+                handleNext();
+              }}
+              disabled={loading || !canProceed() || (step === 1 && isZeroDurationOnly)}
+              className={`${
+                (step === 1 && isZeroDurationOnly) 
+                  ? 'bg-gray-300 cursor-not-allowed opacity-60' 
+                  : 'bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300'
+              } disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors`}
+            >
+              {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+              {step === 4 && user ? 'Potvrdi rezervaciju' : step === (user ? 4 : 5) ? 'Potvrdi rezervaciju' : 'Nastavi'}
+            </button>
           </div>
         )}
       </div>
