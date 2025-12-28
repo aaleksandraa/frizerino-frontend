@@ -519,6 +519,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       case 1: {
         const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
         const totalDuration = getTotalDuration();
+        console.log('canProceed Step 1:', { hasAllServices, totalDuration, result: hasAllServices && totalDuration > 0 });
         return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
       }
       case 2: return !!selectedStaffId;
@@ -547,8 +548,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       
       // VALIDATION: Check for zero duration services
       const totalDuration = getTotalDuration();
+      console.log('handleNext Step 1 validation:', { totalDuration });
       if (totalDuration === 0) {
-        setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
+        setError('Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke). Molimo dodajte glavnu uslugu.');
         return;
       }
     } else if (step === 2) {
@@ -840,20 +842,26 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 </button>
                 
                 {selectedServices.some(item => item.id) && (
-                  <div className={`rounded-xl p-4 flex justify-between items-center ${
+                  <div className={`rounded-xl p-4 ${
                     getTotalDuration() === 0 
-                      ? 'bg-red-50 border-2 border-red-200' 
+                      ? 'bg-red-50 border-2 border-red-300' 
                       : 'bg-orange-50'
                   }`}>
-                    <div>
-                      <p className="text-sm text-gray-600">
-                        Ukupno trajanje: <strong className={getTotalDuration() === 0 ? 'text-red-600' : ''}>{getTotalDuration()} min</strong>
-                      </p>
-                      <p className="text-sm text-gray-600">Ukupna cijena: <strong className="text-orange-600">{getTotalPrice()} KM</strong></p>
-                      {getTotalDuration() === 0 && (
-                        <p className="text-xs text-red-600 mt-2 font-medium">
-                          ⚠️ Dodajte glavnu uslugu da biste mogli nastaviti
-                        </p>
+                    <div className="w-full">
+                      {getTotalDuration() === 0 ? (
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-red-700 mb-2">
+                            ⚠️ Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke)
+                          </p>
+                          <p className="text-xs text-red-600">
+                            Molimo dodajte glavnu uslugu da biste mogli nastaviti
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600">Ukupno trajanje: <strong>{getTotalDuration()} min</strong></p>
+                          <p className="text-sm text-gray-600">Ukupna cijena: <strong className="text-orange-600">{getTotalPrice()} KM</strong></p>
+                        </>
                       )}
                     </div>
                   </div>
