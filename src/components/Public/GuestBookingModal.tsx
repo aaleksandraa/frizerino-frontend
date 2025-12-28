@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicAPI, appointmentAPI } from '../../services/api';
 import { Service, Staff, User, Break, Vacation } from '../../types';
@@ -382,15 +382,12 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
   }, [selectedServices, staff]);
 
-  // Memoized total duration to ensure consistent value across renders
-  const totalDuration = useMemo(() => {
+  const getTotalDuration = () => {
+    // Calculate directly to avoid stale memoized values
     return selectedServices.reduce((total, item) => {
-      const duration = Number(item.service?.duration) || 0;
-      return total + duration;
+      return total + (Number(item.service?.duration) || 0);
     }, 0);
-  }, [selectedServices]);
-
-  const getTotalDuration = () => totalDuration;
+  };
 
   const getTotalPrice = () => {
     return selectedServices.reduce((total, item) => {
@@ -532,11 +529,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     switch (step) {
       case 1: {
         const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
-        // CRITICAL: Must have services AND total duration > 0 (not just addon services)
-        const canGo = hasAllServices && totalDuration > 0;
-        if (!canGo && hasAllServices) {
-          console.log('[Widget] Blocked: totalDuration is', totalDuration, '- only addon services selected');
-        }
+        // CRITICAL: Calculate duration directly here to avoid stale memoized values
+        const calculatedDuration = selectedServices.reduce((total, item) => {
+          const dur = Number(item.service?.duration) || 0;
+          return total + dur;
+        }, 0);
+        // Must have services AND total duration > 0 (not just addon services)
+        const canGo = hasAllServices && calculatedDuration > 0;
         return canGo;
       }
       case 2: return !!selectedStaffId;
@@ -563,8 +562,12 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         return;
       }
       
-      // VALIDATION: Check for zero duration services
-      if (totalDuration === 0) {
+      // VALIDATION: Calculate duration directly to avoid stale values
+      const calculatedDuration = selectedServices.reduce((total, item) => {
+        return total + (Number(item.service?.duration) || 0);
+      }, 0);
+      
+      if (calculatedDuration === 0) {
         setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
         return;
       }
@@ -1453,8 +1456,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             
             <button
               onClick={handleNext}
-              disabled={loading || !canProceed()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors"
+              disabled={loading || !canProceed() || (step === 1 && selectedServices.reduce((t, i) => t + (Number(i.service?.duration) || 0), 0) === 0)}
+              className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors"
             >
               {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
               {step === 4 && user ? 'Potvrdi rezervaciju' : step === (user ? 4 : 5) ? 'Potvrdi rezervaciju' : 'Nastavi'}
