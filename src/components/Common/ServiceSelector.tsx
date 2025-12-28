@@ -27,7 +27,9 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
 
     // Exclude zero duration if needed
     if (excludeZeroDuration) {
+      const before = filtered.length;
       filtered = filtered.filter(s => Number(s.duration) > 0);
+      console.log('[ServiceSelector] excludeZeroDuration: filtered from', before, 'to', filtered.length, 'services');
     }
 
     // Filter by search term

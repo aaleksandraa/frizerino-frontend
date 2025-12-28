@@ -83,6 +83,9 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // CRITICAL: Track if only zero-duration services are selected
+  const [isZeroDurationOnly, setIsZeroDurationOnly] = useState(false);
+  
   // Multi-service selection - ONE staff for ALL services
   const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
@@ -167,15 +170,21 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
   }, [selectedServices, selectedDate, selectedStaffId]);
 
-  // CRITICAL: Auto-show error when only zero-duration services are selected
+  // CRITICAL: Auto-show error and update isZeroDurationOnly when only zero-duration services are selected
   useEffect(() => {
-    if (step === 1 && selectedServices.some(item => item.id)) {
-      const totalDur = selectedServices.reduce((total, item) => {
-        return total + (Number(item.service?.duration) || 0);
-      }, 0);
-      if (totalDur === 0) {
-        setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
-      }
+    const hasAnyService = selectedServices.some(item => item.id);
+    const totalDur = selectedServices.reduce((total, item) => {
+      const dur = Number(item.service?.duration) || 0;
+      console.log('[ZeroDuration] Service:', item.service?.name, 'duration:', item.service?.duration, 'parsed:', dur);
+      return total + dur;
+    }, 0);
+    
+    const isZeroOnly = hasAnyService && totalDur === 0;
+    console.log('[ZeroDuration] hasAnyService:', hasAnyService, 'totalDur:', totalDur, 'isZeroOnly:', isZeroOnly);
+    setIsZeroDurationOnly(isZeroOnly);
+    
+    if (step === 1 && isZeroOnly) {
+      setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
     }
   }, [selectedServices, step]);
 
@@ -344,12 +353,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 
   const updateService = (index: number, serviceId: string) => {
     const foundService = services.find(s => String(s.id) === String(serviceId));
+    console.log('[UpdateService] Found service:', foundService?.name, 'duration:', foundService?.duration, 'type:', typeof foundService?.duration);
     
     // Normalize service with numeric duration
     const service = foundService ? {
       ...foundService,
       duration: Number(foundService.duration) || 0
     } : null;
+    console.log('[UpdateService] Normalized duration:', service?.duration);
     
     // CRITICAL: Prevent selecting 0-duration service if it would result in total duration = 0
     if (service && service.duration === 0) {
@@ -358,7 +369,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         .filter((_, i) => i !== index)
         .reduce((total, item) => total + (Number(item.service?.duration) || 0), 0);
       
+      console.log('[UpdateService] Zero duration service! Other services duration:', otherServicesDuration);
+      
       if (otherServicesDuration === 0) {
+        console.log('[UpdateService] BLOCKING - would result in total 0 duration');
         setError('Ne možete rezervisati ovu uslugu samostalno. Molimo prvo dodajte glavnu uslugu.');
         return; // Don't allow selection
       }
@@ -371,6 +385,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     const newTotalDuration = newServices.reduce((total, item) => {
       return total + (Number(item.service?.duration) || 0);
     }, 0);
+    
+    console.log('[UpdateService] New total duration:', newTotalDuration);
     
     // Show warning if only 0-duration services would remain
     if (newTotalDuration === 0 && newServices.some(s => s.id)) {
@@ -1480,8 +1496,12 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             
             <button
               onClick={handleNext}
-              disabled={loading || !canProceed() || (step === 1 && selectedServices.reduce((t, i) => t + (Number(i.service?.duration) || 0), 0) === 0)}
-              className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors"
+              disabled={loading || !canProceed() || (step === 1 && isZeroDurationOnly)}
+              className={`${
+                (step === 1 && isZeroDurationOnly) 
+                  ? 'bg-gray-300 cursor-not-allowed' 
+                  : 'bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300'
+              } disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors`}
             >
               {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
               {step === 4 && user ? 'Potvrdi rezervaciju' : step === (user ? 4 : 5) ? 'Potvrdi rezervaciju' : 'Nastavi'}
