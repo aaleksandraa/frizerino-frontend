@@ -77,6 +77,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
 }) => {
   const navigate = useNavigate();
   
+  // DEBUG: Check if new code is loaded - REMOVE AFTER TESTING
+  useEffect(() => {
+    if (isWidget) {
+      console.log('=== WIDGET CODE VERSION 2024-12-28-v2 ===');
+      console.log('isWidget:', isWidget, 'services count:', services.length);
+    }
+  }, [isWidget, services]);
+  
   // Step management: 0=choice (guest only, skip on widget), 1=services, 2=staff, 3=date, 4=time, 5=guest-info (guest only), 6=confirmation
   // On widget, always start at step 1 (skip choice screen)
   const [step, setStep] = useState(user ? 1 : (isWidget ? 1 : 0));
@@ -1495,7 +1503,17 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
             </button>
             
             <button
-              onClick={handleNext}
+              onClick={() => {
+                // CRITICAL: Direct validation before proceeding
+                if (step === 1) {
+                  const totalDur = selectedServices.reduce((t, s) => t + (Number(s.service?.duration) || 0), 0);
+                  if (totalDur === 0) {
+                    setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
+                    return;
+                  }
+                }
+                handleNext();
+              }}
               disabled={loading || !canProceed() || (step === 1 && isZeroDurationOnly)}
               className={`${
                 (step === 1 && isZeroDurationOnly) 
