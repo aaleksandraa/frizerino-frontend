@@ -27,7 +27,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
 
     // Exclude zero duration if needed
     if (excludeZeroDuration) {
-      filtered = filtered.filter(s => s.duration > 0);
+      filtered = filtered.filter(s => Number(s.duration) > 0);
     }
 
     // Filter by search term
@@ -189,7 +189,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
                                   {service.discount_price || service.price} KM
                                 </span>
                                 <span className="text-xs text-gray-500">{service.duration} min</span>
-                                {service.duration === 0 && (
+                                {Number(service.duration) === 0 && (
                                   <span className="text-xs text-gray-400 italic">(dodatak)</span>
                                 )}
                               </div>

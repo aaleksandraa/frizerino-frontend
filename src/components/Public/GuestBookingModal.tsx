@@ -229,34 +229,48 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       const totalDates = datesToCheck.length;
       let processedDates = 0;
       
-      // Process dates in parallel batches of 5 to avoid overwhelming the server
-      const batchSize = 5;
+      // Helper function to delay execution
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      
+      // Process dates in smaller batches with delay to avoid rate limiting (429 errors)
+      const batchSize = 2; // Reduced from 5 to avoid rate limiting
       for (let i = 0; i < datesToCheck.length; i += batchSize) {
         const batch = datesToCheck.slice(i, i + batchSize);
         
         const batchPromises = batch.map(async (day) => {
           const dateStr = `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}.${day.getFullYear()}`;
           
-          try {
-            const response = await publicAPI.getAvailableSlotsForMultipleServices(
-              String(salon.id),
-              dateStr,
-              servicesData
-            );
-            
-            let slots = response.slots || [];
-            
-            // CRITICAL: Filter past slots if today - use CURRENT time, not midnight!
-            if (day.toDateString() === todayMidnight.toDateString()) {
-              slots = slots.filter((slot: string) => slot > currentTimeStr);
+          // Retry logic for rate limiting
+          let retries = 3;
+          while (retries > 0) {
+            try {
+              const response = await publicAPI.getAvailableSlotsForMultipleServices(
+                String(salon.id),
+                dateStr,
+                servicesData
+              );
+              
+              let slots = response.slots || [];
+              
+              // CRITICAL: Filter past slots if today - use CURRENT time, not midnight!
+              if (day.toDateString() === todayMidnight.toDateString()) {
+                slots = slots.filter((slot: string) => slot > currentTimeStr);
+              }
+              
+              // If there are available slots, return the date
+              return slots.length > 0 ? dateStr : null;
+            } catch (err: any) {
+              // If rate limited (429), wait and retry
+              if (err?.response?.status === 429 && retries > 1) {
+                retries--;
+                await delay(1000 * (4 - retries)); // Exponential backoff: 1s, 2s, 3s
+                continue;
+              }
+              console.error(`Error checking slots for ${dateStr}:`, err);
+              return null;
             }
-            
-            // If there are available slots, return the date
-            return slots.length > 0 ? dateStr : null;
-          } catch (err) {
-            console.error(`Error checking slots for ${dateStr}:`, err);
-            return null;
           }
+          return null;
         });
         
         // Wait for current batch to complete
@@ -273,6 +287,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         
         // Update UI progressively as batches complete
         setDatesWithSlots(new Set(datesSet));
+        
+        // Add delay between batches to avoid rate limiting
+        if (i + batchSize < datesToCheck.length) {
+          await delay(300); // 300ms delay between batches
+        }
       }
       
       setDatesWithSlots(datesSet);
@@ -334,7 +353,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     const newServices = selectedServices.filter((_, i) => i !== index);
     
     // Check if remaining services have total duration > 0
-    const remainingDuration = newServices.reduce((total, item) => total + (item.service?.duration || 0), 0);
+    const remainingDuration = newServices.reduce((total, item) => total + (Number(item.service?.duration) || 0), 0);
     
     // If only 0-duration services remain, show warning
     if (newServices.length > 0 && remainingDuration === 0) {
@@ -352,7 +371,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     const service = services.find(s => String(s.id) === String(serviceId));
     
     // Prevent selecting 0-duration service as first service
-    if (index === 0 && service && service.duration === 0) {
+    if (index === 0 && service && Number(service.duration) === 0) {
       setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
       return;
     }
@@ -387,7 +406,10 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   }, [selectedServices, staff]);
 
   const getTotalDuration = () => {
-    return selectedServices.reduce((total, item) => total + (item.service?.duration || 0), 0);
+    return selectedServices.reduce((total, item) => {
+      const duration = Number(item.service?.duration) || 0;
+      return total + duration;
+    }, 0);
   };
 
   const getTotalPrice = () => {

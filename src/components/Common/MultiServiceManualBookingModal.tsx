@@ -150,7 +150,7 @@ export function MultiServiceManualBookingModal({
     const newServices = selectedServices.filter(s => s.id !== serviceId);
     
     // Check if remaining services have total duration > 0
-    const remainingDuration = newServices.reduce((sum, s) => sum + s.duration, 0);
+    const remainingDuration = newServices.reduce((sum, s) => sum + Number(s.duration), 0);
     
     // If only 0-duration services remain, show warning
     if (newServices.length > 0 && remainingDuration === 0) {
@@ -164,7 +164,7 @@ export function MultiServiceManualBookingModal({
   };
 
   const getTotalDuration = () => {
-    return selectedServices.reduce((sum, s) => sum + s.duration, 0);
+    return selectedServices.reduce((sum, s) => sum + Number(s.duration), 0);
   };
 
   const getTotalPrice = () => {

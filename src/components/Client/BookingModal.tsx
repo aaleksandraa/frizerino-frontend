@@ -67,7 +67,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
   };
 
   const getTotalDuration = (): number => {
-    return getSelectedServices().reduce((sum, s) => sum + (s.duration || 0), 0);
+    return getSelectedServices().reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
   };
 
   const getTotalPrice = (): number => {
@@ -116,7 +116,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     
     // Check if remaining services have total duration > 0
     const remainingServices = remaining.map(id => services.find(s => s.id === id)).filter(Boolean) as Service[];
-    const remainingDuration = remainingServices.reduce((sum, s) => sum + (s.duration || 0), 0);
+    const remainingDuration = remainingServices.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
     
     // If only 0-duration services remain, show warning
     if (remaining.length > 0 && remainingDuration === 0) {
@@ -138,7 +138,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
     const service = services.find(s => s.id === serviceId);
     
     // Prevent selecting 0-duration service as first service
-    if (index === 0 && service && service.duration === 0) {
+    if (index === 0 && service && Number(service.duration) === 0) {
       setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
       return;
     }
