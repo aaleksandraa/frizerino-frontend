@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicAPI, appointmentAPI } from '../../services/api';
 import { Service, Staff, User, Break, Vacation } from '../../types';
@@ -364,12 +364,15 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
   }, [selectedServices, staff]);
 
-  const getTotalDuration = () => {
+  // Memoized total duration to ensure consistent value across renders
+  const totalDuration = useMemo(() => {
     return selectedServices.reduce((total, item) => {
       const duration = Number(item.service?.duration) || 0;
       return total + duration;
     }, 0);
-  };
+  }, [selectedServices]);
+
+  const getTotalDuration = () => totalDuration;
 
   const getTotalPrice = () => {
     return selectedServices.reduce((total, item) => {
@@ -511,7 +514,6 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     switch (step) {
       case 1: {
         const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
-        const totalDuration = getTotalDuration();
         return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
       }
       case 2: return !!selectedStaffId;
@@ -539,7 +541,6 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       }
       
       // VALIDATION: Check for zero duration services
-      const totalDuration = getTotalDuration();
       if (totalDuration === 0) {
         setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
         return;
