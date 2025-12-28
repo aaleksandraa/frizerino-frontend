@@ -703,6 +703,21 @@ export const publicAPI = {
     return response.data;
   },
 
+  // Get available dates for a month (single API call - optimized)
+  getAvailableDatesForMonth: async (salonId: string, params: {
+    staff_id: number;
+    month: string; // YYYY-MM format
+    services: Array<{ serviceId: string; staffId: string; duration: number }>;
+  }) => {
+    const response = await api.post('/public/available-dates-month', {
+      salon_id: salonId,
+      staff_id: params.staff_id,
+      month: params.month,
+      services: params.services
+    });
+    return response.data;
+  },
+
   // Download ICS calendar file (public - no auth required)
   downloadIcs: async (appointmentId: number) => {
     const response = await api.get(`/public/appointments/${appointmentId}/ics`, {
@@ -1223,6 +1238,21 @@ export const widgetAPI = {
     const response = await api.post('/widget/book', {
       ...data,
       api_key: apiKey
+    });
+    return response.data;
+  },
+
+  // Public: Get available dates for a month (single API call instead of multiple)
+  getAvailableDates: async (apiKey: string, params: {
+    staff_id: number;
+    month: string; // YYYY-MM format
+    services: Array<{ serviceId: string; duration: number }>;
+  }) => {
+    const response = await api.post('/widget/dates/available', {
+      api_key: apiKey,
+      staff_id: params.staff_id,
+      month: params.month,
+      services: params.services
     });
     return response.data;
   }

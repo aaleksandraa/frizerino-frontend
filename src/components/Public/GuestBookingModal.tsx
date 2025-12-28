@@ -177,20 +177,15 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     setLoadingDates(true);
     setLoadingProgress(0);
     try {
-      // CRITICAL: Use separate variables for date comparison and time filtering
-      const todayMidnight = new Date();
-      todayMidnight.setHours(0, 0, 0, 0);
-      
       // Current time for filtering today's slots
       const now = new Date();
       const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const todayStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
       
-      // Get first and last day of current displayed month
-      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      
-      // Load capacity data for the month FIRST
+      // Format month for API (YYYY-MM)
       const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Load capacity data for the month
       try {
         const capacityResponse = await publicAPI.getMonthCapacity(String(salon.id), monthStr);
         const capacityMap = new Map();
@@ -202,99 +197,63 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         console.error('Error loading capacity data:', err);
       }
       
-      // Build services data for multi-service API
+      // Build services data for API
       const servicesData = selectedServices
         .filter(s => s.id && s.service)
         .map(s => ({
           serviceId: s.id,
           staffId: selectedStaffId,
-          duration: s.service?.duration || 0
+          duration: Number(s.service?.duration) || 0
         }));
 
-      const datesSet = new Set<string>();
-      
-      // Collect all dates to check
-      const datesToCheck: Date[] = [];
-      for (let day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) {
-        // Skip past dates (compare with midnight)
-        if (day < todayMidnight) continue;
+      setLoadingProgress(30);
+
+      // OPTIMIZED: Single API call to get all available dates for the month
+      try {
+        const response = await publicAPI.getAvailableDatesForMonth(String(salon.id), {
+          staff_id: Number(selectedStaffId),
+          month: monthStr,
+          services: servicesData
+        });
         
-        // Check if date is available (working day, not on vacation, etc.)
-        const availability = isDateAvailable(new Date(day));
-        if (!availability.available) continue;
+        setLoadingProgress(80);
         
-        datesToCheck.push(new Date(day));
-      }
-      
-      const totalDates = datesToCheck.length;
-      let processedDates = 0;
-      
-      // Helper function to delay execution
-      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-      
-      // Process dates in smaller batches with delay to avoid rate limiting (429 errors)
-      const batchSize = 2; // Reduced from 5 to avoid rate limiting
-      for (let i = 0; i < datesToCheck.length; i += batchSize) {
-        const batch = datesToCheck.slice(i, i + batchSize);
+        // Convert available dates to Set
+        const datesSet = new Set<string>();
+        const availableDates = response.available_dates || [];
         
-        const batchPromises = batch.map(async (day) => {
-          const dateStr = `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}.${day.getFullYear()}`;
-          
-          // Retry logic for rate limiting
-          let retries = 3;
-          while (retries > 0) {
+        // Filter out today's date if no slots are available after current time
+        // (backend doesn't know current time, so we need to check today separately)
+        for (const dateStr of availableDates) {
+          if (dateStr === todayStr) {
+            // For today, we need to verify there are slots after current time
             try {
-              const response = await publicAPI.getAvailableSlotsForMultipleServices(
+              const slotsResponse = await publicAPI.getAvailableSlotsForMultipleServices(
                 String(salon.id),
                 dateStr,
                 servicesData
               );
-              
-              let slots = response.slots || [];
-              
-              // CRITICAL: Filter past slots if today - use CURRENT time, not midnight!
-              if (day.toDateString() === todayMidnight.toDateString()) {
-                slots = slots.filter((slot: string) => slot > currentTimeStr);
+              const slots = (slotsResponse.slots || []).filter((slot: string) => slot > currentTimeStr);
+              if (slots.length > 0) {
+                datesSet.add(dateStr);
               }
-              
-              // If there are available slots, return the date
-              return slots.length > 0 ? dateStr : null;
-            } catch (err: any) {
-              // If rate limited (429), wait and retry
-              if (err?.response?.status === 429 && retries > 1) {
-                retries--;
-                await delay(1000 * (4 - retries)); // Exponential backoff: 1s, 2s, 3s
-                continue;
-              }
-              console.error(`Error checking slots for ${dateStr}:`, err);
-              return null;
+            } catch {
+              // If error, still add the date (backend said it's available)
+              datesSet.add(dateStr);
             }
+          } else {
+            datesSet.add(dateStr);
           }
-          return null;
-        });
-        
-        // Wait for current batch to complete
-        const batchResults = await Promise.all(batchPromises);
-        
-        // Add successful dates to set
-        batchResults.forEach(dateStr => {
-          if (dateStr) datesSet.add(dateStr);
-        });
-        
-        // Update progress
-        processedDates += batch.length;
-        setLoadingProgress(Math.round((processedDates / totalDates) * 100));
-        
-        // Update UI progressively as batches complete
-        setDatesWithSlots(new Set(datesSet));
-        
-        // Add delay between batches to avoid rate limiting
-        if (i + batchSize < datesToCheck.length) {
-          await delay(300); // 300ms delay between batches
         }
+        
+        setLoadingProgress(100);
+        setDatesWithSlots(datesSet);
+      } catch (err) {
+        console.error('Error loading available dates:', err);
+        // Fallback: if the optimized endpoint fails, dates will remain empty
+        // User can still click on dates and see if slots are available
+        setDatesWithSlots(new Set());
       }
-      
-      setDatesWithSlots(datesSet);
     } catch (err) {
       console.error('Error loading dates with slots:', err);
     } finally {
