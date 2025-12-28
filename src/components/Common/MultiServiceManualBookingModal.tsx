@@ -175,7 +175,7 @@ export function MultiServiceManualBookingModal({
     // VALIDATION: Check for zero duration services
     const totalDuration = getTotalDuration();
     if (totalDuration === 0) {
-      setError('Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke). Molimo dodajte glavnu uslugu.');
+      setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
       return;
     }
     
