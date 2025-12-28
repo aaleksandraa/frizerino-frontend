@@ -540,6 +540,13 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
         setError('Molimo izaberite uslugu za sve stavke');
         return;
       }
+      
+      // VALIDATION: Check for zero duration services
+      const totalDuration = getTotalDuration();
+      if (totalDuration === 0) {
+        setError('Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke). Molimo dodajte glavnu uslugu.');
+        return;
+      }
     } else if (step === 2) {
       if (!selectedStaffId) {
         setError('Molimo izaberite frizera/kozmetičara');
