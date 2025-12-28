@@ -163,6 +163,18 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     }
   }, [selectedServices, selectedDate, selectedStaffId]);
 
+  // CRITICAL: Auto-show error when only zero-duration services are selected
+  useEffect(() => {
+    if (step === 1 && selectedServices.some(item => item.id)) {
+      const totalDur = selectedServices.reduce((total, item) => {
+        return total + (Number(item.service?.duration) || 0);
+      }, 0);
+      if (totalDur === 0) {
+        setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
+      }
+    }
+  }, [selectedServices, step]);
+
   // Load dates with available slots when staff and services are selected
   useEffect(() => {
     if (selectedStaffId && selectedServices[0]?.id && step === 3) {
