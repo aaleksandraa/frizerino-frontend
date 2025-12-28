@@ -516,7 +516,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   // Step validation
   const canProceed = () => {
     switch (step) {
-      case 1: return selectedServices.length > 0 && selectedServices.every(item => item.id);
+      case 1: {
+        const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
+        const totalDuration = getTotalDuration();
+        return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
+      }
       case 2: return !!selectedStaffId;
       case 3: return !!selectedDate;
       case 4: return !!selectedTime;
@@ -836,10 +840,21 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                 </button>
                 
                 {selectedServices.some(item => item.id) && (
-                  <div className="bg-orange-50 rounded-xl p-4 flex justify-between items-center">
+                  <div className={`rounded-xl p-4 flex justify-between items-center ${
+                    getTotalDuration() === 0 
+                      ? 'bg-red-50 border-2 border-red-200' 
+                      : 'bg-orange-50'
+                  }`}>
                     <div>
-                      <p className="text-sm text-gray-600">Ukupno trajanje: <strong>{getTotalDuration()} min</strong></p>
+                      <p className="text-sm text-gray-600">
+                        Ukupno trajanje: <strong className={getTotalDuration() === 0 ? 'text-red-600' : ''}>{getTotalDuration()} min</strong>
+                      </p>
                       <p className="text-sm text-gray-600">Ukupna cijena: <strong className="text-orange-600">{getTotalPrice()} KM</strong></p>
+                      {getTotalDuration() === 0 && (
+                        <p className="text-xs text-red-600 mt-2 font-medium">
+                          ⚠️ Dodajte glavnu uslugu da biste mogli nastaviti
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
