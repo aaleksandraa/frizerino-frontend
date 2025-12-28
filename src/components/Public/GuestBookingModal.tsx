@@ -550,7 +550,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       const totalDuration = getTotalDuration();
       console.log('handleNext Step 1 validation:', { totalDuration });
       if (totalDuration === 0) {
-        setError('Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke). Molimo dodajte glavnu uslugu.');
+        setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
         return;
       }
     } else if (step === 2) {
@@ -850,11 +850,11 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                     <div className="w-full">
                       {getTotalDuration() === 0 ? (
                         <div className="text-center">
-                          <p className="text-sm font-semibold text-red-700 mb-2">
-                            ⚠️ Ne možete rezervisati samo usluge koje nemaju trajanje (dodatke)
+                          <p className="text-sm font-semibold text-red-700 mb-1">
+                            ⚠️ Ne možete rezervisati ovu uslugu samostalno
                           </p>
                           <p className="text-xs text-red-600">
-                            Molimo dodajte glavnu uslugu da biste mogli nastaviti
+                            Molimo dodajte glavnu uslugu
                           </p>
                         </div>
                       ) : (
