@@ -128,6 +128,7 @@ export const WidgetBooking: React.FC = () => {
           services={services}
           staff={staff}
           user={null}
+          isWidget={true}
         />
       </div>
       

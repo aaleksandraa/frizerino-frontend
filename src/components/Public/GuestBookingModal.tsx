@@ -42,6 +42,7 @@ interface GuestBookingModalProps {
   preselectedService?: Service;
   preselectedStaff?: Staff;
   user?: User | null;
+  isWidget?: boolean; // Skip step 0 on widget
 }
 
 interface GuestData {
@@ -71,12 +72,14 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   staff,
   preselectedService,
   preselectedStaff,
-  user
+  user,
+  isWidget = false
 }) => {
   const navigate = useNavigate();
   
-  // Step management: 0=choice (guest only), 1=services, 2=staff, 3=date, 4=time, 5=guest-info (guest only), 6=confirmation
-  const [step, setStep] = useState(user ? 1 : 0);
+  // Step management: 0=choice (guest only, skip on widget), 1=services, 2=staff, 3=date, 4=time, 5=guest-info (guest only), 6=confirmation
+  // On widget, always start at step 1 (skip choice screen)
+  const [step, setStep] = useState(user ? 1 : (isWidget ? 1 : 0));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -121,7 +124,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   // Initialize with preselected service
   useEffect(() => {
     if (isOpen) {
-      setStep(user ? 1 : 0);
+      // On widget, always start at step 1 (skip choice screen)
+      setStep(user ? 1 : (isWidget ? 1 : 0));
       setError(null);
       setValidationErrors({});
       setShowSuccess(false);
@@ -347,10 +351,17 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       duration: Number(foundService.duration) || 0
     } : null;
     
-    // Prevent selecting 0-duration service as first/only service
-    if (index === 0 && service && service.duration === 0) {
-      setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
-      return;
+    // CRITICAL: Prevent selecting 0-duration service if it would result in total duration = 0
+    if (service && service.duration === 0) {
+      // Calculate what total duration would be after this selection
+      const otherServicesDuration = selectedServices
+        .filter((_, i) => i !== index)
+        .reduce((total, item) => total + (Number(item.service?.duration) || 0), 0);
+      
+      if (otherServicesDuration === 0) {
+        setError('Ne možete rezervisati ovu uslugu samostalno. Molimo prvo dodajte glavnu uslugu.');
+        return; // Don't allow selection
+      }
     }
     
     // Calculate what total duration would be after this selection
@@ -624,7 +635,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   };
 
   const handleBack = () => {
-    if (step === 1 && !user) {
+    // On widget, don't go back to step 0 (choice screen doesn't exist)
+    if (step === 1 && !user && !isWidget) {
       setStep(0);
     } else if (step > 1) {
       setStep(step - 1);
