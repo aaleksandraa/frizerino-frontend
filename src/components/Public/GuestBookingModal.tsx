@@ -329,16 +329,28 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   const updateService = (index: number, serviceId: string) => {
     const service = services.find(s => String(s.id) === String(serviceId));
     
-    // Prevent selecting 0-duration service as first service
+    // Prevent selecting 0-duration service as first/only service
     if (index === 0 && service && Number(service.duration) === 0) {
       setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
       return;
     }
     
-    setError(null);
-    setSelectedServices(prev => prev.map((item, i) => 
+    // Calculate what total duration would be after this selection
+    const newServices = selectedServices.map((item, i) => 
       i === index ? { ...item, id: serviceId, service: service || null } : item
-    ));
+    );
+    const newTotalDuration = newServices.reduce((total, item) => {
+      return total + (Number(item.service?.duration) || 0);
+    }, 0);
+    
+    // Show warning if only 0-duration services would remain
+    if (newTotalDuration === 0 && newServices.some(s => s.id)) {
+      setError('Ne možete rezervisati samo dodatne usluge. Molimo dodajte glavnu uslugu.');
+    } else {
+      setError(null);
+    }
+    
+    setSelectedServices(newServices);
     // Reset staff selection when services change
     setSelectedStaffId('');
   };
@@ -509,12 +521,17 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  // Step validation
+  // Step validation - CRITICAL: Block if only zero-duration services selected
   const canProceed = () => {
     switch (step) {
       case 1: {
         const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
-        return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
+        // CRITICAL: Must have services AND total duration > 0 (not just addon services)
+        const canGo = hasAllServices && totalDuration > 0;
+        if (!canGo && hasAllServices) {
+          console.log('[Widget] Blocked: totalDuration is', totalDuration, '- only addon services selected');
+        }
+        return canGo;
       }
       case 2: return !!selectedStaffId;
       case 3: return !!selectedDate;
