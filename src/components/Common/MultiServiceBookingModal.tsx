@@ -135,7 +135,19 @@ export function MultiServiceBookingModal({
   };
 
   const removeService = (index: number) => {
-    setSelectedServices(selectedServices.filter((_, i) => i !== index));
+    const newServices = selectedServices.filter((_, i) => i !== index);
+    
+    // Check if remaining services have total duration > 0
+    const remainingDuration = newServices.reduce((sum, s) => sum + s.duration, 0);
+    
+    // If only 0-duration services remain, show warning
+    if (newServices.length > 0 && remainingDuration === 0) {
+      setError('Ne možete rezervisati samo dodatne usluge. Molimo dodajte glavnu uslugu.');
+    } else {
+      setError(null);
+    }
+    
+    setSelectedServices(newServices);
     setSelectedTime('');
   };
 

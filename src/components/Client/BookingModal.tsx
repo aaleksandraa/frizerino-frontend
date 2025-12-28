@@ -32,6 +32,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
   const [bookingDetails, setBookingDetails] = useState<any[]>([]);
   const [createdAppointment, setCreatedAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -111,17 +112,38 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
   };
 
   const removeService = (index: number) => {
-    setSelectedServiceIds(prev => prev.filter((_, i) => i !== index));
-    // Reset staff if they can't do remaining services
     const remaining = selectedServiceIds.filter((_, i) => i !== index);
+    
+    // Check if remaining services have total duration > 0
+    const remainingServices = remaining.map(id => services.find(s => s.id === id)).filter(Boolean) as Service[];
+    const remainingDuration = remainingServices.reduce((sum, s) => sum + (s.duration || 0), 0);
+    
+    // If only 0-duration services remain, show warning
+    if (remaining.length > 0 && remainingDuration === 0) {
+      setError('Ne možete rezervisati samo dodatne usluge. Molimo dodajte glavnu uslugu.');
+    } else {
+      setError(null);
+    }
+    
+    setSelectedServiceIds(remaining);
+    
+    // Reset staff if they can't do remaining services
     if (remaining.length > 0 && selectedStaffId) {
-      const remainingServices = remaining.map(id => services.find(s => s.id === id)).filter(Boolean) as Service[];
       const staffCanDoAll = remainingServices.every(s => s.staff_ids?.includes(selectedStaffId));
       if (!staffCanDoAll) setSelectedStaffId('');
     }
   };
 
   const updateServiceAtIndex = (index: number, serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    
+    // Prevent selecting 0-duration service as first service
+    if (index === 0 && service && service.duration === 0) {
+      setError('Usluge sa 0 min trajanja (dodatci) ne mogu biti prva usluga. Prvo izaberite glavnu uslugu.');
+      return;
+    }
+    
+    setError(null);
     setSelectedServiceIds(prev => prev.map((id, i) => i === index ? serviceId : id));
     // Reset staff selection when services change
     setSelectedStaffId('');
@@ -129,7 +151,11 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
 
   const canProceedToNextStep = (): boolean => {
     switch (step) {
-      case 1: return selectedServiceIds.length > 0 && selectedServiceIds.every(id => id !== '');
+      case 1: {
+        const hasAllServices = selectedServiceIds.length > 0 && selectedServiceIds.every(id => id !== '');
+        const totalDuration = getTotalDuration();
+        return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
+      }
       case 2: return !!selectedStaffId;
       case 3: return !!bookingData.date;
       case 4: return !!bookingData.time;
@@ -280,6 +306,7 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                           selectedServiceId={serviceId}
                           onSelect={(id) => updateServiceAtIndex(index, id)}
                           label="Pretražite ili odaberite uslugu"
+                          excludeZeroDuration={index === 0}
                         />
                       </div>
                       {selectedServiceIds.length > 1 && (
@@ -299,10 +326,26 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
                   </button>
                   
                   {selectedServiceIds.every(id => id) && selectedServiceIds.length > 0 && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                      <p className="text-sm text-orange-700">
-                        <strong>Ukupno:</strong> {selectedServiceIds.length} usluga, {getTotalDuration()} min, {getTotalPrice()} KM
-                      </p>
+                    <div className={`rounded-xl p-4 ${
+                      getTotalDuration() === 0 
+                        ? 'bg-red-50 border-2 border-red-300' 
+                        : 'bg-orange-50 border border-orange-200'
+                    }`}>
+                      {getTotalDuration() === 0 ? (
+                        <p className="text-sm text-red-700">
+                          Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-orange-700">
+                          <strong>Ukupno:</strong> {selectedServiceIds.length} usluga, {getTotalDuration()} min, {getTotalPrice()} KM
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                      <p className="text-sm text-red-700">{error}</p>
                     </div>
                   )}
                 </div>

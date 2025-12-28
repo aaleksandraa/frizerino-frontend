@@ -331,7 +331,19 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
   };
 
   const removeService = (index: number) => {
-    setSelectedServices(prev => prev.filter((_, i) => i !== index));
+    const newServices = selectedServices.filter((_, i) => i !== index);
+    
+    // Check if remaining services have total duration > 0
+    const remainingDuration = newServices.reduce((total, item) => total + (item.service?.duration || 0), 0);
+    
+    // If only 0-duration services remain, show warning
+    if (newServices.length > 0 && remainingDuration === 0) {
+      setError('Ne možete rezervisati samo dodatne usluge. Molimo dodajte glavnu uslugu.');
+    } else {
+      setError(null);
+    }
+    
+    setSelectedServices(newServices);
     // Reset staff if they can't do remaining services
     setSelectedStaffId('');
   };

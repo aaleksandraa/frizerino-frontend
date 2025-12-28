@@ -138,6 +138,13 @@ export function ManualBookingModal({
       return;
     }
     
+    // VALIDATION: Check for zero duration service
+    const service = services.find(s => String(s.id) === selectedService);
+    if (service && service.duration === 0) {
+      setError('Ne možete rezervisati ovu uslugu samostalno. Molimo odaberite glavnu uslugu.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
