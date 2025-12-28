@@ -519,7 +519,6 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       case 1: {
         const hasAllServices = selectedServices.length > 0 && selectedServices.every(item => item.id);
         const totalDuration = getTotalDuration();
-        console.log('canProceed Step 1:', { hasAllServices, totalDuration, result: hasAllServices && totalDuration > 0 });
         return hasAllServices && totalDuration > 0; // Must have services AND total duration > 0
       }
       case 2: return !!selectedStaffId;
@@ -548,7 +547,6 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       
       // VALIDATION: Check for zero duration services
       const totalDuration = getTotalDuration();
-      console.log('handleNext Step 1 validation:', { totalDuration });
       if (totalDuration === 0) {
         setError('Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.');
         return;
@@ -850,11 +848,8 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
                     <div className="w-full">
                       {getTotalDuration() === 0 ? (
                         <div className="text-center">
-                          <p className="text-sm font-semibold text-red-700 mb-1">
-                            ⚠️ Ne možete rezervisati ovu uslugu samostalno
-                          </p>
-                          <p className="text-xs text-red-600">
-                            Molimo dodajte glavnu uslugu
+                          <p className="text-sm text-red-700">
+                            Ne možete rezervisati ovu uslugu samostalno. Molimo dodajte glavnu uslugu.
                           </p>
                         </div>
                       ) : (
