@@ -673,54 +673,53 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
     setError(null);
 
     try {
-      const appointments = [];
-      let currentTime = selectedTime;
+      // Create ONE appointment with all services
+      const serviceIds = selectedServices.map(s => s.id);
       
-      for (const selectedService of selectedServices) {
-        const appointmentData = {
+      const appointmentData = {
+        salon_id: salon.id,
+        staff_id: Number(selectedStaffId),
+        service_id: serviceIds.length === 1 ? Number(serviceIds[0]) : undefined,
+        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
+        date: selectedDate,
+        time: selectedTime,
+        notes,
+        ...(user ? {} : {
+          guest_name: guestData.guest_name,
+          guest_email: guestData.guest_email || undefined,
+          guest_phone: guestData.guest_phone,
+          guest_address: guestData.guest_address
+        })
+      };
+      
+      let response;
+      if (user) {
+        response = await appointmentAPI.createAppointment(appointmentData);
+      } else {
+        // For guest booking, ensure service_id is a number or omit it
+        const guestBookingData: any = {
           salon_id: salon.id,
           staff_id: Number(selectedStaffId),
-          service_id: Number(selectedService.id),
           date: selectedDate,
-          time: currentTime,
+          time: selectedTime,
           notes,
-          ...(user ? {} : {
-            guest_name: guestData.guest_name,
-            guest_email: guestData.guest_email || undefined,
-            guest_phone: guestData.guest_phone,
-            guest_address: guestData.guest_address
-          })
+          guest_name: guestData.guest_name,
+          guest_email: guestData.guest_email || undefined,
+          guest_phone: guestData.guest_phone,
+          guest_address: guestData.guest_address
         };
         
-        let response;
-        if (user) {
-          response = await appointmentAPI.createAppointment(appointmentData);
+        if (serviceIds.length === 1) {
+          guestBookingData.service_id = Number(serviceIds[0]);
         } else {
-          response = await publicAPI.bookAsGuest({
-            salon_id: salon.id,
-            staff_id: Number(selectedStaffId),
-            service_id: Number(selectedService.id),
-            date: selectedDate,
-            time: currentTime,
-            notes,
-            guest_name: guestData.guest_name,
-            guest_email: guestData.guest_email || undefined,
-            guest_phone: guestData.guest_phone,
-            guest_address: guestData.guest_address
-          });
+          guestBookingData.services = serviceIds.map(id => ({ id }));
         }
-        appointments.push(response.appointment || response);
         
-        // Calculate next service start time
-        if (selectedService.service) {
-          const [h, m] = currentTime.split(':').map(Number);
-          const nextMinutes = h * 60 + m + selectedService.service.duration;
-          currentTime = `${Math.floor(nextMinutes / 60).toString().padStart(2, '0')}:${(nextMinutes % 60).toString().padStart(2, '0')}`;
-        }
+        response = await publicAPI.bookAsGuest(guestBookingData);
       }
-
-      // Save first appointment for SuccessModal
-      setCreatedAppointment(appointments[0]);
+      
+      const appointment = response.appointment || response;
+      setCreatedAppointment(appointment);
       setShowSuccess(true);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Greška pri rezervaciji. Pokušajte ponovo.';

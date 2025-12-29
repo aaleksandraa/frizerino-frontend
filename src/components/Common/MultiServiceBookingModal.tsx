@@ -183,13 +183,14 @@ export function MultiServiceBookingModal({
     setError(null);
     
     try {
-      const [mainService, ...additionalServices] = selectedServices;
+      // Create appointment with all services
+      const serviceIds = selectedServices.map(s => s.id);
       
       await appointmentAPI.createAppointment({
         salon_id: salonId,
         staff_id: Number(selectedStaff),
-        service_id: Number(mainService.id),
-        additional_services: additionalServices.map(s => Number(s.id)),
+        service_id: serviceIds.length === 1 ? Number(serviceIds[0]) : undefined,
+        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
         date: selectedDate,
         time: selectedTime,
         notes,

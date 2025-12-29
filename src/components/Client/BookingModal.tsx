@@ -179,31 +179,23 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
 
     try {
       setLoading(true);
-      const appointments = [];
-      let currentTime = bookingData.time;
       
-      for (const serviceId of selectedServiceIds) {
-        const service = services.find(s => s.id === serviceId);
-        if (!service) continue;
-
-        const response = await appointmentAPI.createAppointment({
-          salon_id: salon.id,
-          staff_id: selectedStaffId,
-          service_id: serviceId,
-          date: bookingData.date,
-          time: currentTime,
-          notes: bookingData.notes
-        });
-        appointments.push(response.appointment);
-        
-        // Calculate next service start time
-        const [h, m] = currentTime.split(':').map(Number);
-        const nextMinutes = h * 60 + m + service.duration;
-        currentTime = `${Math.floor(nextMinutes / 60).toString().padStart(2, '0')}:${(nextMinutes % 60).toString().padStart(2, '0')}`;
-      }
-
-      setBookingDetails(appointments);
-      setCreatedAppointment(appointments[0]); // Save first appointment for SuccessModal
+      // Create ONE appointment with all services
+      const serviceIds = selectedServiceIds.filter(id => id !== '');
+      
+      const response = await appointmentAPI.createAppointment({
+        salon_id: salon.id,
+        staff_id: selectedStaffId,
+        service_id: serviceIds.length === 1 ? serviceIds[0] : undefined,
+        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
+        date: bookingData.date,
+        time: bookingData.time,
+        notes: bookingData.notes
+      });
+      
+      const appointment = response.appointment;
+      setBookingDetails([appointment]);
+      setCreatedAppointment(appointment);
       setShowSuccess(true);
       clearAppointmentForm();
     } catch (error) {
