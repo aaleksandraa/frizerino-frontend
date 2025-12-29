@@ -195,24 +195,17 @@ export function MultiServiceManualBookingModal({
     setError(null);
     
     try {
-      // Create appointment with first service
-      const mainServiceId = selectedServices[0].id;
-      
-      // Add additional services to notes
-      const additionalServices = selectedServices.slice(1);
-      const additionalServicesText = additionalServices.length > 0
-        ? `Dodatne usluge: ${additionalServices.map(s => s.name).join(', ')}`
-        : '';
-      
-      const finalNotes = [notes, additionalServicesText].filter(Boolean).join('\n');
+      // Create appointment with all services
+      const serviceIds = selectedServices.map(s => s.id);
       
       await appointmentAPI.createAppointment({
         salon_id: salonId,
         staff_id: Number(selectedStaff),
-        service_id: Number(mainServiceId),
+        service_id: serviceIds.length === 1 ? Number(serviceIds[0]) : undefined,
+        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
         date: selectedDate,
         time: selectedTime,
-        notes: finalNotes,
+        notes: notes,
         total_price: getTotalPrice(),
         ...clientData,
         is_manual: true

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAppearance } from '../../context/AppearanceContext';
 import { notificationAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
+import { initializeEcho, disconnectEcho } from '../../lib/echo';
 import { 
   XMarkIcon,
   BellIcon,
@@ -149,18 +150,66 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   
   const navLinks = getNavLinks();
 
-  // Load notifications
+  // Load notifications on mount
   useEffect(() => {
     if (user) {
       loadNotifications();
       loadUnreadCount();
-      
-      const interval = setInterval(() => {
-        loadUnreadCount();
-      }, 30000);
-      
-      return () => clearInterval(interval);
     }
+  }, [user]);
+
+  // Setup real-time notifications with Laravel Echo
+  useEffect(() => {
+    if (!user) return;
+
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Initialize Echo
+    const echo = initializeEcho(token);
+
+    // Listen for new notifications on user's private channel
+    echo.channel(`user.${user.id}`)
+      .listen('.notification.new', (data: any) => {
+        console.log('📢 Real-time notification received:', data);
+        
+        // Add new notification to the list
+        setNotifications(prev => [data.notification, ...prev]);
+        
+        // Increment unread count
+        setUnreadCount(prev => prev + 1);
+        
+        // Show browser notification if permission granted
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(data.notification.title, {
+            body: data.notification.message,
+            icon: '/logo.png',
+            badge: '/logo.png',
+          });
+        }
+        
+        // Play notification sound (optional)
+        try {
+          const audio = new Audio('/notification.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(() => {
+            // Silently fail if audio can't play
+          });
+        } catch (error) {
+          // Ignore audio errors
+        }
+      });
+
+    // Request browser notification permission on first load
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      disconnectEcho();
+    };
   }, [user]);
 
   // Close dropdowns when clicking outside
@@ -264,13 +313,28 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
         case 'appointment_cancelled':
         case 'appointment_reminder':
         case 'appointment_completed':
-          // Klijenti idu na appointments sekciju, saloni/frizeri na kalendar
+          // Navigate to calendar with date and appointment highlighted
           if (user?.role === 'klijent') {
             navigate('/moji-termini');
-          } else if (notification.appointment_date) {
-            navigate(`/dashboard?section=calendar&date=${notification.appointment_date}&appointment=${notification.appointment_id || notification.related_id}`);
+          } else if (notification.related_id) {
+            // For salon/staff, navigate to calendar
+            const dashboardPath = user?.role === 'salon' ? '/salon/dashboard' : '/frizer/dashboard';
+            
+            // If we have appointment data in notification, use it
+            if (notification.data?.appointment_date) {
+              // Convert DD.MM.YYYY to YYYY-MM-DD for URL
+              const dateParts = notification.data.appointment_date.split('.');
+              if (dateParts.length === 3) {
+                const isoDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                navigate(`${dashboardPath}?date=${isoDate}&appointment=${notification.related_id}`);
+              } else {
+                navigate(`${dashboardPath}?appointment=${notification.related_id}`);
+              }
+            } else {
+              navigate(`${dashboardPath}?appointment=${notification.related_id}`);
+            }
           } else {
-            navigate('/dashboard?section=appointments');
+            navigate(user?.role === 'salon' ? '/salon/dashboard' : '/frizer/dashboard');
           }
           break;
         case 'new_review':

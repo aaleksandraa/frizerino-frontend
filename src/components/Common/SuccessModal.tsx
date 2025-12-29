@@ -18,6 +18,13 @@ interface SuccessModalProps {
       duration: number;
       price: number;
     };
+    services?: Array<{
+      id: number;
+      name: string;
+      duration: number;
+      price: number;
+    }>;
+    is_multi_service?: boolean;
     salon?: {
       id: number;
       name: string;
@@ -41,11 +48,18 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, appointmen
   if (!isOpen) return null;
 
   // Safe access to nested properties - try both flat and nested structure
-  const serviceName = appointment?.service_name || appointment?.service?.name || 'N/A';
   const staffName = appointment?.staff_name || appointment?.staff?.name || 'N/A';
   const salonName = appointment?.salon?.name || 'N/A';
   const salonAddress = appointment?.salon?.address;
   const salonCity = appointment?.salon?.city;
+
+  // Handle multi-service appointments
+  const isMultiService = appointment?.is_multi_service || (appointment?.services && appointment.services.length > 1);
+  const services = appointment?.services || (appointment?.service ? [appointment.service] : []);
+  const serviceName = appointment?.service_name || services.map(s => s.name).join(', ') || 'N/A';
+  
+  // Calculate total duration
+  const totalDuration = services.reduce((sum, s) => sum + (s.duration || 0), 0);
 
   // Format time to remove seconds if present (HH:MM:SS -> HH:MM)
   const formatTime = (time: string) => {
@@ -132,8 +146,28 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, appointmen
           {/* Appointment Details */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <div>
-              <p className="text-sm text-gray-500">Usluga</p>
-              <p className="font-semibold text-gray-900">{serviceName}</p>
+              <p className="text-sm text-gray-500">{isMultiService ? 'Usluge' : 'Usluga'}</p>
+              {isMultiService && services.length > 0 ? (
+                <div className="space-y-1">
+                  {services.map((service, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <p className="font-semibold text-gray-900">
+                        {service.name}
+                        {service.duration > 0 && (
+                          <span className="text-sm text-gray-500 ml-2">({service.duration} min)</span>
+                        )}
+                      </p>
+                    </div>
+                  ))}
+                  {totalDuration > 0 && (
+                    <p className="text-sm text-gray-600 mt-2 pt-2 border-t">
+                      Ukupno trajanje: {totalDuration} minuta
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="font-semibold text-gray-900">{serviceName}</p>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
