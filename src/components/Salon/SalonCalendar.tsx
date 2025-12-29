@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
+import { formatTime, formatTimeRange } from '../../utils/timeFormat';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { MultiServiceBookingModal } from '../Common/MultiServiceBookingModal';
 import { SalonCalendarWeekView } from './SalonCalendarWeekView';
@@ -259,9 +260,29 @@ export function SalonCalendar() {
     }
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    return service?.name || 'Nepoznata usluga';
+  const getServiceName = (appointment: any) => {
+    // Priority 1: Use service_name from backend (already formatted for multi-service)
+    if (appointment.service_name) {
+      return appointment.service_name;
+    }
+    
+    // Priority 2: Use services array if available
+    if (appointment.services && appointment.services.length > 0) {
+      return appointment.services.map((s: any) => s.name).join(', ');
+    }
+    
+    // Priority 3: Use service object if available
+    if (appointment.service) {
+      return appointment.service.name;
+    }
+    
+    // Priority 4: Fallback to looking up by service_id
+    if (appointment.service_id) {
+      const service = services.find(s => s.id === appointment.service_id);
+      return service?.name || 'Nepoznata usluga';
+    }
+    
+    return 'Nepoznata usluga';
   };
 
   const getStaffName = (staffId: string) => {
@@ -484,7 +505,7 @@ export function SalonCalendar() {
                         key={appointment.id}
                         className={`text-xs px-1 py-0.5 rounded truncate ${getStatusColor(appointment.status)}`}
                       >
-                        {appointment.time}
+                        {formatTimeRange(appointment.time, appointment.end_time)}
                       </div>
                     ))}
                     {dayAppointments.length > 2 && (
@@ -557,7 +578,7 @@ export function SalonCalendar() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-lg font-semibold text-gray-900">
-                        {appointment.time}
+                        {formatTimeRange(appointment.time, appointment.end_time)}
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                         {getStatusText(appointment.status)}
@@ -597,7 +618,7 @@ export function SalonCalendar() {
                       </div>
                       
                       <div className="text-gray-600">
-                        <strong>Usluga:</strong> {getServiceName(appointment.service_id)}
+                        <strong>Usluga:</strong> {getServiceName(appointment)}
                       </div>
                       
                       <div className="text-gray-600">

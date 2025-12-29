@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
+import { formatTime, formatTimeRange } from '../../utils/timeFormat';
 import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 import { MultiServiceBookingModal } from '../Common/MultiServiceBookingModal';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
@@ -281,9 +282,17 @@ export function FrizerCalendar() {
     }
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    return service?.name || 'Nepoznata usluga';
+  const getServiceName = (appointment: any) => {
+    if (appointment.service_name) return appointment.service_name;
+    if (appointment.services?.length > 0) {
+      return appointment.services.map((s: any) => s.name).join(', ');
+    }
+    if (appointment.service) return appointment.service.name;
+    if (appointment.service_id) {
+      const service = services.find(s => s.id === appointment.service_id);
+      return service?.name || 'Nepoznata usluga';
+    }
+    return 'Nepoznata usluga';
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -561,7 +570,7 @@ export function FrizerCalendar() {
                       <div className="flex items-center gap-2">
                         <Clock className="w-5 h-5 text-blue-600" />
                         <span className="text-lg font-semibold text-gray-900">
-                          {appointment.time} - {appointment.end_time}
+                          {formatTimeRange(appointment.time, appointment.end_time)}
                         </span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
@@ -608,7 +617,7 @@ export function FrizerCalendar() {
                       {/* Service */}
                       <div className="flex items-center gap-2">
                         <Scissors className="w-4 h-4 text-purple-500" />
-                        <span className="text-gray-700">{getServiceName(appointment.service_id)}</span>
+                        <span className="text-gray-700">{getServiceName(appointment)}</span>
                         <span className="text-gray-500">•</span>
                         <span className="font-semibold text-gray-900">{appointment.total_price} KM</span>
                       </div>
