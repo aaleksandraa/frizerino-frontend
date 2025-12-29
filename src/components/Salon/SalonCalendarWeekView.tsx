@@ -311,9 +311,17 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
     }
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    return service?.name || 'Nepoznata usluga';
+  const getServiceName = (appointment: any) => {
+    if (appointment.service_name) return appointment.service_name;
+    if (appointment.services && appointment.services.length > 0) {
+      return appointment.services.map((s: any) => s.name).join(', ');
+    }
+    if (appointment.service) return appointment.service.name;
+    if (appointment.service_id) {
+      const service = services.find(s => s.id === appointment.service_id);
+      return service?.name || 'Nepoznata usluga';
+    }
+    return 'Nepoznata usluga';
   };
 
   const getStaffName = (staffId: string) => {
@@ -555,7 +563,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
                                 {appointment.client_name}
                               </div>
                               <div className="text-xs truncate opacity-90">
-                                {getServiceName(appointment.service_id)}
+                                {getServiceName(appointment)}
                               </div>
                               {selectedStaff === 'all' && (
                                 <div className="text-xs truncate opacity-75 mt-1">
@@ -629,7 +637,7 @@ export function SalonCalendarWeekView({ onViewChange }: SalonCalendarWeekViewPro
 
               <div>
                 <div className="text-sm text-gray-500">Usluga</div>
-                <div className="font-medium">{getServiceName(selectedAppointment.service_id)}</div>
+                <div className="font-medium">{getServiceName(selectedAppointment)}</div>
               </div>
 
               <div>

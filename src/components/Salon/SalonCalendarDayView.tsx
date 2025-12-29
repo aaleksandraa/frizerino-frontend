@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { appointmentAPI, staffAPI, serviceAPI } from '../../services/api';
 import { formatDateEuropean, getCurrentDateEuropean } from '../../utils/dateUtils';
+import { formatTime, formatTimeRange } from '../../utils/timeFormat';
 import { ClientDetailsModal } from '../Common/ClientDetailsModal';
 import { MultiServiceManualBookingModal } from '../Common/MultiServiceManualBookingModal';
 
@@ -384,9 +385,29 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
     }
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    return service?.name || 'Nepoznata usluga';
+  const getServiceName = (appointment: any) => {
+    // Priority 1: Use service_name from backend (already formatted for multi-service)
+    if (appointment.service_name) {
+      return appointment.service_name;
+    }
+    
+    // Priority 2: Use services array if available
+    if (appointment.services && appointment.services.length > 0) {
+      return appointment.services.map((s: any) => s.name).join(', ');
+    }
+    
+    // Priority 3: Use service object if available
+    if (appointment.service) {
+      return appointment.service.name;
+    }
+    
+    // Priority 4: Fallback to looking up by service_id
+    if (appointment.service_id) {
+      const service = services.find(s => s.id === appointment.service_id);
+      return service?.name || 'Nepoznata usluga';
+    }
+    
+    return 'Nepoznata usluga';
   };
 
   const getStaffName = (staffId: string) => {
@@ -711,17 +732,17 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
                               {appointment.time}
                             </div>
                             <div className="text-xs opacity-75">
-                              {appointment.end_time}
+                              {formatTime(appointment.end_time)}
                             </div>
                           </div>
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-lg mb-1">
-                              {getServiceName(appointment.service_id)}
+                              {getServiceName(appointment)}
                             </div>
                             <div className="text-sm opacity-90 mb-2">
-                              {appointment.time} - {appointment.end_time} ({slot.duration} min)
+                              {formatTimeRange(appointment.time, appointment.end_time)} ({slot.duration} min)
                             </div>
                             <div className="space-y-1 text-sm">
                               <div className="flex items-center gap-1">
@@ -796,7 +817,7 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
               <div>
                 <div className="text-sm text-gray-500">Datum i vrijeme</div>
                 <div className="font-medium">
-                  {selectedAppointment.date} • {selectedAppointment.time} - {selectedAppointment.end_time}
+                  {selectedAppointment.date} • {formatTimeRange(selectedAppointment.time, selectedAppointment.end_time)}
                 </div>
               </div>
 
@@ -826,7 +847,7 @@ export function SalonCalendarDayView({ onViewChange }: SalonCalendarDayViewProps
 
               <div>
                 <div className="text-sm text-gray-500">Usluga</div>
-                <div className="font-medium">{getServiceName(selectedAppointment.service_id)}</div>
+                <div className="font-medium">{getServiceName(selectedAppointment)}</div>
               </div>
 
               <div>

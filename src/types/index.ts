@@ -206,10 +206,14 @@ export interface Appointment {
   guest_address?: string;
   salon_id: string;
   staff_id: string;
-  service_id: string;
+  service_id: string | null; // Can be null for multi-service appointments
+  service_ids?: number[]; // For multi-service appointments
+  is_multi_service?: boolean;
+  service_name?: string; // Service name(s) from backend
+  services?: Service[]; // All services for this appointment
   salon?: Salon;
   staff?: Staff;
-  service?: Service;
+  service?: Service; // Single service (for backward compatibility)
   date: string; // DD.MM.YYYY format
   time: string;
   end_time: string;
