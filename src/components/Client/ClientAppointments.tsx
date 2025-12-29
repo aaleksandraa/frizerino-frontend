@@ -207,7 +207,12 @@ export function ClientAppointments() {
             </div>
             <div className="text-sm">
               <span className="font-medium">Usluga:</span>
-              <span className="ml-2">{appointment.service.name}</span>
+              <span className="ml-2">
+                {appointment.service_name || 
+                 (appointment.services && appointment.services.length > 0 
+                   ? appointment.services.map((s: any) => s.name).join(', ')
+                   : appointment.service?.name || 'Nepoznata usluga')}
+              </span>
             </div>
             <div className="text-sm">
               <span className="font-medium">Cijena:</span>

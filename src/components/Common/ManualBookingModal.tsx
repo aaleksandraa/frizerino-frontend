@@ -152,7 +152,7 @@ export function ManualBookingModal({
       await appointmentAPI.createAppointment({
         salon_id: salonId,
         staff_id: Number(selectedStaff),
-        service_id: Number(selectedService),
+        service_id: Number(selectedService), // Single service - use service_id
         date: selectedDate,
         time: selectedTime,
         notes,

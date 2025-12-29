@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppearance } from '../../context/AppearanceContext';
 import { notificationAPI } from '../../services/api';
 import { StaffRole, StaffRoleLabels } from '../../types';
-import { initializeEcho, disconnectEcho } from '../../lib/echo';
 import { 
   XMarkIcon,
   BellIcon,
@@ -150,66 +149,20 @@ export const MainNavbar: React.FC<MainNavbarProps> = ({ transparent = false }) =
   
   const navLinks = getNavLinks();
 
-  // Load notifications on mount
+  // Load notifications on mount and poll every 30 seconds
   useEffect(() => {
     if (user) {
       loadNotifications();
       loadUnreadCount();
+      
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(() => {
+        loadNotifications();
+        loadUnreadCount();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
-  }, [user]);
-
-  // Setup real-time notifications with Laravel Echo
-  useEffect(() => {
-    if (!user) return;
-
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    // Initialize Echo
-    const echo = initializeEcho(token);
-
-    // Listen for new notifications on user's private channel
-    echo.channel(`user.${user.id}`)
-      .listen('.notification.new', (data: any) => {
-        console.log('📢 Real-time notification received:', data);
-        
-        // Add new notification to the list
-        setNotifications(prev => [data.notification, ...prev]);
-        
-        // Increment unread count
-        setUnreadCount(prev => prev + 1);
-        
-        // Show browser notification if permission granted
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(data.notification.title, {
-            body: data.notification.message,
-            icon: '/logo.png',
-            badge: '/logo.png',
-          });
-        }
-        
-        // Play notification sound (optional)
-        try {
-          const audio = new Audio('/notification.mp3');
-          audio.volume = 0.5;
-          audio.play().catch(() => {
-            // Silently fail if audio can't play
-          });
-        } catch (error) {
-          // Ignore audio errors
-        }
-      });
-
-    // Request browser notification permission on first load
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    // Cleanup on unmount
-    return () => {
-      disconnectEcho();
-    };
   }, [user]);
 
   // Close dropdowns when clicking outside

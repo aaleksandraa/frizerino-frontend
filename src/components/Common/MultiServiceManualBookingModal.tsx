@@ -198,18 +198,26 @@ export function MultiServiceManualBookingModal({
       // Create appointment with all services
       const serviceIds = selectedServices.map(s => s.id);
       
-      await appointmentAPI.createAppointment({
+      // Prepare appointment data
+      const appointmentData: any = {
         salon_id: salonId,
         staff_id: Number(selectedStaff),
-        service_id: serviceIds.length === 1 ? Number(serviceIds[0]) : undefined,
-        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
         date: selectedDate,
         time: selectedTime,
         notes: notes,
         total_price: getTotalPrice(),
         ...clientData,
         is_manual: true
-      });
+      };
+      
+      // Send service_id for single service, services array for multiple
+      if (serviceIds.length === 1) {
+        appointmentData.service_id = Number(serviceIds[0]);
+      } else {
+        appointmentData.services = serviceIds.map(id => ({ id: Number(id) }));
+      }
+      
+      await appointmentAPI.createAppointment(appointmentData);
       
       setSuccess(true);
       setTimeout(() => {

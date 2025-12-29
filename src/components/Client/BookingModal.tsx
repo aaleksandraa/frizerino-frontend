@@ -183,15 +183,23 @@ export function BookingModal({ salon, selectedService, onClose, onBookingComplet
       // Create ONE appointment with all services
       const serviceIds = selectedServiceIds.filter(id => id !== '');
       
-      const response = await appointmentAPI.createAppointment({
+      // Prepare appointment data
+      const appointmentData: any = {
         salon_id: salon.id,
         staff_id: selectedStaffId,
-        service_id: serviceIds.length === 1 ? serviceIds[0] : undefined,
-        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
         date: bookingData.date,
         time: bookingData.time,
         notes: bookingData.notes
-      });
+      };
+      
+      // Send service_id for single service, services array for multiple
+      if (serviceIds.length === 1) {
+        appointmentData.service_id = Number(serviceIds[0]);
+      } else {
+        appointmentData.services = serviceIds.map(id => ({ id: Number(id) }));
+      }
+      
+      const response = await appointmentAPI.createAppointment(appointmentData);
       
       const appointment = response.appointment;
       setBookingDetails([appointment]);

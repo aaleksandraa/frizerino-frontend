@@ -676,14 +676,25 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       // Create ONE appointment with all services
       const serviceIds = selectedServices.map(s => s.id);
       
-      const appointmentData = {
+      // Prepare base appointment data
+      const baseData: any = {
         salon_id: salon.id,
         staff_id: Number(selectedStaffId),
-        service_id: serviceIds.length === 1 ? Number(serviceIds[0]) : undefined,
-        services: serviceIds.length > 1 ? serviceIds.map(id => ({ id })) : undefined,
         date: selectedDate,
         time: selectedTime,
-        notes,
+        notes
+      };
+      
+      // Send service_id for single service, services array for multiple
+      if (serviceIds.length === 1) {
+        baseData.service_id = Number(serviceIds[0]);
+      } else {
+        baseData.services = serviceIds.map(id => ({ id: Number(id) }));
+      }
+      
+      // Add user-specific or guest-specific data
+      const appointmentData = {
+        ...baseData,
         ...(user ? {} : {
           guest_name: guestData.guest_name,
           guest_email: guestData.guest_email || undefined,
@@ -696,26 +707,7 @@ export const GuestBookingModal: React.FC<GuestBookingModalProps> = ({
       if (user) {
         response = await appointmentAPI.createAppointment(appointmentData);
       } else {
-        // For guest booking, ensure service_id is a number or omit it
-        const guestBookingData: any = {
-          salon_id: salon.id,
-          staff_id: Number(selectedStaffId),
-          date: selectedDate,
-          time: selectedTime,
-          notes,
-          guest_name: guestData.guest_name,
-          guest_email: guestData.guest_email || undefined,
-          guest_phone: guestData.guest_phone,
-          guest_address: guestData.guest_address
-        };
-        
-        if (serviceIds.length === 1) {
-          guestBookingData.service_id = Number(serviceIds[0]);
-        } else {
-          guestBookingData.services = serviceIds.map(id => ({ id }));
-        }
-        
-        response = await publicAPI.bookAsGuest(guestBookingData);
+        response = await publicAPI.bookAsGuest(appointmentData);
       }
       
       const appointment = response.appointment || response;
